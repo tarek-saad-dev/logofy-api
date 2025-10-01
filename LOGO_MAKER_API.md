@@ -27,7 +27,103 @@ The API uses a comprehensive PostgreSQL schema with the following main entities:
 
 ## API Endpoints
 
-### 1. Logo Management
+### 1. Mobile-Compatible Endpoints
+
+For mobile app integration, use these endpoints that return data in the exact JSON format expected by the mobile team:
+
+#### Get Logo in Mobile Format
+```http
+GET /api/logo/:id/mobile
+```
+
+#### Create Logo from Mobile Format
+```http
+POST /api/logo/mobile
+Content-Type: application/json
+
+{
+  "logoId": "1759094821977",
+  "templateId": null,
+  "userId": "current_user",
+  "name": "My Logo",
+  "description": "Logo description",
+  "canvas": {
+    "aspectRatio": 1.0,
+    "background": {
+      "type": "solid",
+      "solidColor": "#ffffff",
+      "gradient": null,
+      "image": null
+    }
+  },
+  "layers": [
+    {
+      "layerId": "1759074588677",
+      "type": "text",
+      "visible": true,
+      "order": 0,
+      "position": { "x": 0.5, "y": 0.5 },
+      "scaleFactor": 1.0,
+      "rotation": 0.0,
+      "opacity": 1.0,
+      "flip": { "horizontal": false, "vertical": false },
+      "text": {
+        "value": "My Text",
+        "font": "Arial",
+        "fontColor": "#000000",
+        "fontWeight": "normal",
+        "fontStyle": "normal",
+        "alignment": "center",
+        "lineHeight": 1.0,
+        "letterSpacing": 0
+      }
+    }
+  ],
+  "colorsUsed": [
+    {
+      "role": "text",
+      "color": "#000000"
+    }
+  ],
+  "alignments": {
+    "verticalAlign": "center",
+    "horizontalAlign": "center"
+  },
+  "responsive": {
+    "version": "3.0",
+    "description": "Fully responsive logo data",
+    "scalingMethod": "scaleFactor",
+    "positionMethod": "relative",
+    "fullyResponsive": true
+  },
+  "metadata": {
+    "createdAt": "2025-09-29T00:27:01.974384",
+    "updatedAt": "2025-09-29T00:27:01.974384",
+    "tags": ["logo", "design", "responsive"],
+    "version": 3,
+    "responsive": true
+  },
+  "export": {
+    "format": "png",
+    "transparentBackground": true,
+    "quality": 100,
+    "responsive": {
+      "scalable": true,
+      "maintainAspectRatio": true
+    }
+  }
+}
+```
+
+**Alternative Format Support:**
+```http
+GET /api/logo/:id?format=mobile
+POST /api/logo?format=mobile
+```
+
+For detailed mobile API documentation, see [MOBILE_API_DOCUMENTATION.md](./MOBILE_API_DOCUMENTATION.md).
+
+### 2. Logo Management
 
 #### Create Logo
 ```http

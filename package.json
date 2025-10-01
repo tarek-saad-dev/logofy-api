@@ -18,6 +18,7 @@
     "build": "echo 'No build step required'",
     "vercel-build": "echo 'No build step required'",
     "test": "echo 'No tests specified'",
+    "test:mobile": "node test_mobile_endpoints.js",
     "lint": "echo 'No linter configured'",
     "deploy": "vercel --prod",
     "deploy:preview": "vercel",
@@ -64,7 +65,8 @@
     "multer-storage-cloudinary": "^4.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "nodemon": "^3.0.2",
+    "axios": "^1.6.0"
   },
   "engines": {
     "node": ">=18.0.0"

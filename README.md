@@ -2,6 +2,42 @@
 
 This is the backend for the Logo Maker app. It serves logos and their render layers, each linked to an asset. Use these endpoints from your frontend to render and manage logos.
 
+## 🆕 What's New (Mobile-ready data + list endpoint)
+
+- New paginated list endpoint returning the same mobile shape as `GET /api/logo/:id/mobile`:
+  - `GET /api/logo/mobile?page=<number>&limit=<number>` (defaults: page=1, limit=20, max limit=100)
+  - Response includes `data` (array of logos in mobile format) and `pagination` `{ page, limit, total, pages }`.
+- Route ordering hardened: static routes are registered before parameterized ones to avoid `/mobile` being captured by `/:id`.
+- Mobile mapping normalized:
+  - All numeric fields are numbers (not strings): `position.x/y`, `scaleFactor`, `rotation`, `opacity`, text `lineHeight`/`letterSpacing`, shape `strokeWidth`.
+  - IMAGE layers now use `{ type: 'imported', path }` for consistency with background images.
+  - ICON layers ensure `src` falls back to `icon_<asset_id>` when `asset_name` is missing.
+  - `colorsUsed` falls back to computed colors from layers when the DB `colors_used` array is empty.
+- Schema note: IDs are UUID, so list joins use `ANY($1::uuid[])`.
+
+Quick smoke tests
+
+- Health:
+  - PowerShell: `Invoke-RestMethod http://localhost:3000/health | ConvertTo-Json -Depth 4`
+  - curl: `curl -s http://localhost:3000/health | jq`
+- List (page 1):
+  - `curl -s http://localhost:3000/api/logo/mobile | jq '.pagination, .data[0]'`
+- List (page 2, limit 50):
+  - `curl -s "http://localhost:3000/api/logo/mobile?page=2&limit=50" | jq '.pagination'`
+- Single (mobile):
+  - `curl -s http://localhost:3000/api/logo/<UUID>/mobile | jq '.logoId, .layers | length'`
+- Single (structured):
+  - `curl -s http://localhost:3000/api/logo/<UUID>/mobile-structured | jq '.responsive, .export'`
+
+Uncommitted changes (working tree)
+
+- Modified: `LOGO_MAKER_API.md`, `api/routes/logo.js`, `package.json`, `package-lock.json`
+- Untracked (added):
+  - `MOBILE_API_DOCUMENTATION.md`, `MOBILE_INTEGRATION_SUMMARY.md`
+  - `api/config/add_mobile_fields.sql`, `api/config/add_mobile_fields_fixed.sql`, `api/config/run_mobile_migration.js`, `api/config/update_function.sql`
+  - `api/routes/logo.js.backup`, `api/routes/logo_duplicate_issue.js`, `api/routes/logo_updated.js`
+  - `manual_uuid_test.js`, `minimal_test.js`, `simple_test.js`, `test_mobile_endpoints.js`, `test_mobile_structured.js`, `uuid_test.js`
+
 ## Base URLs
 - Local: `http://localhost:3000`
 - Production: `https://logo-maker-endpoints.vercel.app`
