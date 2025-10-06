@@ -7,6 +7,7 @@ This document describes the mobile-focused endpoints, payload shape, and example
 - Production: `https://logo-maker-endpoints.vercel.app`
 
 ### Endpoints Summary
+- GET `/api/logo/thumbnails` — Lightweight logo list with thumbnails for home page
 - GET `/api/logo/mobile` — Paginated list of logos in mobile shape
 - GET `/api/logo/:id/mobile` — Single logo in mobile shape
 - GET `/api/logo/:id/mobile-structured` — Single logo with strict/verbose mobile fields
@@ -14,7 +15,48 @@ This document describes the mobile-focused endpoints, payload shape, and example
 
 ---
 
-### 1) GET /api/logo/mobile (Paginated list)
+### 1) GET /api/logo/thumbnails (Home page thumbnails)
+Perfect for home page logo listings - returns only essential data (ID, title, thumbnail) with category filtering.
+
+Query params:
+- `page` (number, default 1, min 1)
+- `limit` (number, default 20, max 100)
+- `category_id` (string, optional) - Filter by category UUID
+
+Response:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "<uuid>",
+      "title": "Logo Name",
+      "thumbnailUrl": "https://...",
+      "categoryId": "<uuid|null>",
+      "categoryName": "Category Name",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": { "page": 1, "limit": 20, "total": 123, "pages": 7 }
+}
+```
+
+Examples:
+```bash
+# Get all thumbnails
+curl -s http://localhost:3000/api/logo/thumbnails | jq '.data[0]'
+
+# Get thumbnails for specific category
+curl -s "http://localhost:3000/api/logo/thumbnails?category_id=123e4567-e89b-12d3-a456-426614174000" | jq '.data'
+
+# Get thumbnails with pagination
+curl -s "http://localhost:3000/api/logo/thumbnails?page=2&limit=10" | jq '.pagination'
+```
+
+---
+
+### 2) GET /api/logo/mobile (Paginated list)
 Returns an array of logos, each in the same shape as the single mobile endpoint.
 
 Query params:
@@ -123,7 +165,7 @@ curl -s http://localhost:3000/api/logo/mobile | jq '.pagination, .data[0]'
 
 ---
 
-### 2) GET /api/logo/:id/mobile (Single)
+### 3) GET /api/logo/:id/mobile (Single)
 Returns one `MobileLogo` object.
 
 ```bash
@@ -132,7 +174,7 @@ curl -s http://localhost:3000/api/logo/<UUID>/mobile | jq '.logoId, .layers | le
 
 ---
 
-### 3) GET /api/logo/:id/mobile-structured (Single, structured)
+### 4) GET /api/logo/:id/mobile-structured (Single, structured)
 Same logical data as above, but includes more verbose joins and exact fields expected for strict validation.
 
 ```bash
@@ -141,7 +183,7 @@ curl -s http://localhost:3000/api/logo/<UUID>/mobile-structured | jq '.responsiv
 
 ---
 
-### 4) POST /api/logo/mobile (Create from mobile shape)
+### 5) POST /api/logo/mobile (Create from mobile shape)
 Accepts the same `MobileLogo` shape and creates a logo with layers.
 
 Body (example minimal):

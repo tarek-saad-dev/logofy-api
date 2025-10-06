@@ -6,6 +6,78 @@ const { query, getClient } = require('../config/database');
 // STATIC ROUTES FIRST (avoid shadowing by /:id)
 // ==============================================
 
+// GET /api/logo/thumbnails - Get lightweight logo list with thumbnails for home page
+router.get('/thumbnails', async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page ?? '1', 10));
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit ?? '20', 10)));
+    const categoryId = req.query.category_id;
+    const offset = (page - 1) * limit;
+
+    // Build query with optional category filter
+    let whereClause = '';
+    let queryParams = [limit, offset];
+    
+    if (categoryId) {
+      whereClause = 'WHERE l.category_id = $3';
+      queryParams = [limit, offset, categoryId];
+    }
+
+    const logosRes = await query(`
+      SELECT 
+        l.id,
+        l.title,
+        l.thumbnail_url,
+        l.category_id,
+        c.name as category_name,
+        l.created_at,
+        l.updated_at
+      FROM logos l
+      LEFT JOIN categories c ON c.id = l.category_id
+      ${whereClause}
+      ORDER BY l.created_at DESC
+      LIMIT $1 OFFSET $2
+    `, queryParams);
+
+    // Get total count for pagination
+    let countQuery = 'SELECT COUNT(*)::int AS total FROM logos l';
+    let countParams = [];
+    
+    if (categoryId) {
+      countQuery += ' WHERE l.category_id = $1';
+      countParams = [categoryId];
+    }
+    
+    const totalRes = await query(countQuery, countParams);
+    const total = totalRes.rows[0].total;
+
+    // Format response data
+    const data = logosRes.rows.map(logo => ({
+      id: logo.id,
+      title: logo.title,
+      thumbnailUrl: logo.thumbnail_url,
+      categoryId: logo.category_id,
+      categoryName: logo.category_name,
+      createdAt: new Date(logo.created_at).toISOString(),
+      updatedAt: new Date(logo.updated_at).toISOString()
+    }));
+
+    res.json({ 
+      success: true, 
+      data, 
+      pagination: { 
+        page, 
+        limit, 
+        total, 
+        pages: Math.ceil(total / limit) 
+      } 
+    });
+  } catch (err) {
+    console.error('Error fetching logo thumbnails:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch logo thumbnails' });
+  }
+});
+
 // GET /api/logo/mobile - list all logos in mobile-compatible format (paginated)
 router.get('/mobile', async (req, res) => {
   try {
