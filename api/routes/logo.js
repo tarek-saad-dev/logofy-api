@@ -6,7 +6,7 @@ const { query, getClient } = require('../config/database');
 // STATIC ROUTES FIRST (avoid shadowing by /:id)
 // ==============================================
 
-// GET /api/logo/thumbnails - Get lightweight logo list with thumbnails for home page
+// GET /api/logo/thumbnails - Get lightweight logo list with thumbnails grouped by category
 router.get('/thumbnails', async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page ?? '1', 10));
@@ -35,7 +35,7 @@ router.get('/thumbnails', async (req, res) => {
       FROM logos l
       LEFT JOIN categories c ON c.id = l.category_id
       ${whereClause}
-      ORDER BY l.created_at DESC
+      ORDER BY l.category_id ASC, l.created_at DESC
       LIMIT $1 OFFSET $2
     `, queryParams);
 
@@ -52,7 +52,7 @@ router.get('/thumbnails', async (req, res) => {
     const total = totalRes.rows[0].total;
 
     // Format response data
-    const data = logosRes.rows.map(logo => ({
+    const formattedLogos = logosRes.rows.map(logo => ({
       id: logo.id,
       title: logo.title,
       thumbnailUrl: logo.thumbnail_url,
@@ -62,14 +62,45 @@ router.get('/thumbnails', async (req, res) => {
       updatedAt: new Date(logo.updated_at).toISOString()
     }));
 
+    // Group logos by category into list of lists
+    const categoryGroups = [];
+    const categoryMap = new Map();
+
+    formattedLogos.forEach(logo => {
+      const categoryKey = logo.categoryId || 'uncategorized';
+      const categoryName = logo.categoryName || 'Uncategorized';
+      
+      if (!categoryMap.has(categoryKey)) {
+        const categoryGroup = {
+          categoryId: logo.categoryId,
+          categoryName: categoryName,
+          logos: []
+        };
+        categoryMap.set(categoryKey, categoryGroup);
+        categoryGroups.push(categoryGroup);
+      }
+      
+      categoryMap.get(categoryKey).logos.push(logo);
+    });
+
+    // Convert to list of lists format as requested
+    const groupedData = categoryGroups.map(group => ({
+      category: {
+        id: group.categoryId,
+        name: group.categoryName
+      },
+      logos: group.logos
+    }));
+
     res.json({ 
       success: true, 
-      data, 
+      data: groupedData,
       pagination: { 
         page, 
         limit, 
         total, 
-        pages: Math.ceil(total / limit) 
+        pages: Math.ceil(total / limit),
+        categoriesCount: categoryGroups.length
       } 
     });
   } catch (err) {
