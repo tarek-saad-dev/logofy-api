@@ -1,0 +1,1530 @@
+{
+  "logo_maker_api_complete_reference": {
+    "description": "Complete JSON reference for Logo Maker API with all possible layer attributes and values",
+    "version": "1.0.0",
+    "base_url": "http://localhost:3000/api",
+    "endpoints": {
+      "create_logo": "POST /api/logo",
+      "create_mobile_logo": "POST /api/logo/mobile",
+      "get_logo": "GET /api/logo/:id",
+      "get_mobile_logo": "GET /api/logo/:id/mobile",
+      "update_logo": "PATCH /api/logo/:id",
+      "delete_logo": "DELETE /api/logo/:id",
+      "export_png": "GET /api/logo/:id/export.png",
+      "export_svg": "GET /api/logo/:id/export.svg",
+      "thumbnail": "GET /api/logo/:id/thumbnail"
+    },
+    
+    "logo_structure": {
+      "required_fields": {
+        "name": "string - Logo name/title",
+        "canvas": "object - Canvas configuration",
+        "layers": "array - Array of layer definitions"
+      },
+      "optional_fields": {
+        "logoId": "string - UUID for logo ID",
+        "templateId": "string - Template ID to base logo on",
+        "userId": "string - User ID or email for ownership",
+        "description": "string - Logo description",
+        "colorsUsed": "array - Colors used in the logo",
+        "alignments": "object - Logo alignment settings",
+        "responsive": "object - Responsive configuration",
+        "metadata": "object - Metadata information",
+        "export": "object - Export settings"
+      }
+    },
+
+    "canvas_configuration": {
+      "aspectRatio": {
+        "type": "number",
+        "description": "Canvas aspect ratio (width/height)",
+        "examples": [0.5, 1.0, 1.5, 2.0, 3.0],
+        "default": 1.0
+      },
+      "background": {
+        "type": "object",
+        "required": true,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["solid", "gradient", "image"],
+            "description": "Background type"
+          },
+          "solidColor": {
+            "type": "string",
+            "format": "hex_color",
+            "description": "Hex color for solid background",
+            "examples": ["#ffffff", "#000000", "#ff6b6b", "#4ecdc4", "#2196F3"]
+          },
+          "gradient": {
+            "type": "object",
+            "description": "Gradient configuration",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["linear", "radial"],
+                "description": "Gradient type"
+              },
+              "angle": {
+                "type": "number",
+                "description": "Angle for linear gradients (degrees)",
+                "range": [0, 360],
+                "examples": [0, 45, 90, 135, 180, 225, 270, 315]
+              },
+              "stops": {
+                "type": "array",
+                "description": "Color stops for gradient",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "offset": {
+                      "type": "number",
+                      "range": [0, 1],
+                      "description": "Position along gradient (0-1)"
+                    },
+                    "hex": {
+                      "type": "string",
+                      "format": "hex_color",
+                      "description": "Hex color at this stop"
+                    },
+                    "alpha": {
+                      "type": "number",
+                      "range": [0, 1],
+                      "description": "Alpha/opacity at this stop"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "image": {
+            "type": "object",
+            "description": "Image background configuration",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["imported", "url"],
+                "description": "Image type"
+              },
+              "path": {
+                "type": "string",
+                "description": "Image path or URL"
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "layer_types": {
+      "TEXT": {
+        "description": "Text layer for displaying text content",
+        "properties": {
+          "layerId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique layer identifier",
+            "optional": true
+          },
+          "type": {
+            "type": "string",
+            "enum": ["text", "TEXT"],
+            "description": "Layer type"
+          },
+          "visible": {
+            "type": "boolean",
+            "description": "Layer visibility",
+            "default": true
+          },
+          "order": {
+            "type": "integer",
+            "description": "Z-index/rendering order",
+            "default": 0
+          },
+          "position": {
+            "type": "object",
+            "description": "Layer position (normalized coordinates)",
+            "properties": {
+              "x": {
+                "type": "number",
+                "range": [0, 1],
+                "description": "X position (0=left, 1=right)"
+              },
+              "y": {
+                "type": "number",
+                "range": [0, 1],
+                "description": "Y position (0=top, 1=bottom)"
+              }
+            }
+          },
+          "scaleFactor": {
+            "type": "number",
+            "description": "Scale factor",
+            "range": [0.1, 10.0],
+            "default": 1.0
+          },
+          "rotation": {
+            "type": "number",
+            "description": "Rotation in degrees",
+            "range": [-360, 360],
+            "default": 0
+          },
+          "opacity": {
+            "type": "number",
+            "description": "Opacity/transparency",
+            "range": [0, 1],
+            "default": 1.0
+          },
+          "flip": {
+            "type": "object",
+            "description": "Flip settings",
+            "properties": {
+              "horizontal": {
+                "type": "boolean",
+                "description": "Flip horizontally",
+                "default": false
+              },
+              "vertical": {
+                "type": "boolean",
+                "description": "Flip vertically",
+                "default": false
+              }
+            }
+          },
+          "text": {
+            "type": "object",
+            "description": "Text-specific properties",
+            "properties": {
+              "value": {
+                "type": "string",
+                "description": "Text content",
+                "required": true
+              },
+              "font": {
+                "type": "string",
+                "description": "Font family name",
+                "examples": ["Arial", "Helvetica", "Times New Roman", "Courier New", "Georgia", "Verdana", "Comic Sans MS", "Impact", "Trebuchet MS", "Palatino", "Garamond", "Bookman", "Avant Garde", "Helvetica Neue", "Futura", "Bodoni", "Didot", "Optima", "Calibri", "Cambria", "Candara", "Consolas", "Constantia", "Corbel", "Franklin Gothic", "Geneva", "Gill Sans", "Lucida Console", "Lucida Sans Unicode", "Microsoft Sans Serif", "Monaco", "Segoe UI", "Tahoma", "Ubuntu"]
+              },
+              "fontColor": {
+                "type": "string",
+                "format": "hex_color",
+                "description": "Text color",
+                "examples": ["#000000", "#ffffff", "#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff", "#ff6b6b", "#4ecdc4", "#45b7d1", "#96ceb4", "#feca57", "#ff9ff3", "#54a0ff", "#5f27cd", "#00d2d3", "#ff9f43", "#ee5a24", "#0984e3", "#6c5ce7", "#a29bfe", "#fd79a8", "#fdcb6e", "#e17055", "#74b9ff", "#81ecec", "#55a3ff", "#dda0dd", "#98fb98"]
+              },
+              "fontWeight": {
+                "type": "string",
+                "enum": ["100", "200", "300", "400", "500", "600", "700", "800", "900", "normal", "bold", "bolder", "lighter"],
+                "description": "Font weight",
+                "default": "normal"
+              },
+              "fontStyle": {
+                "type": "string",
+                "enum": ["normal", "italic", "oblique"],
+                "description": "Font style",
+                "default": "normal"
+              },
+              "alignment": {
+                "type": "string",
+                "enum": ["left", "center", "right", "justify"],
+                "description": "Text alignment",
+                "default": "center"
+              },
+              "lineHeight": {
+                "type": "number",
+                "description": "Line height multiplier",
+                "range": [0.5, 3.0],
+                "default": 1.0
+              },
+              "letterSpacing": {
+                "type": "number",
+                "description": "Letter spacing",
+                "range": [-5, 10],
+                "default": 0
+              },
+              "fontSize": {
+                "type": "number",
+                "description": "Font size in pixels",
+                "range": [8, 200],
+                "default": 48
+              },
+              "font_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Font asset ID reference"
+              },
+              "baseline": {
+                "type": "string",
+                "enum": ["alphabetic", "top", "hanging", "middle", "ideographic", "bottom"],
+                "description": "Text baseline"
+              },
+              "fill_hex": {
+                "type": "string",
+                "format": "hex_color",
+                "description": "Fill color (alternative to fontColor)"
+              },
+              "fill_alpha": {
+                "type": "number",
+                "range": [0, 1],
+                "description": "Fill opacity"
+              },
+              "stroke_hex": {
+                "type": "string",
+                "format": "hex_color",
+                "description": "Stroke/outline color"
+              },
+              "stroke_alpha": {
+                "type": "number",
+                "range": [0, 1],
+                "description": "Stroke opacity"
+              },
+              "stroke_width": {
+                "type": "number",
+                "description": "Stroke width in pixels",
+                "range": [0, 20],
+                "default": 0
+              },
+              "stroke_align": {
+                "type": "string",
+                "enum": ["inside", "outside", "center"],
+                "description": "Stroke alignment"
+              },
+              "gradient": {
+                "type": "object",
+                "description": "Text gradient configuration"
+              }
+            }
+          }
+        }
+      },
+
+      "SHAPE": {
+        "description": "Shape layer for geometric shapes",
+        "properties": {
+          "layerId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique layer identifier",
+            "optional": true
+          },
+          "type": {
+            "type": "string",
+            "enum": ["shape", "SHAPE"],
+            "description": "Layer type"
+          },
+          "visible": {
+            "type": "boolean",
+            "description": "Layer visibility",
+            "default": true
+          },
+          "order": {
+            "type": "integer",
+            "description": "Z-index/rendering order",
+            "default": 0
+          },
+          "position": {
+            "type": "object",
+            "description": "Layer position (normalized coordinates)",
+            "properties": {
+              "x": {
+                "type": "number",
+                "range": [0, 1],
+                "description": "X position (0=left, 1=right)"
+              },
+              "y": {
+                "type": "number",
+                "range": [0, 1],
+                "description": "Y position (0=top, 1=bottom)"
+              }
+            }
+          },
+          "scaleFactor": {
+            "type": "number",
+            "description": "Scale factor",
+            "range": [0.1, 10.0],
+            "default": 1.0
+          },
+          "rotation": {
+            "type": "number",
+            "description": "Rotation in degrees",
+            "range": [-360, 360],
+            "default": 0
+          },
+          "opacity": {
+            "type": "number",
+            "description": "Opacity/transparency",
+            "range": [0, 1],
+            "default": 1.0
+          },
+          "flip": {
+            "type": "object",
+            "description": "Flip settings",
+            "properties": {
+              "horizontal": {
+                "type": "boolean",
+                "description": "Flip horizontally",
+                "default": false
+              },
+              "vertical": {
+                "type": "boolean",
+                "description": "Flip vertically",
+                "default": false
+              }
+            }
+          },
+          "shape": {
+            "type": "object",
+            "description": "Shape-specific properties",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["rect", "circle", "ellipse", "polygon", "path", "line", "triangle", "star", "heart", "diamond", "hexagon", "octagon"],
+                "description": "Shape type",
+                "required": true
+              },
+              "color": {
+                "type": "string",
+                "format": "hex_color",
+                "description": "Fill color",
+                "examples": ["#000000", "#ffffff", "#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff", "#ff6b6b", "#4ecdc4", "#45b7d1", "#96ceb4", "#feca57", "#ff9ff3", "#54a0ff", "#5f27cd", "#00d2d3", "#ff9f43", "#ee5a24", "#0984e3", "#6c5ce7", "#a29bfe", "#fd79a8", "#fdcb6e", "#e17055", "#74b9ff", "#81ecec", "#55a3ff", "#dda0dd", "#98fb98"]
+              },
+              "strokeColor": {
+                "type": "string",
+                "format": "hex_color",
+                "description": "Stroke/outline color"
+              },
+              "strokeWidth": {
+                "type": "number",
+                "description": "Stroke width in pixels",
+                "range": [0, 50],
+                "default": 0
+              },
+              "shape_kind": {
+                "type": "string",
+                "enum": ["rect", "circle", "ellipse", "polygon", "path", "line"],
+                "description": "Shape kind (alternative to type)"
+              },
+              "svg_path": {
+                "type": "string",
+                "description": "SVG path data for custom shapes"
+              },
+              "points": {
+                "type": "array",
+                "description": "Points for polygon shapes",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "rx": {
+                "type": "number",
+                "description": "Corner radius X for rectangles",
+                "range": [0, 100],
+                "default": 0
+              },
+              "ry": {
+                "type": "number",
+                "description": "Corner radius Y for rectangles",
+                "range": [0, 100],
+                "default": 0
+              },
+              "fill_hex": {
+                "type": "string",
+                "format": "hex_color",
+                "description": "Fill color (alternative to color)"
+              },
+              "fill_alpha": {
+                "type": "number",
+                "range": [0, 1],
+                "description": "Fill opacity"
+              },
+              "gradient": {
+                "type": "object",
+                "description": "Shape gradient configuration"
+              },
+              "stroke_hex": {
+                "type": "string",
+                "format": "hex_color",
+                "description": "Stroke color (alternative to strokeColor)"
+              },
+              "stroke_alpha": {
+                "type": "number",
+                "range": [0, 1],
+                "description": "Stroke opacity"
+              },
+              "stroke_dash": {
+                "type": "array",
+                "description": "Stroke dash pattern",
+                "items": {
+                  "type": "number"
+                },
+                "examples": [[5, 5], [10, 5], [20, 10, 5, 10]]
+              },
+              "line_cap": {
+                "type": "string",
+                "enum": ["butt", "round", "square"],
+                "description": "Line cap style"
+              },
+              "line_join": {
+                "type": "string",
+                "enum": ["miter", "round", "bevel"],
+                "description": "Line join style"
+              },
+              "meta": {
+                "type": "object",
+                "description": "Additional shape metadata"
+              }
+            }
+          }
+        }
+      },
+
+      "ICON": {
+        "description": "Icon layer for displaying icons/SVGs",
+        "properties": {
+          "layerId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique layer identifier",
+            "optional": true
+          },
+          "type": {
+            "type": "string",
+            "enum": ["icon", "ICON"],
+            "description": "Layer type"
+          },
+          "visible": {
+            "type": "boolean",
+            "description": "Layer visibility",
+            "default": true
+          },
+          "order": {
+            "type": "integer",
+            "description": "Z-index/rendering order",
+            "default": 0
+          },
+          "position": {
+            "type": "object",
+            "description": "Layer position (normalized coordinates)",
+            "properties": {
+              "x": {
+                "type": "number",
+                "range": [0, 1],
+                "description": "X position (0=left, 1=right)"
+              },
+              "y": {
+                "type": "number",
+                "range": [0, 1],
+                "description": "Y position (0=top, 1=bottom)"
+              }
+            }
+          },
+          "scaleFactor": {
+            "type": "number",
+            "description": "Scale factor",
+            "range": [0.1, 10.0],
+            "default": 1.0
+          },
+          "rotation": {
+            "type": "number",
+            "description": "Rotation in degrees",
+            "range": [-360, 360],
+            "default": 0
+          },
+          "opacity": {
+            "type": "number",
+            "description": "Opacity/transparency",
+            "range": [0, 1],
+            "default": 1.0
+          },
+          "flip": {
+            "type": "object",
+            "description": "Flip settings",
+            "properties": {
+              "horizontal": {
+                "type": "boolean",
+                "description": "Flip horizontally",
+                "default": false
+              },
+              "vertical": {
+                "type": "boolean",
+                "description": "Flip vertically",
+                "default": false
+              }
+            }
+          },
+          "icon": {
+            "type": "object",
+            "description": "Icon-specific properties",
+            "properties": {
+              "src": {
+                "type": "string",
+                "description": "Icon source/name",
+                "required": true,
+                "examples": ["star_icon", "heart_icon", "arrow_icon", "check_icon", "cross_icon", "plus_icon", "minus_icon", "home_icon", "user_icon", "settings_icon", "search_icon", "menu_icon", "close_icon", "edit_icon", "delete_icon", "save_icon", "download_icon", "upload_icon", "share_icon", "like_icon", "comment_icon", "camera_icon", "image_icon", "video_icon", "music_icon", "file_icon", "folder_icon", "mail_icon", "phone_icon", "location_icon", "calendar_icon", "clock_icon", "weather_icon", "sun_icon", "moon_icon", "cloud_icon", "rain_icon", "snow_icon", "fire_icon", "water_icon", "earth_icon", "rocket_icon", "plane_icon", "car_icon", "bike_icon", "train_icon", "ship_icon", "building_icon", "house_icon", "tree_icon", "flower_icon", "leaf_icon", "apple_icon", "banana_icon", "coffee_icon", "pizza_icon", "hamburger_icon", "cake_icon", "gift_icon", "balloon_icon", "party_icon", "christmas_icon", "halloween_icon", "valentine_icon", "birthday_icon", "graduation_icon", "wedding_icon", "baby_icon", "family_icon", "friends_icon", "team_icon", "business_icon", "money_icon", "credit_card_icon", "wallet_icon", "shopping_icon", "cart_icon", "bag_icon", "tag_icon", "discount_icon", "sale_icon", "new_icon", "hot_icon", "trending_icon", "popular_icon", "featured_icon", "premium_icon", "vip_icon", "crown_icon", "medal_icon", "trophy_icon", "award_icon", "badge_icon", "certificate_icon", "diploma_icon", "degree_icon", "skill_icon", "talent_icon", "creative_icon", "art_icon", "design_icon", "paint_icon", "brush_icon", "pencil_icon", "pen_icon", "marker_icon", "highlighter_icon", "eraser_icon", "scissors_icon", "cut_icon", "copy_icon", "paste_icon", "undo_icon", "redo_icon", "refresh_icon", "reload_icon", "restart_icon", "play_icon", "pause_icon", "stop_icon", "record_icon", "forward_icon", "backward_icon", "next_icon", "previous_icon", "first_icon", "last_icon", "up_icon", "down_icon", "left_icon", "right_icon", "top_icon", "bottom_icon", "center_icon", "middle_icon", "fullscreen_icon", "minimize_icon", "maximize_icon", "resize_icon", "move_icon", "drag_icon", "drop_icon", "pin_icon", "unpin_icon", "lock_icon", "unlock_icon", "key_icon", "password_icon", "security_icon", "shield_icon", "protection_icon", "privacy_icon", "public_icon", "private_icon", "visible_icon", "hidden_icon", "show_icon", "hide_icon", "eye_icon", "blind_icon", "mute_icon", "unmute_icon", "volume_icon", "sound_icon", "audio_icon", "microphone_icon", "speaker_icon", "headphone_icon", "earphone_icon", "radio_icon", "tv_icon", "monitor_icon", "screen_icon", "display_icon", "laptop_icon", "desktop_icon", "mobile_icon", "tablet_icon", "watch_icon", "device_icon", "gadget_icon", "tool_icon", "wrench_icon", "hammer_icon", "screwdriver_icon", "drill_icon", "saw_icon", "knife_icon", "fork_icon", "spoon_icon", "plate_icon", "bowl_icon", "cup_icon", "glass_icon", "bottle_icon", "can_icon", "box_icon", "package_icon", "delivery_icon", "shipping_icon", "truck_icon", "van_icon", "bus_icon", "taxi_icon", "uber_icon", "lyft_icon", "map_icon", "navigation_icon", "gps_icon", "compass_icon", "direction_icon", "route_icon", "path_icon", "road_icon", "street_icon", "highway_icon", "bridge_icon", "tunnel_icon", "mountain_icon", "hill_icon", "valley_icon", "river_icon", "lake_icon", "ocean_icon", "sea_icon", "beach_icon", "sand_icon", "rock_icon", "stone_icon", "crystal_icon", "gem_icon", "diamond_icon", "gold_icon", "silver_icon", "bronze_icon", "copper_icon", "iron_icon", "steel_icon", "metal_icon", "wood_icon", "paper_icon", "plastic_icon", "glass_icon", "rubber_icon", "leather_icon", "fabric_icon", "cloth_icon", "cotton_icon", "silk_icon", "wool_icon", "fur_icon", "hair_icon", "skin_icon", "bone_icon", "muscle_icon", "blood_icon", "heart_icon", "brain_icon", "eye_icon", "ear_icon", "nose_icon", "mouth_icon", "tooth_icon", "tongue_icon", "lip_icon", "cheek_icon", "chin_icon", "forehead_icon", "brow_icon", "eyebrow_icon", "eyelash_icon", "hand_icon", "finger_icon", "thumb_icon", "palm_icon", "wrist_icon", "arm_icon", "elbow_icon", "shoulder_icon", "chest_icon", "back_icon", "stomach_icon", "waist_icon", "hip_icon", "leg_icon", "thigh_icon", "knee_icon", "calf_icon", "ankle_icon", "foot_icon", "toe_icon", "heel_icon", "sole_icon", "nail_icon", "claw_icon", "wing_icon", "feather_icon", "scale_icon", "shell_icon", "horn_icon", "antler_icon", "tusk_icon", "fang_icon", "tail_icon", "fin_icon", "gill_icon", "beak_icon", "snout_icon", "trunk_icon", "tentacle_icon", "antenna_icon", "leg_icon", "arm_icon", "tentacle_icon", "flagellum_icon", "cilia_icon", "spine_icon", "quill_icon", "bristle_icon", "whisker_icon", "mane_icon", "beard_icon", "mustache_icon", "sideburn_icon", "ponytail_icon", "braid_icon", "curl_icon", "wave_icon", "straight_icon", "wavy_icon", "curly_icon", "frizzy_icon", "smooth_icon", "rough_icon", "soft_icon", "hard_icon", "sharp_icon", "dull_icon", "bright_icon", "dark_icon", "light_icon", "heavy_icon", "lightweight_icon", "thick_icon", "thin_icon", "wide_icon", "narrow_icon", "tall_icon", "short_icon", "long_icon", "big_icon", "small_icon", "huge_icon", "tiny_icon", "giant_icon", "mini_icon", "micro_icon", "macro_icon", "mega_icon", "giga_icon", "tera_icon", "peta_icon", "exa_icon", "zetta_icon", "yotta_icon", "deca_icon", "hecto_icon", "kilo_icon", "mega_icon", "giga_icon", "tera_icon", "peta_icon", "exa_icon", "zetta_icon", "yotta_icon", "deci_icon", "centi_icon", "milli_icon", "micro_icon", "nano_icon", "pico_icon", "femto_icon", "atto_icon", "zepto_icon", "yocto_icon"]
+              },
+              "color": {
+                "type": "string",
+                "format": "hex_color",
+                "description": "Icon tint color",
+                "examples": ["#000000", "#ffffff", "#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff", "#ff6b6b", "#4ecdc4", "#45b7d1", "#96ceb4", "#feca57", "#ff9ff3", "#54a0ff", "#5f27cd", "#00d2d3", "#ff9f43", "#ee5a24", "#0984e3", "#6c5ce7", "#a29bfe", "#fd79a8", "#fdcb6e", "#e17055", "#74b9ff", "#81ecec", "#55a3ff", "#dda0dd", "#98fb98"]
+              },
+              "asset_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Asset ID reference"
+              },
+              "tint_hex": {
+                "type": "string",
+                "format": "hex_color",
+                "description": "Tint color (alternative to color)"
+              },
+              "tint_alpha": {
+                "type": "number",
+                "range": [0, 1],
+                "description": "Tint opacity"
+              },
+              "allow_recolor": {
+                "type": "boolean",
+                "description": "Allow recoloring of icon"
+              }
+            }
+          }
+        }
+      },
+
+      "IMAGE": {
+        "description": "Image layer for displaying raster images",
+        "properties": {
+          "layerId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique layer identifier",
+            "optional": true
+          },
+          "type": {
+            "type": "string",
+            "enum": ["image", "IMAGE"],
+            "description": "Layer type"
+          },
+          "visible": {
+            "type": "boolean",
+            "description": "Layer visibility",
+            "default": true
+          },
+          "order": {
+            "type": "integer",
+            "description": "Z-index/rendering order",
+            "default": 0
+          },
+          "position": {
+            "type": "object",
+            "description": "Layer position (normalized coordinates)",
+            "properties": {
+              "x": {
+                "type": "number",
+                "range": [0, 1],
+                "description": "X position (0=left, 1=right)"
+              },
+              "y": {
+                "type": "number",
+                "range": [0, 1],
+                "description": "Y position (0=top, 1=bottom)"
+              }
+            }
+          },
+          "scaleFactor": {
+            "type": "number",
+            "description": "Scale factor",
+            "range": [0.1, 10.0],
+            "default": 1.0
+          },
+          "rotation": {
+            "type": "number",
+            "description": "Rotation in degrees",
+            "range": [-360, 360],
+            "default": 0
+          },
+          "opacity": {
+            "type": "number",
+            "description": "Opacity/transparency",
+            "range": [0, 1],
+            "default": 1.0
+          },
+          "flip": {
+            "type": "object",
+            "description": "Flip settings",
+            "properties": {
+              "horizontal": {
+                "type": "boolean",
+                "description": "Flip horizontally",
+                "default": false
+              },
+              "vertical": {
+                "type": "boolean",
+                "description": "Flip vertically",
+                "default": false
+              }
+            }
+          },
+          "image": {
+            "type": "object",
+            "description": "Image-specific properties",
+            "properties": {
+              "src": {
+                "type": "string",
+                "description": "Image source URL"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["imported", "url"],
+                "description": "Image type"
+              },
+              "path": {
+                "type": "string",
+                "description": "Image path"
+              },
+              "asset_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Asset ID reference"
+              },
+              "crop": {
+                "type": "object",
+                "description": "Crop settings",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "range": [0, 1],
+                    "description": "Crop X position"
+                  },
+                  "y": {
+                    "type": "number",
+                    "range": [0, 1],
+                    "description": "Crop Y position"
+                  },
+                  "w": {
+                    "type": "number",
+                    "range": [0, 1],
+                    "description": "Crop width"
+                  },
+                  "h": {
+                    "type": "number",
+                    "range": [0, 1],
+                    "description": "Crop height"
+                  }
+                }
+              },
+              "fit": {
+                "type": "string",
+                "enum": ["contain", "cover", "fill", "scale-down", "none"],
+                "description": "Image fit mode",
+                "default": "contain"
+              },
+              "rounding": {
+                "type": "number",
+                "description": "Corner rounding",
+                "range": [0, 100],
+                "default": 0
+              },
+              "blur": {
+                "type": "number",
+                "description": "Blur amount",
+                "range": [0, 20],
+                "default": 0
+              },
+              "brightness": {
+                "type": "number",
+                "description": "Brightness adjustment",
+                "range": [0, 3],
+                "default": 1
+              },
+              "contrast": {
+                "type": "number",
+                "description": "Contrast adjustment",
+                "range": [0, 3],
+                "default": 1
+              }
+            }
+          }
+        }
+      },
+
+      "BACKGROUND": {
+        "description": "Background layer for canvas backgrounds",
+        "properties": {
+          "layerId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique layer identifier",
+            "optional": true
+          },
+          "type": {
+            "type": "string",
+            "enum": ["background", "BACKGROUND"],
+            "description": "Layer type"
+          },
+          "visible": {
+            "type": "boolean",
+            "description": "Layer visibility",
+            "default": true
+          },
+          "order": {
+            "type": "integer",
+            "description": "Z-index/rendering order",
+            "default": 0
+          },
+          "position": {
+            "type": "object",
+            "description": "Layer position (normalized coordinates)",
+            "properties": {
+              "x": {
+                "type": "number",
+                "range": [0, 1],
+                "description": "X position (0=left, 1=right)"
+              },
+              "y": {
+                "type": "number",
+                "range": [0, 1],
+                "description": "Y position (0=top, 1=bottom)"
+              }
+            }
+          },
+          "scaleFactor": {
+            "type": "number",
+            "description": "Scale factor",
+            "range": [0.1, 10.0],
+            "default": 1.0
+          },
+          "rotation": {
+            "type": "number",
+            "description": "Rotation in degrees",
+            "range": [-360, 360],
+            "default": 0
+          },
+          "opacity": {
+            "type": "number",
+            "description": "Opacity/transparency",
+            "range": [0, 1],
+            "default": 1.0
+          },
+          "flip": {
+            "type": "object",
+            "description": "Flip settings",
+            "properties": {
+              "horizontal": {
+                "type": "boolean",
+                "description": "Flip horizontally",
+                "default": false
+              },
+              "vertical": {
+                "type": "boolean",
+                "description": "Flip vertically",
+                "default": false
+              }
+            }
+          },
+          "background": {
+            "type": "object",
+            "description": "Background-specific properties",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["solid", "gradient", "image"],
+                "description": "Background type",
+                "required": true
+              },
+              "color": {
+                "type": "string",
+                "format": "hex_color",
+                "description": "Background color",
+                "examples": ["#ffffff", "#000000", "#ff6b6b", "#4ecdc4", "#45b7d1", "#96ceb4", "#feca57", "#ff9ff3", "#54a0ff", "#5f27cd", "#00d2d3", "#ff9f43", "#ee5a24", "#0984e3", "#6c5ce7", "#a29bfe", "#fd79a8", "#fdcb6e", "#e17055", "#74b9ff", "#81ecec", "#55a3ff", "#dda0dd", "#98fb98"]
+              },
+              "image": {
+                "type": "object",
+                "description": "Background image configuration",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["imported", "url"],
+                    "description": "Image type"
+                  },
+                  "path": {
+                    "type": "string",
+                    "description": "Image path or URL"
+                  }
+                }
+              },
+              "mode": {
+                "type": "string",
+                "enum": ["solid", "gradient", "image"],
+                "description": "Background mode (alternative to type)"
+              },
+              "fill_hex": {
+                "type": "string",
+                "format": "hex_color",
+                "description": "Fill color (alternative to color)"
+              },
+              "fill_alpha": {
+                "type": "number",
+                "range": [0, 1],
+                "description": "Fill opacity"
+              },
+              "gradient": {
+                "type": "object",
+                "description": "Background gradient configuration"
+              },
+              "asset_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Background asset ID"
+              },
+              "repeat": {
+                "type": "string",
+                "enum": ["no-repeat", "repeat", "repeat-x", "repeat-y", "space", "round"],
+                "description": "Background repeat"
+              },
+              "position": {
+                "type": "string",
+                "description": "Background position",
+                "examples": ["top", "bottom", "left", "right", "center", "top left", "top right", "bottom left", "bottom right", "50% 50%", "100px 200px"]
+              },
+              "size": {
+                "type": "string",
+                "description": "Background size",
+                "examples": ["auto", "cover", "contain", "100% 100%", "200px 300px"]
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "common_layer_properties": {
+      "description": "Properties common to all layer types",
+      "properties": {
+        "layerId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Unique layer identifier",
+          "optional": true
+        },
+        "type": {
+          "type": "string",
+          "enum": ["text", "shape", "icon", "image", "background", "TEXT", "SHAPE", "ICON", "IMAGE", "BACKGROUND"],
+          "description": "Layer type",
+          "required": true
+        },
+        "visible": {
+          "type": "boolean",
+          "description": "Layer visibility",
+          "default": true
+        },
+        "order": {
+          "type": "integer",
+          "description": "Z-index/rendering order",
+          "range": [0, 1000],
+          "default": 0
+        },
+        "position": {
+          "type": "object",
+          "description": "Layer position (normalized coordinates)",
+          "required": true,
+          "properties": {
+            "x": {
+              "type": "number",
+              "range": [0, 1],
+              "description": "X position (0=left, 1=right)",
+              "default": 0.5
+            },
+            "y": {
+              "type": "number",
+              "range": [0, 1],
+              "description": "Y position (0=top, 1=bottom)",
+              "default": 0.5
+            }
+          }
+        },
+        "scaleFactor": {
+          "type": "number",
+          "description": "Scale factor",
+          "range": [0.1, 10.0],
+          "default": 1.0
+        },
+        "rotation": {
+          "type": "number",
+          "description": "Rotation in degrees",
+          "range": [-360, 360],
+          "default": 0
+        },
+        "opacity": {
+          "type": "number",
+          "description": "Opacity/transparency",
+          "range": [0, 1],
+          "default": 1.0
+        },
+        "flip": {
+          "type": "object",
+          "description": "Flip settings",
+          "properties": {
+            "horizontal": {
+              "type": "boolean",
+              "description": "Flip horizontally",
+              "default": false
+            },
+            "vertical": {
+              "type": "boolean",
+              "description": "Flip vertically",
+              "default": false
+            }
+          }
+        },
+        "anchor_x": {
+          "type": "number",
+          "range": [0, 1],
+          "description": "Anchor point X",
+          "default": 0.5
+        },
+        "anchor_y": {
+          "type": "number",
+          "range": [0, 1],
+          "description": "Anchor point Y",
+          "default": 0.5
+        },
+        "blend_mode": {
+          "type": "string",
+          "enum": ["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-burn", "color-dodge", "difference", "exclusion", "hue", "saturation", "color", "luminosity", "soft-light", "hard-light"],
+          "description": "Blend mode",
+          "default": "normal"
+        },
+        "is_visible": {
+          "type": "boolean",
+          "description": "Layer visibility (alternative to visible)",
+          "default": true
+        },
+        "is_locked": {
+          "type": "boolean",
+          "description": "Layer lock status",
+          "default": false
+        },
+        "common_style": {
+          "type": "object",
+          "description": "Common style properties"
+        },
+        "flip_horizontal": {
+          "type": "boolean",
+          "description": "Flip horizontally (alternative to flip.horizontal)",
+          "default": false
+        },
+        "flip_vertical": {
+          "type": "boolean",
+          "description": "Flip vertically (alternative to flip.vertical)",
+          "default": false
+        }
+      }
+    },
+
+    "colors_used": {
+      "description": "Color usage tracking",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": ["text", "icon", "shape", "background"],
+            "description": "Color role"
+          },
+          "color": {
+            "type": "string",
+            "format": "hex_color",
+            "description": "Hex color value"
+          }
+        }
+      }
+    },
+
+    "alignments": {
+      "description": "Logo alignment settings",
+      "type": "object",
+      "properties": {
+        "verticalAlign": {
+          "type": "string",
+          "enum": ["top", "center", "bottom"],
+          "description": "Vertical alignment",
+          "default": "center"
+        },
+        "horizontalAlign": {
+          "type": "string",
+          "enum": ["left", "center", "right"],
+          "description": "Horizontal alignment",
+          "default": "center"
+        }
+      }
+    },
+
+    "responsive_settings": {
+      "description": "Responsive configuration",
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "description": "Responsive version",
+          "default": "3.0"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description",
+          "default": "Fully responsive logo data - no absolute sizes stored"
+        },
+        "scalingMethod": {
+          "type": "string",
+          "enum": ["scaleFactor", "absolute", "relative"],
+          "description": "Scaling method",
+          "default": "scaleFactor"
+        },
+        "positionMethod": {
+          "type": "string",
+          "enum": ["relative", "absolute"],
+          "description": "Position method",
+          "default": "relative"
+        },
+        "fullyResponsive": {
+          "type": "boolean",
+          "description": "Fully responsive flag",
+          "default": true
+        }
+      }
+    },
+
+    "metadata": {
+      "description": "Logo metadata",
+      "type": "object",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp (ISO 8601)"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Update timestamp (ISO 8601)"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Tags array",
+          "examples": [["logo", "design", "responsive"], ["brand", "company", "business"], ["tech", "startup", "modern"], ["nature", "green", "organic"], ["premium", "luxury", "high-end"], ["simple", "minimal", "clean"], ["complex", "detailed", "elaborate"], ["colorful", "vibrant", "bright"], ["monochrome", "black", "white"], ["gradient", "rainbow", "multicolor"]]
+        },
+        "version": {
+          "type": "integer",
+          "description": "Version number",
+          "default": 1
+        },
+        "responsive": {
+          "type": "boolean",
+          "description": "Responsive flag",
+          "default": true
+        }
+      }
+    },
+
+    "export_settings": {
+      "description": "Export configuration",
+      "type": "object",
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": ["png", "svg", "jpg", "jpeg", "webp"],
+          "description": "Export format",
+          "default": "png"
+        },
+        "transparentBackground": {
+          "type": "boolean",
+          "description": "Transparent background",
+          "default": true
+        },
+        "quality": {
+          "type": "integer",
+          "range": [1, 100],
+          "description": "Export quality",
+          "default": 100
+        },
+        "responsive": {
+          "type": "object",
+          "description": "Responsive export settings",
+          "properties": {
+            "scalable": {
+              "type": "boolean",
+              "description": "Scalable export",
+              "default": true
+            },
+            "maintainAspectRatio": {
+              "type": "boolean",
+              "description": "Maintain aspect ratio",
+              "default": true
+            }
+          }
+        }
+      }
+    },
+
+    "complete_examples": {
+      "simple_text_logo": {
+        "name": "Simple Text Logo",
+        "description": "Basic text-based logo",
+        "canvas": {
+          "aspectRatio": 1.0,
+          "background": {
+            "type": "solid",
+            "solidColor": "#ffffff"
+          }
+        },
+        "layers": [
+          {
+            "type": "text",
+            "visible": true,
+            "order": 0,
+            "position": {"x": 0.5, "y": 0.5},
+            "scaleFactor": 1.0,
+            "rotation": 0.0,
+            "opacity": 1.0,
+            "flip": {"horizontal": false, "vertical": false},
+            "text": {
+              "value": "SIMPLE",
+              "font": "Arial",
+              "fontColor": "#000000",
+              "fontWeight": "bold",
+              "fontStyle": "normal",
+              "alignment": "center",
+              "lineHeight": 1.0,
+              "letterSpacing": 0
+            }
+          }
+        ],
+        "colorsUsed": [
+          {"role": "text", "color": "#000000"}
+        ],
+        "alignments": {
+          "verticalAlign": "center",
+          "horizontalAlign": "center"
+        },
+        "responsive": {
+          "version": "3.0",
+          "description": "Fully responsive logo data",
+          "scalingMethod": "scaleFactor",
+          "positionMethod": "relative",
+          "fullyResponsive": true
+        },
+        "metadata": {
+          "createdAt": "2024-01-20T10:30:00.000Z",
+          "updatedAt": "2024-01-20T10:30:00.000Z",
+          "tags": ["logo", "simple", "text"],
+          "version": 1,
+          "responsive": true
+        },
+        "export": {
+          "format": "png",
+          "transparentBackground": true,
+          "quality": 100,
+          "responsive": {
+            "scalable": true,
+            "maintainAspectRatio": true
+          }
+        }
+      },
+
+      "complex_multi_layer_logo": {
+        "name": "Complex Multi-Layer Logo",
+        "description": "Advanced logo with multiple elements",
+        "canvas": {
+          "aspectRatio": 1.0,
+          "background": {
+            "type": "gradient",
+            "gradient": {
+              "type": "linear",
+              "angle": 135,
+              "stops": [
+                {"offset": 0, "hex": "#667eea", "alpha": 1},
+                {"offset": 1, "hex": "#764ba2", "alpha": 1}
+              ]
+            }
+          }
+        },
+        "layers": [
+          {
+            "type": "background",
+            "visible": true,
+            "order": 0,
+            "position": {"x": 0, "y": 0},
+            "scaleFactor": 1.0,
+            "rotation": 0.0,
+            "opacity": 1.0,
+            "flip": {"horizontal": false, "vertical": false},
+            "background": {
+              "type": "gradient",
+              "gradient": {
+                "type": "radial",
+                "stops": [
+                  {"offset": 0, "hex": "#ff6b6b", "alpha": 1},
+                  {"offset": 1, "hex": "#4ecdc4", "alpha": 1}
+                ]
+              }
+            }
+          },
+          {
+            "type": "shape",
+            "visible": true,
+            "order": 1,
+            "position": {"x": 0.5, "y": 0.5},
+            "scaleFactor": 0.8,
+            "rotation": 0.0,
+            "opacity": 0.9,
+            "flip": {"horizontal": false, "vertical": false},
+            "shape": {
+              "type": "circle",
+              "color": "#ffffff",
+              "strokeColor": "#000000",
+              "strokeWidth": 3
+            }
+          },
+          {
+            "type": "icon",
+            "visible": true,
+            "order": 2,
+            "position": {"x": 0.5, "y": 0.5},
+            "scaleFactor": 0.6,
+            "rotation": 0.0,
+            "opacity": 1.0,
+            "flip": {"horizontal": false, "vertical": false},
+            "icon": {
+              "src": "star_icon",
+              "color": "#ffd700"
+            }
+          },
+          {
+            "type": "text",
+            "visible": true,
+            "order": 3,
+            "position": {"x": 0.5, "y": 0.8},
+            "scaleFactor": 0.7,
+            "rotation": 0.0,
+            "opacity": 1.0,
+            "flip": {"horizontal": false, "vertical": false},
+            "text": {
+              "value": "COMPLEX",
+              "font": "Helvetica",
+              "fontColor": "#ffffff",
+              "fontWeight": "bold",
+              "fontStyle": "normal",
+              "alignment": "center",
+              "lineHeight": 1.2,
+              "letterSpacing": 2
+            }
+          }
+        ],
+        "colorsUsed": [
+          {"role": "background", "color": "#ff6b6b"},
+          {"role": "background", "color": "#4ecdc4"},
+          {"role": "shape", "color": "#ffffff"},
+          {"role": "icon", "color": "#ffd700"},
+          {"role": "text", "color": "#ffffff"}
+        ],
+        "alignments": {
+          "verticalAlign": "center",
+          "horizontalAlign": "center"
+        },
+        "responsive": {
+          "version": "3.0",
+          "description": "Fully responsive logo data",
+          "scalingMethod": "scaleFactor",
+          "positionMethod": "relative",
+          "fullyResponsive": true
+        },
+        "metadata": {
+          "createdAt": "2024-01-20T10:30:00.000Z",
+          "updatedAt": "2024-01-20T10:30:00.000Z",
+          "tags": ["logo", "complex", "multi-layer", "advanced"],
+          "version": 1,
+          "responsive": true
+        },
+        "export": {
+          "format": "png",
+          "transparentBackground": false,
+          "quality": 100,
+          "responsive": {
+            "scalable": true,
+            "maintainAspectRatio": true
+          }
+        }
+      },
+
+      "mobile_optimized_logo": {
+        "logoId": "1759094821977",
+        "userId": "mobile_user_123",
+        "name": "Mobile Optimized Logo",
+        "description": "Optimized for mobile applications",
+        "canvas": {
+          "aspectRatio": 1.0,
+          "background": {
+            "type": "solid",
+            "solidColor": "#ffffff"
+          }
+        },
+        "layers": [
+          {
+            "layerId": "1759074588677",
+            "type": "icon",
+            "visible": true,
+            "order": 0,
+            "position": {"x": 0.25, "y": 0.5},
+            "scaleFactor": 0.15,
+            "rotation": -25.0,
+            "opacity": 1.0,
+            "flip": {"horizontal": true, "vertical": true},
+            "icon": {
+              "src": "icon_58873",
+              "color": "#ffc107"
+            }
+          },
+          {
+            "layerId": "1759074588679",
+            "type": "text",
+            "visible": true,
+            "order": 1,
+            "position": {"x": 0.75, "y": 0.5},
+            "scaleFactor": 0.28,
+            "rotation": 0.0,
+            "opacity": 1.0,
+            "flip": {"horizontal": false, "vertical": false},
+            "text": {
+              "value": "mobile",
+              "font": "Courier New",
+              "fontColor": "#e91e63",
+              "fontWeight": "900",
+              "fontStyle": "normal",
+              "alignment": "center",
+              "lineHeight": 1.0,
+              "letterSpacing": -2.5
+            }
+          }
+        ],
+        "colorsUsed": [
+          {"role": "icon", "color": "#ffc107"},
+          {"role": "text", "color": "#e91e63"}
+        ],
+        "alignments": {
+          "verticalAlign": "center",
+          "horizontalAlign": "center"
+        },
+        "responsive": {
+          "version": "3.0",
+          "description": "Fully responsive logo data - no absolute sizes stored",
+          "scalingMethod": "scaleFactor",
+          "positionMethod": "relative",
+          "fullyResponsive": true
+        },
+        "metadata": {
+          "createdAt": "2024-01-20T10:30:00.000Z",
+          "updatedAt": "2024-01-20T10:30:00.000Z",
+          "tags": ["logo", "mobile", "responsive", "optimized"],
+          "version": 3,
+          "responsive": true
+        },
+        "export": {
+          "format": "png",
+          "transparentBackground": true,
+          "quality": 100,
+          "responsive": {
+            "scalable": true,
+            "maintainAspectRatio": true
+          }
+        }
+      }
+    },
+
+    "validation_rules": {
+      "description": "Validation rules for logo creation",
+      "required_fields": ["name", "canvas", "layers"],
+      "canvas_validation": {
+        "aspectRatio": "Must be positive number",
+        "background": "Must have valid background configuration"
+      },
+      "layer_validation": {
+        "type": "Must be valid layer type",
+        "position": "X and Y must be between 0 and 1",
+        "opacity": "Must be between 0 and 1",
+        "scaleFactor": "Must be positive number",
+        "text_value": "Required for text layers",
+        "shape_type": "Required for shape layers",
+        "icon_src": "Required for icon layers"
+      },
+      "color_validation": {
+        "hex_format": "Must be valid hex color (#RRGGBB or #RGB)"
+      }
+    },
+
+    "api_endpoints": {
+      "create_logo": {
+        "method": "POST",
+        "url": "/api/logo",
+        "description": "Create logo using standard format"
+      },
+      "create_mobile_logo": {
+        "method": "POST",
+        "url": "/api/logo/mobile",
+        "description": "Create logo using mobile-compatible format"
+      },
+      "get_logo": {
+        "method": "GET",
+        "url": "/api/logo/:id",
+        "description": "Get logo by ID"
+      },
+      "get_mobile_logo": {
+        "method": "GET",
+        "url": "/api/logo/:id/mobile",
+        "description": "Get logo in mobile format"
+      },
+      "update_logo": {
+        "method": "PATCH",
+        "url": "/api/logo/:id",
+        "description": "Update existing logo"
+      },
+      "delete_logo": {
+        "method": "DELETE",
+        "url": "/api/logo/:id",
+        "description": "Delete logo"
+      },
+      "export_png": {
+        "method": "GET",
+        "url": "/api/logo/:id/export.png",
+        "description": "Export logo as PNG",
+        "query_parameters": {
+          "width": "integer - Image width",
+          "height": "integer - Image height",
+          "dpi": "integer - Dots per inch",
+          "quality": "integer - Image quality (1-100)"
+        }
+      },
+      "export_svg": {
+        "method": "GET",
+        "url": "/api/logo/:id/export.svg",
+        "description": "Export logo as SVG",
+        "query_parameters": {
+          "width": "integer - Image width",
+          "height": "integer - Image height"
+        }
+      },
+      "thumbnail": {
+        "method": "GET",
+        "url": "/api/logo/:id/thumbnail",
+        "description": "Get logo thumbnail",
+        "query_parameters": {
+          "width": "integer - Thumbnail width",
+          "height": "integer - Thumbnail height"
+        }
+      }
+    }
+  }
+}
