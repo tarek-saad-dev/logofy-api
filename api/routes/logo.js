@@ -310,11 +310,17 @@ router.post('/mobile', async (req, res) => {
       alignments,
       responsive,
       metadata,
-      export: exportSettings
+      export: exportSettings,
+      categoryId
     } = req.body;
 
     if (!name) {
       return res.status(400).json({ success: false, message: 'name is required' });
+    }
+
+    // Validate categoryId if provided
+    if (categoryId && !categoryId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      return res.status(400).json({ success: false, message: 'categoryId must be a valid UUID' });
     }
 
     await client.query('BEGIN');
@@ -342,18 +348,18 @@ router.post('/mobile', async (req, res) => {
     if (logoId) {
       logoRes = await client.query(`
         INSERT INTO logos (
-          id, owner_id, title, description, canvas_w, canvas_h, dpi, is_template, template_id,
+          id, owner_id, title, description, canvas_w, canvas_h, dpi, is_template, template_id, category_id,
           colors_used, vertical_align, horizontal_align, responsive_version, responsive_description,
           scaling_method, position_method, fully_responsive, tags, version, responsive,
           export_format, export_transparent_background, export_quality, export_scalable, export_maintain_aspect_ratio,
           canvas_background_type, canvas_background_solid_color, canvas_background_gradient,
           canvas_background_image_type, canvas_background_image_path
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31)
         RETURNING *
       `, [
         logoId, ownerId, name, description || `Logo created on ${new Date().toISOString()}`,
         canvas?.aspectRatio ? 1080 : 1080, canvas?.aspectRatio ? Math.round(1080 / canvas.aspectRatio) : 1080,
-        300, !!templateId, templateId || null, JSON.stringify(colorsUsed),
+        300, !!templateId, templateId || null, categoryId || null, JSON.stringify(colorsUsed),
         alignments?.verticalAlign || 'center', alignments?.horizontalAlign || 'center',
         responsive?.version || '3.0', responsive?.description || 'Fully responsive logo data - no absolute sizes stored',
         responsive?.scalingMethod || 'scaleFactor', responsive?.positionMethod || 'relative',
@@ -368,18 +374,18 @@ router.post('/mobile', async (req, res) => {
     } else {
       logoRes = await client.query(`
         INSERT INTO logos (
-          owner_id, title, description, canvas_w, canvas_h, dpi, is_template, template_id,
+          owner_id, title, description, canvas_w, canvas_h, dpi, is_template, template_id, category_id,
           colors_used, vertical_align, horizontal_align, responsive_version, responsive_description,
           scaling_method, position_method, fully_responsive, tags, version, responsive,
           export_format, export_transparent_background, export_quality, export_scalable, export_maintain_aspect_ratio,
           canvas_background_type, canvas_background_solid_color, canvas_background_gradient,
           canvas_background_image_type, canvas_background_image_path
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
         RETURNING *
       `, [
         ownerId, name, description || `Logo created on ${new Date().toISOString()}`,
         canvas?.aspectRatio ? 1080 : 1080, canvas?.aspectRatio ? Math.round(1080 / canvas.aspectRatio) : 1080,
-        300, !!templateId, templateId || null, JSON.stringify(colorsUsed),
+        300, !!templateId, templateId || null, categoryId || null, JSON.stringify(colorsUsed),
         alignments?.verticalAlign || 'center', alignments?.horizontalAlign || 'center',
         responsive?.version || '3.0', responsive?.description || 'Fully responsive logo data - no absolute sizes stored',
         responsive?.scalingMethod || 'scaleFactor', responsive?.positionMethod || 'relative',
@@ -486,6 +492,7 @@ router.post('/mobile', async (req, res) => {
         userId: logo.owner_id,
         name: logo.title,
         description: logo.description,
+        categoryId: logo.category_id,
         canvas: {
           aspectRatio: logo.canvas_h ? logo.canvas_w / logo.canvas_h : 1.0,
           background: {
