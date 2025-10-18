@@ -166,12 +166,20 @@ http://localhost:3000/api
   "text": {
     "value": "Text content",
     "font": "Arial",
+    "fontSize": 48,
     "fontColor": "#000000",
     "fontWeight": "normal",
     "fontStyle": "normal",
     "alignment": "center",
+    "baseline": "alphabetic",
     "lineHeight": 1.0,
-    "letterSpacing": 0
+    "letterSpacing": 0,
+    "fillAlpha": 1.0,
+    "strokeHex": null,
+    "strokeAlpha": null,
+    "strokeWidth": null,
+    "strokeAlign": null,
+    "gradient": null
   }
 }
 ```
@@ -227,6 +235,7 @@ http://localhost:3000/api
   "opacity": 1.0,
   "flip": { "horizontal": false, "vertical": false },
   "shape": {
+    "src": "assets/local/Basic/13.svg",
     "type": "rect",
     "color": "#000000",
     "strokeColor": null,
@@ -379,12 +388,20 @@ curl -X POST "http://localhost:3000/api/logo/mobile" \
         "text": {
           "value": "My Text",
           "font": "Arial",
+          "fontSize": 48,
           "fontColor": "#000000",
           "fontWeight": "normal",
           "fontStyle": "normal",
           "alignment": "center",
+          "baseline": "alphabetic",
           "lineHeight": 1.0,
-          "letterSpacing": 0
+          "letterSpacing": 0,
+          "fillAlpha": 1.0,
+          "strokeHex": null,
+          "strokeAlpha": null,
+          "strokeWidth": null,
+          "strokeAlign": null,
+          "gradient": null
         }
       }
     ],

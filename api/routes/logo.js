@@ -185,12 +185,20 @@ router.get('/mobile', async (req, res) => {
             text: {
               value: row.content || '',
               font: row.font_family || 'Arial',
+              fontSize: num(row.font_size) ?? 48,
               fontColor: row.fill_hex || '#000000',
               fontWeight: row.font_weight || 'normal',
               fontStyle: row.font_style || 'normal',
               alignment: row.align || 'center',
+              baseline: row.baseline || 'alphabetic',
               lineHeight: num(row.line_height) ?? 1.0,
-              letterSpacing: num(row.letter_spacing) ?? 0
+              letterSpacing: num(row.letter_spacing) ?? 0,
+              fillAlpha: num(row.fill_alpha) ?? 1.0,
+              strokeHex: row.stroke_hex || null,
+              strokeAlpha: num(row.stroke_alpha) ?? null,
+              strokeWidth: num(row.stroke_width) ?? null,
+              strokeAlign: row.stroke_align || null,
+              gradient: row.text_gradient || null
             }
           };
         case 'ICON':
@@ -207,6 +215,7 @@ router.get('/mobile', async (req, res) => {
           return {
             ...baseLayer,
             shape: {
+              src: row.shape_meta?.src || null,
               type: row.shape_kind || 'rect',
               color: row.shape_fill_hex || '#000000',
               strokeColor: row.shape_stroke_hex || null,
@@ -433,9 +442,25 @@ router.post('/mobile', async (req, res) => {
             await client.query(`
               INSERT INTO layer_text (
                 layer_id, content, font_size, line_height, letter_spacing,
-                align, fill_hex, fill_alpha
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            `, [layer.id, text.value || '', text.fontSize || 48, text.lineHeight || 1.0, text.letterSpacing || 0, text.alignment || 'center', text.fontColor || '#000000', 1.0]);
+                align, baseline, fill_hex, fill_alpha, stroke_hex, stroke_alpha,
+                stroke_width, stroke_align, gradient
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            `, [
+              layer.id, 
+              text.value || '', 
+              text.fontSize || 48, 
+              text.lineHeight || 1.0, 
+              text.letterSpacing || 0, 
+              text.alignment || 'center',
+              text.baseline || 'alphabetic',
+              text.fontColor || '#000000', 
+              text.fillAlpha || 1.0,
+              text.strokeHex || null,
+              text.strokeAlpha || null,
+              text.strokeWidth || null,
+              text.strokeAlign || null,
+              text.gradient || null
+            ]);
           }
           break;
         case 'ICON':
@@ -462,11 +487,12 @@ router.post('/mobile', async (req, res) => {
           break;
         case 'SHAPE':
           if (shape) {
+            const shapeMeta = shape.src ? { src: shape.src } : null;
             await client.query(`
               INSERT INTO layer_shape (
-                layer_id, shape_kind, fill_hex, fill_alpha, stroke_hex, stroke_width
-              ) VALUES ($1, $2, $3, $4, $5, $6)
-            `, [layer.id, shape.type || 'rect', shape.color || '#000000', 1.0, shape.strokeColor || null, shape.strokeWidth || 0]);
+                layer_id, shape_kind, fill_hex, fill_alpha, stroke_hex, stroke_width, meta
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `, [layer.id, shape.type || 'rect', shape.color || '#000000', 1.0, shape.strokeColor || null, shape.strokeWidth || 0, JSON.stringify(shapeMeta)]);
           }
           break;
         case 'BACKGROUND':
@@ -1260,12 +1286,20 @@ router.get('/:id/mobile', async (req, res) => {
             text: {
               value: row.content || '',
               font: row.font_family || 'Arial',
+              fontSize: num(row.font_size) ?? 48,
               fontColor: row.fill_hex || '#000000',
               fontWeight: row.font_weight || 'normal',
               fontStyle: row.font_style || 'normal',
               alignment: row.align || 'center',
+              baseline: row.baseline || 'alphabetic',
               lineHeight: num(row.line_height) ?? 1.0,
-              letterSpacing: num(row.letter_spacing) ?? 0
+              letterSpacing: num(row.letter_spacing) ?? 0,
+              fillAlpha: num(row.fill_alpha) ?? 1.0,
+              strokeHex: row.stroke_hex || null,
+              strokeAlpha: num(row.stroke_alpha) ?? null,
+              strokeWidth: num(row.stroke_width) ?? null,
+              strokeAlign: row.stroke_align || null,
+              gradient: row.text_gradient || null
             }
           };
 
@@ -1285,6 +1319,7 @@ router.get('/:id/mobile', async (req, res) => {
           return {
             ...baseLayer,
             shape: {
+              src: row.shape_meta?.src || null,
               type: row.shape_kind || 'rect',
               color: row.shape_fill_hex || '#000000',
               strokeColor: row.shape_stroke_hex || null,
@@ -1433,6 +1468,9 @@ router.get('/:id/mobile-structured', async (req, res) => {
         lt.content, lt.line_height, lt.letter_spacing, lt.align,
         f.family as font_family, f.style as font_style, f.weight as font_weight,
         lt.fill_hex,
+        -- Shape
+        ls.shape_kind, ls.fill_hex as shape_fill_hex, ls.stroke_hex as shape_stroke_hex,
+        ls.stroke_width as shape_stroke_width, ls.meta as shape_meta,
         -- Icon
         li.asset_id as icon_asset_id, li.tint_hex,
         -- Image
@@ -1444,6 +1482,7 @@ router.get('/:id/mobile-structured', async (req, res) => {
       FROM layers lay
       LEFT JOIN layer_text lt ON lt.layer_id = lay.id
       LEFT JOIN fonts f ON f.id = lt.font_id
+      LEFT JOIN layer_shape ls ON ls.layer_id = lay.id
       LEFT JOIN layer_icon li ON li.layer_id = lay.id
       LEFT JOIN layer_image lim ON lim.layer_id = lay.id
       LEFT JOIN layer_background lb ON lb.layer_id = lay.id
@@ -1474,12 +1513,20 @@ router.get('/:id/mobile-structured', async (req, res) => {
             text: {
               value: row.content || '',
               font: row.font_family || 'Arial',
+              fontSize: num(row.font_size) ?? 48,
               fontColor: row.fill_hex || '#000000',
               fontWeight: row.font_weight || 'normal',
               fontStyle: row.font_style || 'normal',
               alignment: row.align || 'center',
+              baseline: row.baseline || 'alphabetic',
               lineHeight: num(row.line_height) ?? 1.0,
-              letterSpacing: num(row.letter_spacing) ?? 0
+              letterSpacing: num(row.letter_spacing) ?? 0,
+              fillAlpha: num(row.fill_alpha) ?? 1.0,
+              strokeHex: row.stroke_hex || null,
+              strokeAlpha: num(row.stroke_alpha) ?? null,
+              strokeWidth: num(row.stroke_width) ?? null,
+              strokeAlign: row.stroke_align || null,
+              gradient: row.text_gradient || null
             }
           };
         case 'ICON':
@@ -1491,6 +1538,17 @@ router.get('/:id/mobile-structured', async (req, res) => {
           return {
             ...base,
             image: { type: 'imported', path: row.asset_url || '' }
+          };
+        case 'SHAPE':
+          return {
+            ...base,
+            shape: {
+              src: row.shape_meta?.src || null,
+              type: row.shape_kind || 'rect',
+              color: row.shape_fill_hex || '#000000',
+              strokeColor: row.shape_stroke_hex || null,
+              strokeWidth: num(row.shape_stroke_width) ?? 0
+            }
           };
         case 'BACKGROUND':
           return {

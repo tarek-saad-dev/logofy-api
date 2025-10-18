@@ -54,3 +54,4 @@ CREATE INDEX IF NOT EXISTS idx_logos_tags_gin ON logos USING GIN (tags);
 
 
 
+
