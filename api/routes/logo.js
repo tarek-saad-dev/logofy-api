@@ -204,7 +204,10 @@ router.get('/mobile', async (req, res) => {
         case 'ICON':
           return {
             ...baseLayer,
-            icon: { src: row.asset_name || (row.asset_id ? `icon_${row.asset_id}` : ''), color: row.tint_hex || '#000000' }
+            icon: { 
+              src: row.asset_url || row.asset_name || (row.asset_id ? `icon_${row.asset_id}` : ''), 
+              color: row.tint_hex || '#000000' 
+            }
           };
         case 'IMAGE':
           return {
@@ -465,10 +468,19 @@ router.post('/mobile', async (req, res) => {
           break;
         case 'ICON':
           if (icon) {
+            // Check if asset already exists by name
             const assetRes = await client.query(`SELECT id FROM assets WHERE name = $1 LIMIT 1`, [icon.src]);
             let assetId = assetRes.rows[0]?.id;
+            
             if (!assetId) {
-              const newAssetRes = await client.query(`INSERT INTO assets (kind, name, url, width, height, has_alpha) VALUES ('vector', $1, '', 100, 100, true) RETURNING id`, [icon.src]);
+              // Create new asset with proper URL structure
+              // For icons, we'll use a placeholder URL structure that can be replaced with actual URLs
+              const iconUrl = icon.url || `https://example.com/icons/${icon.src}`;
+              const newAssetRes = await client.query(`
+                INSERT INTO assets (kind, name, storage, url, mime_type, width, height, has_alpha) 
+                VALUES ('vector', $1, 'local', $2, 'image/svg+xml', 100, 100, true) 
+                RETURNING id
+              `, [icon.src, iconUrl]);
               assetId = newAssetRes.rows[0].id;
             }
             await client.query(`INSERT INTO layer_icon (layer_id, asset_id, tint_hex, tint_alpha) VALUES ($1, $2, $3, $4)`, [layer.id, assetId, icon.color || '#000000', 1.0]);
@@ -1306,7 +1318,10 @@ router.get('/:id/mobile', async (req, res) => {
         case 'ICON':
           return {
             ...baseLayer,
-            icon: { src: row.asset_name || (row.asset_id ? `icon_${row.asset_id}` : ''), color: row.tint_hex || '#000000' }
+            icon: { 
+              src: row.asset_url || row.asset_name || (row.asset_id ? `icon_${row.asset_id}` : ''), 
+              color: row.tint_hex || '#000000' 
+            }
           };
 
         case 'IMAGE':
@@ -1532,7 +1547,10 @@ router.get('/:id/mobile-structured', async (req, res) => {
         case 'ICON':
           return {
             ...base,
-            icon: { src: row.asset_name ? row.asset_name : (row.asset_id ? `icon_${row.asset_id}` : ''), color: row.tint_hex || '#000000' }
+            icon: { 
+              src: row.asset_url || row.asset_name || (row.asset_id ? `icon_${row.asset_id}` : ''), 
+              color: row.tint_hex || '#000000' 
+            }
           };
         case 'IMAGE':
           return {

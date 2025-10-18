@@ -197,7 +197,7 @@ http://localhost:3000/api
   "opacity": 1.0,
   "flip": { "horizontal": false, "vertical": false },
   "icon": {
-    "src": "icon_name",
+    "src": "https://example.com/icons/icon_name.svg",
     "color": "#ffc107"
   }
 }
