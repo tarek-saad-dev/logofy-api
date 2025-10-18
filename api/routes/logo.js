@@ -444,13 +444,14 @@ router.post('/mobile', async (req, res) => {
           if (text) {
             await client.query(`
               INSERT INTO layer_text (
-                layer_id, content, font_size, line_height, letter_spacing,
+                layer_id, content, font_id, font_size, line_height, letter_spacing,
                 align, baseline, fill_hex, fill_alpha, stroke_hex, stroke_alpha,
                 stroke_width, stroke_align, gradient
               ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
             `, [
               layer.id, 
               text.value || '', 
+              null, // font_id - can be null for now
               text.fontSize || 48, 
               text.lineHeight || 1.0, 
               text.letterSpacing || 0, 
