@@ -1,0 +1,215 @@
+{
+  "localization_system": {
+    "description": "Complete localization system supporting English (EN) and Arabic (AR)",
+    "features": [
+      "Language detection from query params and headers",
+      "RTL support for Arabic",
+      "Localized messages and error responses",
+      "Date formatting per language",
+      "Response metadata with language info",
+      "Middleware integration"
+    ]
+  },
+  "language_detection": {
+    "query_parameter": {
+      "description": "Language can be specified via query parameter",
+      "examples": [
+        "GET /api/logo/thumbnails?lang=EN",
+        "GET /api/logo/thumbnails?lang=AR",
+        "GET /api/logo/backgrounds?lang=AR",
+        "GET /api/logo/icons?lang=EN"
+      ]
+    },
+    "header_based": {
+      "description": "Language can be detected from Accept-Language header",
+      "examples": [
+        "Accept-Language: en-US,en;q=0.9",
+        "Accept-Language: ar-SA,ar;q=0.9,en;q=0.8",
+        "X-Language: ar"
+      ]
+    },
+    "default_behavior": {
+      "description": "If no language is specified, defaults to English (EN)"
+    }
+  },
+  "response_format": {
+    "english_example": {
+      "request": "GET /api/logo/thumbnails?lang=EN",
+      "response": {
+        "success": true,
+        "message": "Logos fetched successfully",
+        "language": "en",
+        "direction": "ltr",
+        "data": {
+          "logos": [
+            {
+              "id": "123",
+              "name": "Business Logo",
+              "category": "business",
+              "createdAt": "2024-01-15T10:30:00.000Z",
+              "createdAtFormatted": "January 15, 2024 at 12:30 PM"
+            }
+          ]
+        },
+        "pagination": {
+          "page": 1,
+          "limit": 20,
+          "total": 1,
+          "pages": 1
+        }
+      }
+    },
+    "arabic_example": {
+      "request": "GET /api/logo/thumbnails?lang=AR",
+      "response": {
+        "success": true,
+        "message": "تم جلب الشعارات بنجاح",
+        "language": "ar",
+        "direction": "rtl",
+        "data": {
+          "logos": [
+            {
+              "id": "123",
+              "name": "Business Logo",
+              "category": "business",
+              "createdAt": "2024-01-15T10:30:00.000Z",
+              "createdAtFormatted": "١٥ يناير ٢٠٢٤ في ١٢:٣٠ م"
+            }
+          ]
+        },
+        "pagination": {
+          "page": 1,
+          "limit": 20,
+          "total": 1,
+          "pages": 1
+        }
+      }
+    }
+  },
+  "error_responses": {
+    "english_error": {
+      "request": "GET /api/logo/999?lang=EN",
+      "response": {
+        "success": false,
+        "message": "Logo not found",
+        "language": "en",
+        "direction": "ltr"
+      }
+    },
+    "arabic_error": {
+      "request": "GET /api/logo/999?lang=AR",
+      "response": {
+        "success": false,
+        "message": "الشعار غير موجود",
+        "language": "ar",
+        "direction": "rtl"
+      }
+    }
+  },
+  "localized_messages": {
+    "success_messages": {
+      "en": {
+        "logoCreated": "Logo created successfully",
+        "logoUpdated": "Logo updated successfully",
+        "logoDeleted": "Logo deleted successfully",
+        "logoFetched": "Logo fetched successfully",
+        "logosFetched": "Logos fetched successfully",
+        "backgroundAdded": "Background added to library",
+        "iconAdded": "Icon added to library"
+      },
+      "ar": {
+        "logoCreated": "تم إنشاء الشعار بنجاح",
+        "logoUpdated": "تم تحديث الشعار بنجاح",
+        "logoDeleted": "تم حذف الشعار بنجاح",
+        "logoFetched": "تم جلب الشعار بنجاح",
+        "logosFetched": "تم جلب الشعارات بنجاح",
+        "backgroundAdded": "تم إضافة الخلفية إلى المكتبة",
+        "iconAdded": "تم إضافة الأيقونة إلى المكتبة"
+      }
+    },
+    "error_messages": {
+      "en": {
+        "logoNotFound": "Logo not found",
+        "backgroundNotFound": "Background not found",
+        "iconNotFound": "Icon not found",
+        "invalidData": "Invalid data provided",
+        "serverError": "Internal server error",
+        "validationError": "Validation error"
+      },
+      "ar": {
+        "logoNotFound": "الشعار غير موجود",
+        "backgroundNotFound": "الخلفية غير موجودة",
+        "iconNotFound": "الأيقونة غير موجودة",
+        "invalidData": "البيانات غير صحيحة",
+        "serverError": "خطأ في الخادم",
+        "validationError": "خطأ في التحقق من البيانات"
+      }
+    }
+  },
+  "date_formatting": {
+    "english": {
+      "format": "January 15, 2024 at 12:30 PM",
+      "locale": "en-US"
+    },
+    "arabic": {
+      "format": "١٥ يناير ٢٠٢٤ في ١٢:٣٠ م",
+      "locale": "ar-SA"
+    }
+  },
+  "rtl_support": {
+    "description": "Arabic language is automatically detected as RTL",
+    "features": [
+      "direction: 'rtl' in responses",
+      "Proper text alignment for Arabic content",
+      "Date formatting in Arabic numerals and calendar"
+    ]
+  },
+  "api_endpoints_with_localization": {
+    "logo_endpoints": [
+      "GET /api/logo/thumbnails?lang=EN|AR",
+      "GET /api/logo/mobile?lang=EN|AR",
+      "POST /api/logo/mobile (with Accept-Language header)",
+      "GET /api/logo/:id?lang=EN|AR",
+      "GET /api/logo/:id/mobile?lang=EN|AR",
+      "GET /api/logo/:id/mobile-structured?lang=EN|AR"
+    ],
+    "library_endpoints": [
+      "GET /api/logo/backgrounds?lang=EN|AR",
+      "POST /api/logo/backgrounds (with Accept-Language header)",
+      "GET /api/logo/backgrounds/:id?lang=EN|AR",
+      "GET /api/logo/icons?lang=EN|AR",
+      "POST /api/logo/icons (with Accept-Language header)",
+      "GET /api/logo/icons/:id?lang=EN|AR"
+    ]
+  },
+  "implementation_details": {
+    "middleware": "localizationMiddleware applied to all routes",
+    "language_detection": "Query param > Header > Default (EN)",
+    "response_format": "All responses include language and direction metadata",
+    "date_formatting": "Automatic based on detected language",
+    "error_handling": "All error messages are localized"
+  },
+  "usage_examples": {
+    "client_side_english": {
+      "description": "English client making requests",
+      "examples": [
+        "fetch('/api/logo/thumbnails?lang=EN')",
+        "fetch('/api/logo/backgrounds', { headers: { 'Accept-Language': 'en' } })"
+      ]
+    },
+    "client_side_arabic": {
+      "description": "Arabic client making requests",
+      "examples": [
+        "fetch('/api/logo/thumbnails?lang=AR')",
+        "fetch('/api/logo/backgrounds', { headers: { 'Accept-Language': 'ar' } })"
+      ]
+    },
+    "mobile_app_integration": {
+      "description": "Mobile app with language preference",
+      "examples": [
+        "GET /api/logo/mobile?lang=AR&page=1&limit=20",
+        "POST /api/logo/mobile with Accept-Language: ar header"
+      ]
+    }
+  }
+}

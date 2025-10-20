@@ -1,6 +1,75 @@
 const express = require('express');
 const router = express.Router();
 const { query, getClient } = require('../config/database');
+const { localizationMiddleware } = require('../utils/localization');
+
+// ==============================================
+// GRADIENT TRANSFORMATION UTILITIES
+// ==============================================
+
+/**
+ * Transform new gradient format to legacy format for backward compatibility
+ * @param {Object} gradient - The gradient object in new format
+ * @returns {Object|null} - The gradient object in legacy format or null
+ */
+function transformGradientToLegacy(gradient) {
+  if (!gradient || typeof gradient !== 'object') {
+    return null;
+  }
+
+  // If it's already in legacy format, return as-is
+  if (gradient.stops && gradient.stops[0] && gradient.stops[0].color !== undefined) {
+    return gradient;
+  }
+
+  // Transform new format to legacy format
+  if (gradient.stops && Array.isArray(gradient.stops)) {
+    return {
+      angle: gradient.angle || 0.0,
+      stops: gradient.stops.map(stop => ({
+        color: stop.hex || stop.color || '#000000',
+        position: stop.offset !== undefined ? stop.offset : (stop.position !== undefined ? stop.position : 0)
+      }))
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Transform background object to legacy format
+ * @param {Object} background - The background object
+ * @returns {Object} - The background object in legacy format
+ */
+function transformBackgroundToLegacy(background) {
+  if (!background || typeof background !== 'object') {
+    return {
+      type: 'solid',
+      gradient: null
+    };
+  }
+
+  const result = {
+    type: background.type || 'solid'
+  };
+
+  // Only include gradient if it exists and is not null
+  if (background.gradient) {
+    const legacyGradient = transformGradientToLegacy(background.gradient);
+    if (legacyGradient) {
+      result.gradient = legacyGradient;
+    }
+  }
+
+  return result;
+}
+
+// ==============================================
+// LOCALIZATION MIDDLEWARE
+// ==============================================
+
+// Apply localization middleware to all routes
+router.use(localizationMiddleware);
 
 // ==============================================
 // STATIC ROUTES FIRST (avoid shadowing by /:id)
@@ -92,8 +161,7 @@ router.get('/thumbnails', async (req, res) => {
       logos: group.logos
     }));
 
-    res.json({ 
-      success: true, 
+    req.sendSuccess('logosFetched', {
       data: groupedData,
       pagination: { 
         page, 
@@ -101,11 +169,11 @@ router.get('/thumbnails', async (req, res) => {
         total, 
         pages: Math.ceil(total / limit),
         categoriesCount: categoryGroups.length
-      } 
+      }
     });
   } catch (err) {
     console.error('Error fetching logo thumbnails:', err);
-    res.status(500).json({ success: false, message: 'Failed to fetch logo thumbnails' });
+    req.sendError('serverError', 500);
   }
 });
 
@@ -198,7 +266,15 @@ router.get('/mobile', async (req, res) => {
               strokeAlpha: num(row.stroke_alpha) ?? null,
               strokeWidth: num(row.stroke_width) ?? null,
               strokeAlign: row.stroke_align || null,
-              gradient: row.text_gradient || null
+              gradient: row.text_gradient || null,
+              underline: row.underline || false,
+              underlineDirection: row.underline_direction || 'horizontal',
+              textCase: row.text_case || 'normal',
+              fontStyle: row.font_style || 'normal',
+              fontWeight: row.font_weight || 'normal',
+              textDecoration: row.text_decoration || 'none',
+              textTransform: row.text_transform || 'none',
+              fontVariant: row.font_variant || 'normal'
             }
           };
         case 'ICON':
@@ -231,7 +307,11 @@ router.get('/mobile', async (req, res) => {
             background: {
               type: row.mode || 'solid',
               color: row.bg_fill_hex || '#ffffff',
-              image: row.asset_url ? { type: 'imported', path: row.asset_url } : null
+              image: row.asset_url ? { 
+                type: 'imported', 
+                path: row.asset_url,
+                src: row.asset_name || row.asset_url
+              } : null
             }
           };
         default:
@@ -298,10 +378,13 @@ router.get('/mobile', async (req, res) => {
     const totalRes = await query(`SELECT COUNT(*)::int AS total FROM logos`);
     const total = totalRes.rows[0].total;
 
-    res.json({ success: true, data, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+    req.sendSuccess('logosFetched', {
+      data,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) }
+    });
   } catch (err) {
     console.error('Error fetching mobile logos list:', err);
-    res.status(500).json({ success: false, message: 'Failed to fetch logos' });
+    req.sendError('serverError', 500);
   }
 });
 
@@ -327,12 +410,12 @@ router.post('/mobile', async (req, res) => {
     } = req.body;
 
     if (!name) {
-      return res.status(400).json({ success: false, message: 'name is required' });
+      return req.sendError('validationError', 400);
     }
 
     // Validate categoryId if provided
     if (categoryId && !categoryId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-      return res.status(400).json({ success: false, message: 'categoryId must be a valid UUID' });
+      return req.sendError('validationError', 400);
     }
 
     await client.query('BEGIN');
@@ -446,10 +529,11 @@ router.post('/mobile', async (req, res) => {
               INSERT INTO layer_text (
                 layer_id, content, font_id, font_size, line_height, letter_spacing,
                 align, baseline, fill_hex, fill_alpha, stroke_hex, stroke_alpha,
-                stroke_width, stroke_align, gradient
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                stroke_width, stroke_align, gradient, underline, underline_direction,
+                text_case, font_style, font_weight, text_decoration, text_transform, font_variant
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
             `, [
-              layer.id, 
+              layer.id,
               text.value || '', 
               null, // font_id - can be null for now
               text.fontSize || 48, 
@@ -463,7 +547,15 @@ router.post('/mobile', async (req, res) => {
               text.strokeAlpha || null,
               text.strokeWidth || null,
               text.strokeAlign || null,
-              text.gradient || null
+              text.gradient || null,
+              text.underline || false,
+              text.underlineDirection || 'horizontal',
+              text.textCase || 'normal',
+              text.fontStyle || 'normal',
+              text.fontWeight || 'normal',
+              text.textDecoration || 'none',
+              text.textTransform || 'none',
+              text.fontVariant || 'normal'
             ]);
           }
           break;
@@ -510,11 +602,43 @@ router.post('/mobile', async (req, res) => {
           break;
         case 'BACKGROUND':
           if (background) {
+            let assetId = null;
+            
+            // If background has an image, store it in the assets table
+            if (background.image && background.image.src) {
+              // Check if asset already exists by name or URL
+              const assetRes = await client.query(`
+                SELECT id FROM assets WHERE name = $1 OR url = $2 LIMIT 1
+              `, [background.image.src, background.image.path || background.image.src]);
+              
+              if (assetRes.rows.length > 0) {
+                assetId = assetRes.rows[0].id;
+              } else {
+                // Create new asset for background image
+                const backgroundUrl = background.image.url || background.image.path || `https://example.com/backgrounds/${background.image.src}`;
+                const newAssetRes = await client.query(`
+                  INSERT INTO assets (kind, name, storage, url, mime_type, width, height, has_alpha) 
+                  VALUES ('raster', $1, 'local', $2, 'image/jpeg', 1920, 1080, false) 
+                  RETURNING id
+                `, [background.image.src, backgroundUrl]);
+                assetId = newAssetRes.rows[0].id;
+              }
+            }
+            
             await client.query(`
               INSERT INTO layer_background (
-                layer_id, mode, fill_hex, fill_alpha, asset_id
-              ) VALUES ($1, $2, $3, $4, $5)
-            `, [layer.id, background.type || 'solid', background.color || '#ffffff', 1.0, null]);
+                layer_id, mode, fill_hex, fill_alpha, asset_id, repeat, position, size
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            `, [
+              layer.id, 
+              background.type || 'solid', 
+              background.color || '#ffffff', 
+              1.0, 
+              assetId,
+              background.repeat || 'no-repeat',
+              background.position || 'center',
+              background.size || 'cover'
+            ]);
           }
           break;
       }
@@ -523,46 +647,43 @@ router.post('/mobile', async (req, res) => {
 
     await client.query('COMMIT');
 
-    res.status(201).json({
-      success: true,
-      data: {
-        logoId: logo.id.toString(),
-        templateId: logo.template_id ? logo.template_id.toString() : null,
-        userId: logo.owner_id,
-        name: logo.title,
-        description: logo.description,
-        categoryId: logo.category_id,
-        canvas: {
-          aspectRatio: logo.canvas_h ? logo.canvas_w / logo.canvas_h : 1.0,
-          background: {
-            type: logo.canvas_background_type || 'solid',
-            solidColor: logo.canvas_background_solid_color || '#ffffff',
-            gradient: logo.canvas_background_gradient || null,
-            image: logo.canvas_background_image_path ? { type: logo.canvas_background_image_type || 'imported', path: logo.canvas_background_image_path } : null
-          }
-        },
-        layers: createdLayers.map(layer => ({
-          layerId: layer.id.toString(),
-          type: layer.type.toLowerCase(),
-          visible: layer.is_visible,
-          order: layer.z_index,
-          position: { x: layer.x_norm, y: layer.y_norm },
-          scaleFactor: layer.scale,
-          rotation: layer.rotation_deg,
-          opacity: layer.opacity,
-          flip: { horizontal: layer.flip_horizontal, vertical: layer.flip_vertical }
-        })),
-        colorsUsed: colorsUsed,
-        alignments: alignments || { verticalAlign: 'center', horizontalAlign: 'center' },
-        responsive: responsive || { version: '3.0', description: 'Fully responsive logo data - no absolute sizes stored', scalingMethod: 'scaleFactor', positionMethod: 'relative', fullyResponsive: true },
-        metadata: { createdAt: new Date(logo.created_at).toISOString(), updatedAt: new Date(logo.updated_at).toISOString(), tags: logo.tags || ['logo', 'design', 'responsive'], version: logo.version || 3, responsive: logo.responsive || true },
-        export: exportSettings || { format: 'png', transparentBackground: true, quality: 100, responsive: { scalable: true, maintainAspectRatio: true } }
-      }
-    });
+    req.sendSuccess('logoCreated', {
+      logoId: logo.id.toString(),
+      templateId: logo.template_id ? logo.template_id.toString() : null,
+      userId: logo.owner_id,
+      name: logo.title,
+      description: logo.description,
+      categoryId: logo.category_id,
+      canvas: {
+        aspectRatio: logo.canvas_h ? logo.canvas_w / logo.canvas_h : 1.0,
+        background: {
+          type: logo.canvas_background_type || 'solid',
+          solidColor: logo.canvas_background_solid_color || '#ffffff',
+          gradient: logo.canvas_background_gradient || null,
+          image: logo.canvas_background_image_path ? { type: logo.canvas_background_image_type || 'imported', path: logo.canvas_background_image_path } : null
+        }
+      },
+      layers: createdLayers.map(layer => ({
+        layerId: layer.id.toString(),
+        type: layer.type.toLowerCase(),
+        visible: layer.is_visible,
+        order: layer.z_index,
+        position: { x: layer.x_norm, y: layer.y_norm },
+        scaleFactor: layer.scale,
+        rotation: layer.rotation_deg,
+        opacity: layer.opacity,
+        flip: { horizontal: layer.flip_horizontal, vertical: layer.flip_vertical }
+      })),
+      colorsUsed: colorsUsed,
+      alignments: alignments || { verticalAlign: 'center', horizontalAlign: 'center' },
+      responsive: responsive || { version: '3.0', description: 'Fully responsive logo data - no absolute sizes stored', scalingMethod: 'scaleFactor', positionMethod: 'relative', fullyResponsive: true },
+      metadata: { createdAt: new Date(logo.created_at).toISOString(), updatedAt: new Date(logo.updated_at).toISOString(), tags: logo.tags || ['logo', 'design', 'responsive'], version: logo.version || 3, responsive: logo.responsive || true },
+      export: exportSettings || { format: 'png', transparentBackground: true, quality: 100, responsive: { scalable: true, maintainAspectRatio: true } }
+    }, 201);
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error creating logo from mobile format:', error);
-    res.status(500).json({ success: false, message: error.message || 'Failed to create logo' });
+    req.sendError('serverError', 500);
   } finally {
     client.release();
   }
@@ -621,6 +742,8 @@ router.get('/:id', async (req, res) => {
         lt.content, lt.font_id, lt.font_size, lt.line_height, lt.letter_spacing,
         lt.align, lt.baseline, lt.fill_hex, lt.fill_alpha, lt.stroke_hex,
         lt.stroke_alpha, lt.stroke_width, lt.stroke_align, lt.gradient as text_gradient,
+        lt.underline, lt.underline_direction, lt.text_case, lt.font_style, lt.font_weight,
+        lt.text_decoration, lt.text_transform, lt.font_variant,
         
         -- Shape layer data
         ls.shape_kind, ls.svg_path, ls.points, ls.rx, ls.ry,
@@ -968,12 +1091,16 @@ router.post('/', async (req, res) => {
               INSERT INTO layer_text (
                 layer_id, content, font_id, font_size, line_height, letter_spacing,
                 align, baseline, fill_hex, fill_alpha, stroke_hex, stroke_alpha,
-                stroke_width, stroke_align, gradient
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                stroke_width, stroke_align, gradient, underline, underline_direction,
+                text_case, font_style, font_weight, text_decoration, text_transform, font_variant
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
             `, [
               layer.id, text.content, text.font_id, text.font_size, text.line_height,
               text.letter_spacing, text.align, text.baseline, text.fill_hex, text.fill_alpha,
-              text.stroke_hex, text.stroke_alpha, text.stroke_width, text.stroke_align, text.gradient
+              text.stroke_hex, text.stroke_alpha, text.stroke_width, text.stroke_align, text.gradient,
+              text.underline || false, text.underline_direction || 'horizontal',
+              text.text_case || 'normal', text.font_style || 'normal', text.font_weight || 'normal',
+              text.text_decoration || 'none', text.text_transform || 'none', text.font_variant || 'normal'
             ]);
           }
           break;
@@ -1190,6 +1317,8 @@ router.get('/:id/versions', async (req, res) => {
 router.get('/:id/mobile', async (req, res) => {
   try {
     const { id } = req.params;
+    const { format } = req.query;
+    const useLegacyFormat = format === 'legacy';
 
     // Fetch logo basic info with all new fields
     const logoRes = await query(`
@@ -1230,6 +1359,8 @@ router.get('/:id/mobile', async (req, res) => {
         lt.content, lt.font_id, lt.font_size, lt.line_height, lt.letter_spacing,
         lt.align, lt.baseline, lt.fill_hex, lt.fill_alpha, lt.stroke_hex,
         lt.stroke_alpha, lt.stroke_width, lt.stroke_align, lt.gradient as text_gradient,
+        lt.underline, lt.underline_direction, lt.text_case, lt.font_style, lt.font_weight,
+        lt.text_decoration, lt.text_transform, lt.font_variant,
         
         -- Shape layer data
         ls.shape_kind, ls.svg_path, ls.points, ls.rx, ls.ry,
@@ -1312,7 +1443,15 @@ router.get('/:id/mobile', async (req, res) => {
               strokeAlpha: num(row.stroke_alpha) ?? null,
               strokeWidth: num(row.stroke_width) ?? null,
               strokeAlign: row.stroke_align || null,
-              gradient: row.text_gradient || null
+              gradient: row.text_gradient || null,
+              underline: row.underline || false,
+              underlineDirection: row.underline_direction || 'horizontal',
+              textCase: row.text_case || 'normal',
+              fontStyle: row.font_style || 'normal',
+              fontWeight: row.font_weight || 'normal',
+              textDecoration: row.text_decoration || 'none',
+              textTransform: row.text_transform || 'none',
+              fontVariant: row.font_variant || 'normal'
             }
           };
 
@@ -1351,7 +1490,8 @@ router.get('/:id/mobile', async (req, res) => {
               color: row.bg_fill_hex || '#ffffff',
               image: row.asset_url ? {
                 type: 'imported',
-                path: row.asset_url
+                path: row.asset_url,
+                src: row.asset_name || row.asset_url
               } : null
             }
           };
@@ -1398,15 +1538,25 @@ router.get('/:id/mobile', async (req, res) => {
       description: logo.description || `Logo created on ${new Date(logo.created_at).toISOString()}`,
       canvas: {
         aspectRatio: logo.canvas_h ? logo.canvas_w / logo.canvas_h : 1.0,
-        background: {
-          type: logo.canvas_background_type || 'solid',
-          solidColor: logo.canvas_background_solid_color || '#ffffff',
-          gradient: logo.canvas_background_gradient || null,
-          image: logo.canvas_background_image_path ? {
-            type: logo.canvas_background_image_type || 'imported',
-            path: logo.canvas_background_image_path
-          } : null
-        }
+        background: useLegacyFormat ? 
+          transformBackgroundToLegacy({
+            type: logo.canvas_background_type || 'solid',
+            solidColor: logo.canvas_background_solid_color || '#ffffff',
+            gradient: logo.canvas_background_gradient || null,
+            image: logo.canvas_background_image_path ? {
+              type: logo.canvas_background_image_type || 'imported',
+              path: logo.canvas_background_image_path
+            } : null
+          }) :
+          {
+            type: logo.canvas_background_type || 'solid',
+            solidColor: logo.canvas_background_solid_color || '#ffffff',
+            gradient: logo.canvas_background_gradient || null,
+            image: logo.canvas_background_image_path ? {
+              type: logo.canvas_background_image_type || 'imported',
+              path: logo.canvas_background_image_path
+            } : null
+          }
       },
       layers: layers,
       colorsUsed: logo.colors_used || uniqueColors,
@@ -1451,6 +1601,8 @@ router.get('/:id/mobile', async (req, res) => {
 router.get('/:id/mobile-structured', async (req, res) => {
   try {
     const { id } = req.params;
+    const { format } = req.query;
+    const useLegacyFormat = format === 'legacy';
 
     // Fetch logo with full set of mobile-related fields
     const logoRes = await query(`
@@ -1481,9 +1633,10 @@ router.get('/:id/mobile-structured', async (req, res) => {
         lay.id, lay.logo_id, lay.type, lay.z_index, lay.x_norm, lay.y_norm, lay.scale, lay.rotation_deg,
         lay.opacity, lay.is_visible, lay.flip_horizontal, lay.flip_vertical,
         -- Text
-        lt.content, lt.line_height, lt.letter_spacing, lt.align,
+        lt.content, lt.font_id, lt.font_size, lt.line_height, lt.letter_spacing,
+        lt.align, lt.baseline, lt.fill_hex, lt.fill_alpha, lt.stroke_hex,
+        lt.stroke_alpha, lt.stroke_width, lt.stroke_align, lt.gradient as text_gradient,
         f.family as font_family, f.style as font_style, f.weight as font_weight,
-        lt.fill_hex,
         -- Shape
         ls.shape_kind, ls.fill_hex as shape_fill_hex, ls.stroke_hex as shape_stroke_hex,
         ls.stroke_width as shape_stroke_width, ls.meta as shape_meta,
@@ -1542,7 +1695,15 @@ router.get('/:id/mobile-structured', async (req, res) => {
               strokeAlpha: num(row.stroke_alpha) ?? null,
               strokeWidth: num(row.stroke_width) ?? null,
               strokeAlign: row.stroke_align || null,
-              gradient: row.text_gradient || null
+              gradient: row.text_gradient || null,
+              underline: row.underline || false,
+              underlineDirection: row.underline_direction || 'horizontal',
+              textCase: row.text_case || 'normal',
+              fontStyle: row.font_style || 'normal',
+              fontWeight: row.font_weight || 'normal',
+              textDecoration: row.text_decoration || 'none',
+              textTransform: row.text_transform || 'none',
+              fontVariant: row.font_variant || 'normal'
             }
           };
         case 'ICON':
@@ -1575,7 +1736,11 @@ router.get('/:id/mobile-structured', async (req, res) => {
             background: {
               type: row.bg_mode || 'solid',
               color: row.bg_fill_hex || '#ffffff',
-              image: row.bg_asset_url ? { type: 'imported', path: row.bg_asset_url } : null
+              image: row.bg_asset_url ? { 
+                type: 'imported', 
+                path: row.bg_asset_url,
+                src: row.asset_name || row.bg_asset_url
+              } : null
             }
           };
         default:
@@ -1603,12 +1768,19 @@ router.get('/:id/mobile-structured', async (req, res) => {
       description: logo.description || `Logo created on ${new Date(logo.created_at).toISOString()}`,
       canvas: {
         aspectRatio: logo.canvas_h ? logo.canvas_w / logo.canvas_h : 1.0,
-        background: {
-          type: logo.canvas_background_type || 'solid',
-          solidColor: logo.canvas_background_solid_color || null,
-          gradient: logo.canvas_background_gradient || null,
-          image: logo.canvas_background_image_path ? { type: logo.canvas_background_image_type || 'imported', path: logo.canvas_background_image_path } : null
-        }
+        background: useLegacyFormat ? 
+          transformBackgroundToLegacy({
+            type: logo.canvas_background_type || 'solid',
+            solidColor: logo.canvas_background_solid_color || null,
+            gradient: logo.canvas_background_gradient || null,
+            image: logo.canvas_background_image_path ? { type: logo.canvas_background_image_type || 'imported', path: logo.canvas_background_image_path } : null
+          }) :
+          {
+            type: logo.canvas_background_type || 'solid',
+            solidColor: logo.canvas_background_solid_color || null,
+            gradient: logo.canvas_background_gradient || null,
+            image: logo.canvas_background_image_path ? { type: logo.canvas_background_image_type || 'imported', path: logo.canvas_background_image_path } : null
+          }
       },
       layers,
       colorsUsed: Array.isArray(logo.colors_used) ? logo.colors_used : uniqueColors,
@@ -1649,6 +1821,361 @@ router.get('/:id/mobile-structured', async (req, res) => {
 });
 
 // (removed older duplicate list route block; unified above)
+
+// ==============================================
+// ASSET LIBRARY ENDPOINTS
+// ==============================================
+
+// GET /api/logo/backgrounds - Get all background assets
+router.get('/backgrounds', async (req, res) => {
+  try {
+    const { page = 1, limit = 20, category, type } = req.query;
+    const offset = (page - 1) * limit;
+    
+    let whereClause = "WHERE ai.kind IN ('raster', 'vector') AND ai.meta->>'library_type' = 'background'";
+    let queryParams = [limit, offset];
+    let paramCount = 2;
+    
+    if (category) {
+      paramCount++;
+      whereClause += ` AND ai.meta->>'category' = $${paramCount}`;
+      queryParams.push(category);
+    }
+    
+    if (type) {
+      paramCount++;
+      whereClause += ` AND ai.kind = $${paramCount}`;
+      queryParams.push(type);
+    }
+    
+    const backgroundsRes = await query(`
+      SELECT 
+        ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
+        ai.has_alpha, ai.vector_svg, ai.meta,
+        ai.created_at, ai.updated_at
+      FROM assets ai
+      ${whereClause}
+      ORDER BY ai.created_at DESC
+      LIMIT $1 OFFSET $2
+    `, queryParams);
+    
+    const totalRes = await query(`
+      SELECT COUNT(*)::int AS total 
+      FROM assets ai 
+      ${whereClause}
+    `, queryParams.slice(2));
+    
+    const total = totalRes.rows[0].total;
+    
+    const backgrounds = backgroundsRes.rows.map(bg => ({
+      id: bg.id,
+      name: bg.name,
+      url: bg.url,
+      type: bg.kind,
+      width: bg.width,
+      height: bg.height,
+      hasAlpha: bg.has_alpha,
+      vectorSvg: bg.vector_svg,
+      category: bg.meta?.category || 'general',
+      tags: bg.meta?.tags || [],
+      description: bg.meta?.description || '',
+      createdAt: new Date(bg.created_at).toISOString(),
+      updatedAt: new Date(bg.updated_at).toISOString()
+    }));
+    
+    req.sendSuccess('backgroundsFetched', {
+      data: backgrounds,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching backgrounds:', error);
+    req.sendError('serverError', 500);
+  }
+});
+
+// POST /api/logo/backgrounds - Add new background to library
+router.post('/backgrounds', async (req, res) => {
+  try {
+    const {
+      name,
+      url,
+      type = 'raster',
+      width = 1920,
+      height = 1080,
+      hasAlpha = false,
+      vectorSvg = null,
+      category = 'general',
+      tags = [],
+      description = ''
+    } = req.body;
+    
+    if (!name || !url) {
+      return req.sendError('validationError', 400);
+    }
+    
+    const meta = {
+      library_type: 'background',
+      category,
+      tags,
+      description
+    };
+    
+    const result = await query(`
+      INSERT INTO assets (kind, name, url, width, height, has_alpha, vector_svg, meta)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `, [type, name, url, width, height, hasAlpha, vectorSvg, JSON.stringify(meta)]);
+    
+    const background = result.rows[0];
+    
+    req.sendSuccess('backgroundAdded', {
+      id: background.id,
+      name: background.name,
+      url: background.url,
+      type: background.kind,
+      width: background.width,
+      height: background.height,
+      hasAlpha: background.has_alpha,
+      vectorSvg: background.vector_svg,
+      category: background.meta?.category || 'general',
+      tags: background.meta?.tags || [],
+      description: background.meta?.description || '',
+      createdAt: new Date(background.created_at).toISOString(),
+      updatedAt: new Date(background.updated_at).toISOString()
+    }, 201);
+  } catch (error) {
+    console.error('Error creating background:', error);
+    req.sendError('serverError', 500);
+  }
+});
+
+// GET /api/logo/icons - Get all icon assets
+router.get('/icons', async (req, res) => {
+  try {
+    const { page = 1, limit = 20, category, type } = req.query;
+    const offset = (page - 1) * limit;
+    
+    let whereClause = "WHERE ai.kind IN ('vector', 'raster') AND ai.meta->>'library_type' = 'icon'";
+    let queryParams = [limit, offset];
+    let paramCount = 2;
+    
+    if (category) {
+      paramCount++;
+      whereClause += ` AND ai.meta->>'category' = $${paramCount}`;
+      queryParams.push(category);
+    }
+    
+    if (type) {
+      paramCount++;
+      whereClause += ` AND ai.kind = $${paramCount}`;
+      queryParams.push(type);
+    }
+    
+    const iconsRes = await query(`
+      SELECT 
+        ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
+        ai.has_alpha, ai.vector_svg, ai.meta,
+        ai.created_at, ai.updated_at
+      FROM assets ai
+      ${whereClause}
+      ORDER BY ai.created_at DESC
+      LIMIT $1 OFFSET $2
+    `, queryParams);
+    
+    const totalRes = await query(`
+      SELECT COUNT(*)::int AS total 
+      FROM assets ai 
+      ${whereClause}
+    `, queryParams.slice(2));
+    
+    const total = totalRes.rows[0].total;
+    
+    const icons = iconsRes.rows.map(icon => ({
+      id: icon.id,
+      name: icon.name,
+      url: icon.url,
+      type: icon.kind,
+      width: icon.width,
+      height: icon.height,
+      hasAlpha: icon.has_alpha,
+      vectorSvg: icon.vector_svg,
+      category: icon.meta?.category || 'general',
+      tags: icon.meta?.tags || [],
+      description: icon.meta?.description || '',
+      createdAt: new Date(icon.created_at).toISOString(),
+      updatedAt: new Date(icon.updated_at).toISOString()
+    }));
+    
+    res.json({
+      success: true,
+      data: icons,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching icons:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch icons' });
+  }
+});
+
+// POST /api/logo/icons - Add new icon to library
+router.post('/icons', async (req, res) => {
+  try {
+    const {
+      name,
+      url,
+      type = 'vector',
+      width = 100,
+      height = 100,
+      hasAlpha = true,
+      vectorSvg = null,
+      category = 'general',
+      tags = [],
+      description = ''
+    } = req.body;
+    
+    if (!name || !url) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'name and url are required' 
+      });
+    }
+    
+    const meta = {
+      library_type: 'icon',
+      category,
+      tags,
+      description
+    };
+    
+    const result = await query(`
+      INSERT INTO assets (kind, name, url, width, height, has_alpha, vector_svg, meta)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `, [type, name, url, width, height, hasAlpha, vectorSvg, JSON.stringify(meta)]);
+    
+    const icon = result.rows[0];
+    
+    res.status(201).json({
+      success: true,
+      data: {
+        id: icon.id,
+        name: icon.name,
+        url: icon.url,
+        type: icon.kind,
+        width: icon.width,
+        height: icon.height,
+        hasAlpha: icon.has_alpha,
+        vectorSvg: icon.vector_svg,
+        category: icon.meta?.category || 'general',
+        tags: icon.meta?.tags || [],
+        description: icon.meta?.description || '',
+        createdAt: new Date(icon.created_at).toISOString(),
+        updatedAt: new Date(icon.updated_at).toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Error creating icon:', error);
+    res.status(500).json({ success: false, message: 'Failed to create icon' });
+  }
+});
+
+// GET /api/logo/backgrounds/:id - Get specific background
+router.get('/backgrounds/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await query(`
+      SELECT 
+        ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
+        ai.has_alpha, ai.vector_svg, ai.meta,
+        ai.created_at, ai.updated_at
+      FROM assets ai
+      WHERE ai.id = $1 AND ai.meta->>'library_type' = 'background'
+    `, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Background not found' });
+    }
+    
+    const background = result.rows[0];
+    
+    res.json({
+      success: true,
+      data: {
+        id: background.id,
+        name: background.name,
+        url: background.url,
+        type: background.kind,
+        width: background.width,
+        height: background.height,
+        hasAlpha: background.has_alpha,
+        vectorSvg: background.vector_svg,
+        category: background.meta?.category || 'general',
+        tags: background.meta?.tags || [],
+        description: background.meta?.description || '',
+        createdAt: new Date(background.created_at).toISOString(),
+        updatedAt: new Date(background.updated_at).toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching background:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch background' });
+  }
+});
+
+// GET /api/logo/icons/:id - Get specific icon
+router.get('/icons/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await query(`
+      SELECT 
+        ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
+        ai.has_alpha, ai.vector_svg, ai.meta,
+        ai.created_at, ai.updated_at
+      FROM assets ai
+      WHERE ai.id = $1 AND ai.meta->>'library_type' = 'icon'
+    `, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Icon not found' });
+    }
+    
+    const icon = result.rows[0];
+    
+    res.json({
+      success: true,
+      data: {
+        id: icon.id,
+        name: icon.name,
+        url: icon.url,
+        type: icon.kind,
+        width: icon.width,
+        height: icon.height,
+        hasAlpha: icon.has_alpha,
+        vectorSvg: icon.vector_svg,
+        category: icon.meta?.category || 'general',
+        tags: icon.meta?.tags || [],
+        description: icon.meta?.description || '',
+        createdAt: new Date(icon.created_at).toISOString(),
+        updatedAt: new Date(icon.updated_at).toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching icon:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch icon' });
+  }
+});
 
 module.exports = router;
 

@@ -257,9 +257,13 @@ http://localhost:3000/api
   "opacity": 1.0,
   "flip": { "horizontal": false, "vertical": false },
   "background": {
-    "type": "solid",
+    "type": "image",
     "color": "#ffffff",
-    "image": null
+    "image": {
+      "type": "imported",
+      "path": "https://example.com/backgrounds/abstract-bg.jpg",
+      "src": "abstract-bg"
+    }
   }
 }
 ```

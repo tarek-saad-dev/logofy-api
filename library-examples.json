@@ -1,0 +1,294 @@
+{
+  "background_library_examples": {
+    "post_background": {
+      "endpoint": "POST /api/logo/backgrounds",
+      "description": "Add a new background to the library",
+      "request_body": {
+        "name": "Abstract Gradient Background",
+        "url": "https://example.com/backgrounds/abstract-gradient.jpg",
+        "type": "raster",
+        "width": 1920,
+        "height": 1080,
+        "hasAlpha": false,
+        "vectorSvg": null,
+        "category": "abstract",
+        "tags": ["gradient", "modern", "colorful"],
+        "description": "A beautiful abstract gradient background perfect for modern designs"
+      },
+      "response": {
+        "success": true,
+        "data": {
+          "id": "123e4567-e89b-12d3-a456-426614174000",
+          "name": "Abstract Gradient Background",
+          "url": "https://example.com/backgrounds/abstract-gradient.jpg",
+          "type": "raster",
+          "width": 1920,
+          "height": 1080,
+          "hasAlpha": false,
+          "vectorSvg": null,
+          "category": "abstract",
+          "tags": ["gradient", "modern", "colorful"],
+          "description": "A beautiful abstract gradient background perfect for modern designs",
+          "createdAt": "2024-01-15T10:30:00.000Z",
+          "updatedAt": "2024-01-15T10:30:00.000Z"
+        }
+      }
+    },
+    "get_backgrounds": {
+      "endpoint": "GET /api/logo/backgrounds",
+      "description": "Get all backgrounds from the library with pagination and filtering",
+      "query_parameters": {
+        "page": 1,
+        "limit": 20,
+        "category": "abstract",
+        "type": "raster"
+      },
+      "response": {
+        "success": true,
+        "data": [
+          {
+            "id": "123e4567-e89b-12d3-a456-426614174000",
+            "name": "Abstract Gradient Background",
+            "url": "https://example.com/backgrounds/abstract-gradient.jpg",
+            "type": "raster",
+            "width": 1920,
+            "height": 1080,
+            "hasAlpha": false,
+            "vectorSvg": null,
+            "category": "abstract",
+            "tags": ["gradient", "modern", "colorful"],
+            "description": "A beautiful abstract gradient background perfect for modern designs",
+            "createdAt": "2024-01-15T10:30:00.000Z",
+            "updatedAt": "2024-01-15T10:30:00.000Z"
+          },
+          {
+            "id": "456e7890-e89b-12d3-a456-426614174001",
+            "name": "Geometric Pattern",
+            "url": "https://example.com/backgrounds/geometric-pattern.svg",
+            "type": "vector",
+            "width": 1920,
+            "height": 1080,
+            "hasAlpha": true,
+            "vectorSvg": "<svg>...</svg>",
+            "category": "geometric",
+            "tags": ["pattern", "minimal", "geometric"],
+            "description": "Clean geometric pattern background",
+            "createdAt": "2024-01-14T15:45:00.000Z",
+            "updatedAt": "2024-01-14T15:45:00.000Z"
+          }
+        ],
+        "pagination": {
+          "page": 1,
+          "limit": 20,
+          "total": 2,
+          "pages": 1
+        }
+      }
+    },
+    "get_specific_background": {
+      "endpoint": "GET /api/logo/backgrounds/:id",
+      "description": "Get a specific background by ID",
+      "response": {
+        "success": true,
+        "data": {
+          "id": "123e4567-e89b-12d3-a456-426614174000",
+          "name": "Abstract Gradient Background",
+          "url": "https://example.com/backgrounds/abstract-gradient.jpg",
+          "type": "raster",
+          "width": 1920,
+          "height": 1080,
+          "hasAlpha": false,
+          "vectorSvg": null,
+          "category": "abstract",
+          "tags": ["gradient", "modern", "colorful"],
+          "description": "A beautiful abstract gradient background perfect for modern designs",
+          "createdAt": "2024-01-15T10:30:00.000Z",
+          "updatedAt": "2024-01-15T10:30:00.000Z"
+        }
+      }
+    }
+  },
+  "icon_library_examples": {
+    "post_icon": {
+      "endpoint": "POST /api/logo/icons",
+      "description": "Add a new icon to the library",
+      "request_body": {
+        "name": "Heart Icon",
+        "url": "https://example.com/icons/heart.svg",
+        "type": "vector",
+        "width": 100,
+        "height": 100,
+        "hasAlpha": true,
+        "vectorSvg": "<svg viewBox=\"0 0 100 100\"><path d=\"M50 85L20 55C15 50 15 42 20 37C25 32 35 32 40 37L50 47L60 37C65 32 75 32 80 37C85 42 85 50 80 55L50 85Z\" fill=\"#ff0000\"/></svg>",
+        "category": "emotions",
+        "tags": ["heart", "love", "emotion", "symbol"],
+        "description": "A simple heart icon perfect for love-themed designs"
+      },
+      "response": {
+        "success": true,
+        "data": {
+          "id": "789e0123-e89b-12d3-a456-426614174002",
+          "name": "Heart Icon",
+          "url": "https://example.com/icons/heart.svg",
+          "type": "vector",
+          "width": 100,
+          "height": 100,
+          "hasAlpha": true,
+          "vectorSvg": "<svg viewBox=\"0 0 100 100\"><path d=\"M50 85L20 55C15 50 15 42 20 37C25 32 35 32 40 37L50 47L60 37C65 32 75 32 80 37C85 42 85 50 80 55L50 85Z\" fill=\"#ff0000\"/></svg>",
+          "category": "emotions",
+          "tags": ["heart", "love", "emotion", "symbol"],
+          "description": "A simple heart icon perfect for love-themed designs",
+          "createdAt": "2024-01-15T11:00:00.000Z",
+          "updatedAt": "2024-01-15T11:00:00.000Z"
+        }
+      }
+    },
+    "get_icons": {
+      "endpoint": "GET /api/logo/icons",
+      "description": "Get all icons from the library with pagination and filtering",
+      "query_parameters": {
+        "page": 1,
+        "limit": 20,
+        "category": "emotions",
+        "type": "vector"
+      },
+      "response": {
+        "success": true,
+        "data": [
+          {
+            "id": "789e0123-e89b-12d3-a456-426614174002",
+            "name": "Heart Icon",
+            "url": "https://example.com/icons/heart.svg",
+            "type": "vector",
+            "width": 100,
+            "height": 100,
+            "hasAlpha": true,
+            "vectorSvg": "<svg viewBox=\"0 0 100 100\"><path d=\"M50 85L20 55C15 50 15 42 20 37C25 32 35 32 40 37L50 47L60 37C65 32 75 32 80 37C85 42 85 50 80 55L50 85Z\" fill=\"#ff0000\"/></svg>",
+            "category": "emotions",
+            "tags": ["heart", "love", "emotion", "symbol"],
+            "description": "A simple heart icon perfect for love-themed designs",
+            "createdAt": "2024-01-15T11:00:00.000Z",
+            "updatedAt": "2024-01-15T11:00:00.000Z"
+          },
+          {
+            "id": "012e3456-e89b-12d3-a456-426614174003",
+            "name": "Star Icon",
+            "url": "https://example.com/icons/star.svg",
+            "type": "vector",
+            "width": 100,
+            "height": 100,
+            "hasAlpha": true,
+            "vectorSvg": "<svg viewBox=\"0 0 100 100\"><polygon points=\"50,5 61,35 95,35 68,57 79,87 50,65 21,87 32,57 5,35 39,35\" fill=\"#ffd700\"/></svg>",
+            "category": "symbols",
+            "tags": ["star", "symbol", "rating", "quality"],
+            "description": "A classic 5-pointed star icon",
+            "createdAt": "2024-01-15T11:15:00.000Z",
+            "updatedAt": "2024-01-15T11:15:00.000Z"
+          }
+        ],
+        "pagination": {
+          "page": 1,
+          "limit": 20,
+          "total": 2,
+          "pages": 1
+        }
+      }
+    },
+    "get_specific_icon": {
+      "endpoint": "GET /api/logo/icons/:id",
+      "description": "Get a specific icon by ID",
+      "response": {
+        "success": true,
+        "data": {
+          "id": "789e0123-e89b-12d3-a456-426614174002",
+          "name": "Heart Icon",
+          "url": "https://example.com/icons/heart.svg",
+          "type": "vector",
+          "width": 100,
+          "height": 100,
+          "hasAlpha": true,
+          "vectorSvg": "<svg viewBox=\"0 0 100 100\"><path d=\"M50 85L20 55C15 50 15 42 20 37C25 32 35 32 40 37L50 47L60 37C65 32 75 32 80 37C85 42 85 50 80 55L50 85Z\" fill=\"#ff0000\"/></svg>",
+          "category": "emotions",
+          "tags": ["heart", "love", "emotion", "symbol"],
+          "description": "A simple heart icon perfect for love-themed designs",
+          "createdAt": "2024-01-15T11:00:00.000Z",
+          "updatedAt": "2024-01-15T11:00:00.000Z"
+        }
+      }
+    }
+  },
+  "usage_in_logo_creation": {
+    "using_library_assets": {
+      "description": "How to use library assets when creating logos",
+      "background_example": {
+        "endpoint": "POST /api/logo/mobile",
+        "request_body": {
+          "name": "Logo with Library Background",
+          "canvas": {
+            "aspectRatio": 1.0,
+            "background": {
+              "type": "image",
+              "image": {
+                "type": "library",
+                "assetId": "123e4567-e89b-12d3-a456-426614174000",
+                "url": "https://example.com/backgrounds/abstract-gradient.jpg"
+              }
+            }
+          },
+          "layers": [
+            {
+              "type": "text",
+              "text": {
+                "value": "My Logo",
+                "fontSize": 48,
+                "fontColor": "#ffffff"
+              }
+            }
+          ]
+        }
+      },
+      "icon_example": {
+        "endpoint": "POST /api/logo/mobile",
+        "request_body": {
+          "name": "Logo with Library Icon",
+          "layers": [
+            {
+              "type": "icon",
+              "icon": {
+                "src": "https://example.com/icons/heart.svg",
+                "color": "#ff0000",
+                "assetId": "789e0123-e89b-12d3-a456-426614174002"
+              }
+            },
+            {
+              "type": "text",
+              "text": {
+                "value": "Love Brand",
+                "fontSize": 36,
+                "fontColor": "#000000"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "api_endpoints_summary": {
+    "backgrounds": {
+      "GET /api/logo/backgrounds": "Get all backgrounds with pagination and filtering",
+      "POST /api/logo/backgrounds": "Add new background to library",
+      "GET /api/logo/backgrounds/:id": "Get specific background by ID"
+    },
+    "icons": {
+      "GET /api/logo/icons": "Get all icons with pagination and filtering",
+      "POST /api/logo/icons": "Add new icon to library",
+      "GET /api/logo/icons/:id": "Get specific icon by ID"
+    },
+    "query_parameters": {
+      "page": "Page number for pagination (default: 1)",
+      "limit": "Number of items per page (default: 20)",
+      "category": "Filter by category (e.g., 'abstract', 'emotions')",
+      "type": "Filter by asset type ('raster' or 'vector')"
+    }
+  }
+}
