@@ -1160,12 +1160,15 @@ router.post('/', async (req, res) => {
     // Process each layer
     for (const layerData of layers) {
       const {
-        type, name, z_index = 0, x_norm = 0.5, y_norm = 0.5, scale = 1,
+        type: rawType, name, z_index = 0, x_norm = 0.5, y_norm = 0.5, scale = 1,
         rotation_deg = 0, anchor_x = 0.5, anchor_y = 0.5, opacity = 1,
         blend_mode = 'normal', is_visible = true, is_locked = false,
         flip_horizontal = false, flip_vertical = false,
         common_style, text, shape, icon, image, background
       } = layerData;
+
+      // Normalize type to uppercase for database compatibility
+      const type = rawType ? rawType.toUpperCase() : 'TEXT';
 
       // Create base layer
       const layerRes = await client.query(`

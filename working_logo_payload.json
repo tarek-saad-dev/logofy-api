@@ -1,0 +1,58 @@
+{
+  "title": "Working Logo Test",
+  "title_en": "Working Logo Test",
+  "title_ar": "اختبار شعار يعمل",
+  "name": "working_logo_test",
+  "name_en": "working_logo_test",
+  "name_ar": "اختبار_شعار_يعمل",
+  "canvas": {
+    "aspectRatio": 1.0,
+    "background": {
+      "type": "solid",
+      "solidColor": "#ffffff"
+    }
+  },
+  "layers": [
+    {
+      "type": "text",
+      "name": "main_text_layer",
+      "z_index": 0,
+      "x_norm": 0.5,
+      "y_norm": 0.5,
+      "scale": 1.0,
+      "rotation_deg": 0,
+      "anchor_x": 0.5,
+      "anchor_y": 0.5,
+      "opacity": 1.0,
+      "blend_mode": "normal",
+      "is_visible": true,
+      "is_locked": false,
+      "flip_horizontal": false,
+      "flip_vertical": false,
+      "text": {
+        "content": "Hello World",
+        "font_id": null,
+        "font_size": 48,
+        "line_height": 1.0,
+        "letter_spacing": 0,
+        "align": "center",
+        "baseline": "alphabetic",
+        "fill_hex": "#000000",
+        "fill_alpha": 1.0,
+        "stroke_hex": null,
+        "stroke_alpha": null,
+        "stroke_width": null,
+        "stroke_align": null,
+        "gradient": null,
+        "underline": true,
+        "underline_direction": "horizontal",
+        "text_case": "normal",
+        "font_style": "normal",
+        "font_weight": "bold",
+        "text_decoration": "underline",
+        "text_transform": "none",
+        "font_variant": "normal"
+      }
+    }
+  ]
+}

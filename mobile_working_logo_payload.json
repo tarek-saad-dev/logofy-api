@@ -1,0 +1,52 @@
+{
+  "title": "Mobile Working Logo",
+  "title_en": "Mobile Working Logo",
+  "title_ar": "شعار محمول يعمل",
+  "name": "mobile_working_logo",
+  "name_en": "mobile_working_logo",
+  "name_ar": "شعار_محمول_يعمل",
+  "canvas": {
+    "aspectRatio": 1.0,
+    "background": {
+      "type": "solid",
+      "solidColor": "#ffffff"
+    }
+  },
+  "layers": [
+    {
+      "layerId": "text-layer-001",
+      "type": "text",
+      "visible": true,
+      "order": 0,
+      "position": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "scaleFactor": 1.0,
+      "rotation": 0.0,
+      "opacity": 1.0,
+      "flip": {
+        "horizontal": false,
+        "vertical": false
+      },
+      "text": {
+        "value": "Mobile Test Text",
+        "fontSize": 36,
+        "fontColor": "#000000",
+        "fillAlpha": 1.0,
+        "alignment": "center",
+        "baseline": "alphabetic",
+        "lineHeight": 1.0,
+        "letterSpacing": 0,
+        "underline": true,
+        "underlineDirection": "horizontal",
+        "textCase": "normal",
+        "fontStyle": "normal",
+        "fontWeight": "bold",
+        "textDecoration": "underline",
+        "textTransform": "none",
+        "fontVariant": "normal"
+      }
+    }
+  ]
+}
