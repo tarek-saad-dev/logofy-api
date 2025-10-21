@@ -171,7 +171,8 @@ router.get('/thumbnails', async (req, res) => {
       logos: group.logos
     }));
 
-    req.sendSuccess('logosFetched', {
+    const currentLang = res.locals.lang ?? "en";
+    return res.json(ok({ 
       data: groupedData,
       pagination: { 
         page, 
@@ -180,7 +181,7 @@ router.get('/thumbnails', async (req, res) => {
         pages: Math.ceil(total / limit),
         categoriesCount: categoryGroups.length
       }
-    });
+    }, currentLang, currentLang === "ar" ? "تم جلب الشعارات بنجاح" : "Logos fetched successfully"));
   } catch (err) {
     console.error('Error fetching logo thumbnails:', err);
     res.status(500).json({

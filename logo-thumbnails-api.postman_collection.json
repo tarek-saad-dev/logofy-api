@@ -1,0 +1,576 @@
+{
+  "info": {
+    "name": "Logo Thumbnails API",
+    "description": "Comprehensive Postman collection for testing the Logo Thumbnails API with multilingual support, pagination, and category filtering.",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "apiPath",
+      "value": "/api/logo",
+      "type": "string"
+    },
+    {
+      "key": "gamingCategoryId",
+      "value": "e8a45f2f-0c09-43dd-9741-fca53a074be8",
+      "type": "string"
+    },
+    {
+      "key": "language",
+      "value": "en",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Basic Requests",
+      "item": [
+        {
+          "name": "Get All Thumbnails (English)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPath}}/thumbnails",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "logo", "thumbnails"]
+            },
+            "description": "Get all logo thumbnails in English with default pagination"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Thumbnails (Arabic)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPath}}/thumbnails?lang=ar",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "logo", "thumbnails"],
+              "query": [
+                {
+                  "key": "lang",
+                  "value": "ar"
+                }
+              ]
+            },
+            "description": "Get all logo thumbnails in Arabic with RTL support"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Pagination Tests",
+      "item": [
+        {
+          "name": "First Page (5 items)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPath}}/thumbnails?page=1&limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "logo", "thumbnails"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
+            },
+            "description": "Get first page with 5 logos per page"
+          },
+          "response": []
+        },
+        {
+          "name": "Second Page (10 items)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPath}}/thumbnails?page=2&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "logo", "thumbnails"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "2"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get second page with 10 logos per page"
+          },
+          "response": []
+        },
+        {
+          "name": "Large Page Size (50 items)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPath}}/thumbnails?page=1&limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "logo", "thumbnails"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "Test large page size (maximum recommended)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Category Filtering",
+      "item": [
+        {
+          "name": "Gaming Category (English)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPath}}/thumbnails?category_id={{gamingCategoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "logo", "thumbnails"],
+              "query": [
+                {
+                  "key": "category_id",
+                  "value": "{{gamingCategoryId}}"
+                }
+              ]
+            },
+            "description": "Get logos from Gaming category in English"
+          },
+          "response": []
+        },
+        {
+          "name": "Gaming Category (Arabic)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPath}}/thumbnails?category_id={{gamingCategoryId}}&lang=ar",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "logo", "thumbnails"],
+              "query": [
+                {
+                  "key": "category_id",
+                  "value": "{{gamingCategoryId}}"
+                },
+                {
+                  "key": "lang",
+                  "value": "ar"
+                }
+              ]
+            },
+            "description": "Get logos from Gaming category in Arabic"
+          },
+          "response": []
+        },
+        {
+          "name": "Gaming Category with Pagination",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPath}}/thumbnails?category_id={{gamingCategoryId}}&page=1&limit=3",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "logo", "thumbnails"],
+              "query": [
+                {
+                  "key": "category_id",
+                  "value": "{{gamingCategoryId}}"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "3"
+                }
+              ]
+            },
+            "description": "Get first 3 logos from Gaming category"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Combined Parameters",
+      "item": [
+        {
+          "name": "Arabic + Pagination + Category",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPath}}/thumbnails?lang=ar&page=1&limit=5&category_id={{gamingCategoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "logo", "thumbnails"],
+              "query": [
+                {
+                  "key": "lang",
+                  "value": "ar"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "5"
+                },
+                {
+                  "key": "category_id",
+                  "value": "{{gamingCategoryId}}"
+                }
+              ]
+            },
+            "description": "Combined test: Arabic language, pagination, and category filtering"
+          },
+          "response": []
+        },
+        {
+          "name": "English + Large Page + Category",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPath}}/thumbnails?lang=en&page=1&limit=20&category_id={{gamingCategoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "logo", "thumbnails"],
+              "query": [
+                {
+                  "key": "lang",
+                  "value": "en"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "category_id",
+                  "value": "{{gamingCategoryId}}"
+                }
+              ]
+            },
+            "description": "Combined test: English language, large page size, and category filtering"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Edge Cases",
+      "item": [
+        {
+          "name": "Invalid Category ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPath}}/thumbnails?category_id=invalid-uuid",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "logo", "thumbnails"],
+              "query": [
+                {
+                  "key": "category_id",
+                  "value": "invalid-uuid"
+                }
+              ]
+            },
+            "description": "Test with invalid category UUID format"
+          },
+          "response": []
+        },
+        {
+          "name": "Non-existent Category ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPath}}/thumbnails?category_id=00000000-0000-0000-0000-000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "logo", "thumbnails"],
+              "query": [
+                {
+                  "key": "category_id",
+                  "value": "00000000-0000-0000-0000-000000000000"
+                }
+              ]
+            },
+            "description": "Test with valid UUID format but non-existent category"
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid Language Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPath}}/thumbnails?lang=fr",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "logo", "thumbnails"],
+              "query": [
+                {
+                  "key": "lang",
+                  "value": "fr"
+                }
+              ]
+            },
+            "description": "Test with unsupported language code (should default to English)"
+          },
+          "response": []
+        },
+        {
+          "name": "Negative Page Number",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPath}}/thumbnails?page=-1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "logo", "thumbnails"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "-1"
+                }
+              ]
+            },
+            "description": "Test with negative page number"
+          },
+          "response": []
+        },
+        {
+          "name": "Zero Limit",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPath}}/thumbnails?limit=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "logo", "thumbnails"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Test with zero limit"
+          },
+          "response": []
+        },
+        {
+          "name": "Very Large Limit",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPath}}/thumbnails?limit=1000",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "logo", "thumbnails"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "1000"
+                }
+              ]
+            },
+            "description": "Test with very large limit value"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Performance Tests",
+      "item": [
+        {
+          "name": "Load Test - Small Pages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPath}}/thumbnails?page=1&limit=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "logo", "thumbnails"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Test with minimal page size for performance measurement"
+          },
+          "response": []
+        },
+        {
+          "name": "Load Test - Default Settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPath}}/thumbnails",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "logo", "thumbnails"]
+            },
+            "description": "Test with default pagination settings"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Set timestamp for request tracking",
+          "pm.globals.set('requestTimestamp', new Date().toISOString());"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Basic response validation",
+          "pm.test('Response status code is 200', function () {",
+          "    pm.response.to.have.status(200);",
+          "});",
+          "",
+          "pm.test('Response has success field', function () {",
+          "    const jsonData = pm.response.json();",
+          "    pm.expect(jsonData).to.have.property('success');",
+          "});",
+          "",
+          "pm.test('Response has data field', function () {",
+          "    const jsonData = pm.response.json();",
+          "    pm.expect(jsonData).to.have.property('data');",
+          "});",
+          "",
+          "pm.test('Response has pagination info', function () {",
+          "    const jsonData = pm.response.json();",
+          "    pm.expect(jsonData.data).to.have.property('pagination');",
+          "});",
+          "",
+          "pm.test('Pagination has required fields', function () {",
+          "    const jsonData = pm.response.json();",
+          "    const pagination = jsonData.data.pagination;",
+          "    pm.expect(pagination).to.have.property('page');",
+          "    pm.expect(pagination).to.have.property('limit');",
+          "    pm.expect(pagination).to.have.property('total');",
+          "    pm.expect(pagination).to.have.property('pages');",
+          "    pm.expect(pagination).to.have.property('categoriesCount');",
+          "});",
+          "",
+          "pm.test('Response time is acceptable', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+          "});",
+          "",
+          "// Language-specific tests",
+          "const url = pm.request.url.toString();",
+          "if (url.includes('lang=ar')) {",
+          "    pm.test('Arabic response has RTL direction', function () {",
+          "        const jsonData = pm.response.json();",
+          "        pm.expect(jsonData.direction).to.eql('rtl');",
+          "    });",
+          "    ",
+          "    pm.test('Arabic response has Arabic message', function () {",
+          "        const jsonData = pm.response.json();",
+          "        pm.expect(jsonData.language).to.eql('ar');",
+          "    });",
+          "} else {",
+          "    pm.test('English response has LTR direction', function () {",
+          "        const jsonData = pm.response.json();",
+          "        pm.expect(jsonData.direction).to.eql('ltr');",
+          "    });",
+          "    ",
+          "    pm.test('English response has English message', function () {",
+          "        const jsonData = pm.response.json();",
+          "        pm.expect(jsonData.language).to.eql('en');",
+          "    });",
+          "}",
+          "",
+          "// Category filtering tests",
+          "if (url.includes('category_id=')) {",
+          "    pm.test('Category filtering works', function () {",
+          "        const jsonData = pm.response.json();",
+          "        if (jsonData.data.data.length > 0) {",
+          "            const firstLogo = jsonData.data.data[0].logos[0];",
+          "            pm.expect(firstLogo).to.have.property('categoryId');",
+          "            pm.expect(firstLogo).to.have.property('categoryName');",
+          "        }",
+          "    });",
+          "}",
+          "",
+          "// Pagination tests",
+          "if (url.includes('page=') || url.includes('limit=')) {",
+          "    pm.test('Pagination parameters are respected', function () {",
+          "        const jsonData = pm.response.json();",
+          "        const pagination = jsonData.data.pagination;",
+          "        ",
+          "        // Check if page parameter was used",
+          "        if (url.includes('page=')) {",
+          "            const pageParam = url.match(/page=([^&]+)/)[1];",
+          "            pm.expect(pagination.page).to.eql(parseInt(pageParam));",
+          "        }",
+          "        ",
+          "        // Check if limit parameter was used",
+          "        if (url.includes('limit=')) {",
+          "            const limitParam = url.match(/limit=([^&]+)/)[1];",
+          "            pm.expect(pagination.limit).to.eql(parseInt(limitParam));",
+          "        }",
+          "    });",
+          "}",
+          "",
+          "// Log response details for debugging",
+          "console.log('Response time:', pm.response.responseTime + 'ms');",
+          "console.log('Total logos:', pm.response.json().data.pagination.total);",
+          "console.log('Categories found:', pm.response.json().data.pagination.categoriesCount);"
+        ]
+      }
+    }
+  ]
+}

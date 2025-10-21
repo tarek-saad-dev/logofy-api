@@ -47,15 +47,15 @@ async function testThumbnailsAPI() {
     
     if (response.ok) {
       console.log('✅ SUCCESS: Thumbnails API is working!');
-      console.log(`📊 Found ${result.data.length} logos`);
-      console.log(`📄 Pagination: page ${result.pagination.page} of ${result.pagination.pages}, total: ${result.pagination.total}`);
+      console.log(`📊 Found ${result.data.data.length} logos`);
+      console.log(`📄 Pagination: page ${result.data.pagination.page} of ${result.data.pagination.pages}, total: ${result.data.pagination.total}`);
       
-      if (result.data.length > 0) {
+      if (result.data.data.length > 0) {
         console.log('📝 Sample logo:', {
-          id: result.data[0].id,
-          title: result.data[0].title,
-          thumbnailUrl: result.data[0].thumbnailUrl,
-          categoryName: result.data[0].categoryName
+          id: result.data.data[0].logos[0].id,
+          title: result.data.data[0].logos[0].title,
+          thumbnailUrl: result.data.data[0].logos[0].thumbnailUrl,
+          categoryName: result.data.data[0].logos[0].categoryName
         });
       }
     } else {
