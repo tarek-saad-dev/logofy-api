@@ -51,6 +51,7 @@ app.use('/api/assets', require('./routes/assets'));
 app.use('/api/layers', require('./routes/layers'));
 app.use('/api/templates', require('./routes/templates'));
 app.use('/api', require('./routes/export'));
+app.use('/api/migration', require('./routes/migration'));
 
 // 404 handler
 app.use('*', (req, res) => {

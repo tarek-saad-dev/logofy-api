@@ -200,6 +200,44 @@
       "name": "🎨 Logo Management - Complete",
       "item": [
         {
+          "name": "Create Logo - Simple Test",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Test Logo\",\n  \"description\": \"A simple test logo\",\n  \"canvas_w\": 1080,\n  \"canvas_h\": 1080,\n  \"layers\": [\n    {\n      \"type\": \"text\",\n      \"text\": {\n        \"value\": \"TEST LOGO\",\n        \"fontSize\": 48,\n        \"fontColor\": \"#000000\"\n      },\n      \"position\": {\n        \"x\": 0.5,\n        \"y\": 0.5\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/logo",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo"]
+            },
+            "description": "Create a simple test logo to verify the API works"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('logoId', response.data.logoId);",
+                  "    console.log('Logo created with ID:', response.data.logoId);",
+                  "} else {",
+                  "    console.log('Error response:', pm.response.text());",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Create Logo - All Features",
           "request": {
             "method": "POST",
@@ -211,7 +249,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"logoId\": \"{{$randomUUID}}\",\n  \"templateId\": \"template-uuid-12345\",\n  \"userId\": \"{{userId}}\",\n  \"name\": \"Ultimate Logo with ALL Features\",\n  \"description\": \"This logo demonstrates ALL possible attributes and features\",\n  \"canvas\": {\n    \"aspectRatio\": 1.0,\n    \"background\": {\n      \"type\": \"gradient\",\n      \"gradient\": {\n        \"type\": \"linear\",\n        \"angle\": 135,\n        \"stops\": [\n          {\n            \"offset\": 0,\n            \"hex\": \"#667eea\",\n            \"alpha\": 1.0\n          },\n          {\n            \"offset\": 0.5,\n            \"hex\": \"#764ba2\",\n            \"alpha\": 0.8\n          },\n          {\n            \"offset\": 1,\n            \"hex\": \"#f093fb\",\n            \"alpha\": 1.0\n          }\n        ]\n      }\n    }\n  },\n  \"layers\": [\n    {\n      \"layerId\": \"layer-background-001\",\n      \"type\": \"background\",\n      \"visible\": true,\n      \"order\": 0,\n      \"position\": {\n        \"x\": 0,\n        \"y\": 0\n      },\n      \"scaleFactor\": 1.0,\n      \"rotation\": 0.0,\n      \"opacity\": 1.0,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": false\n      },\n      \"anchor_x\": 0.5,\n      \"anchor_y\": 0.5,\n      \"blend_mode\": \"normal\",\n      \"is_visible\": true,\n      \"is_locked\": false,\n      \"common_style\": {\n        \"shadow\": {\n          \"dx\": 0,\n          \"dy\": 0,\n          \"blur\": 0,\n          \"hex\": \"#000000\",\n          \"alpha\": 0\n        }\n      },\n      \"background\": {\n        \"type\": \"gradient\",\n        \"mode\": \"gradient\",\n        \"color\": \"#ffffff\",\n        \"fill_hex\": \"#ffffff\",\n        \"fill_alpha\": 1.0,\n        \"gradient\": {\n          \"type\": \"radial\",\n          \"angle\": 0,\n          \"stops\": [\n            {\n              \"offset\": 0,\n              \"hex\": \"#ff6b6b\",\n              \"alpha\": 1.0\n            },\n            {\n              \"offset\": 1,\n              \"hex\": \"#4ecdc4\",\n              \"alpha\": 1.0\n            }\n          ]\n        },\n        \"asset_id\": \"background-asset-uuid\",\n        \"repeat\": \"no-repeat\",\n        \"position\": \"center\",\n        \"size\": \"cover\",\n        \"image\": {\n          \"type\": \"imported\",\n          \"path\": \"https://example.com/background.jpg\"\n        }\n      }\n    },\n    {\n      \"layerId\": \"layer-shape-001\",\n      \"type\": \"shape\",\n      \"visible\": true,\n      \"order\": 1,\n      \"position\": {\n        \"x\": 0.5,\n        \"y\": 0.3\n      },\n      \"scaleFactor\": 0.8,\n      \"rotation\": 15.0,\n      \"opacity\": 0.9,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": false\n      },\n      \"anchor_x\": 0.5,\n      \"anchor_y\": 0.5,\n      \"blend_mode\": \"multiply\",\n      \"is_visible\": true,\n      \"is_locked\": false,\n      \"common_style\": {\n        \"shadow\": {\n          \"dx\": 3,\n          \"dy\": 3,\n          \"blur\": 10,\n          \"hex\": \"#000000\",\n          \"alpha\": 0.3\n        }\n      },\n      \"shape\": {\n        \"src\": \"assets/local/Basic/13.svg\",\n        \"type\": \"rect\",\n        \"shape_kind\": \"rect\",\n        \"color\": \"#ffffff\",\n        \"strokeColor\": \"#000000\",\n        \"strokeWidth\": 3,\n        \"svg_path\": \"M10,10 L90,10 L90,90 L10,90 Z\",\n        \"points\": [10, 10, 90, 10, 90, 90, 10, 90],\n        \"rx\": 15,\n        \"ry\": 15,\n        \"fill_hex\": \"#ffffff\",\n        \"fill_alpha\": 0.8,\n        \"gradient\": {\n          \"type\": \"linear\",\n          \"angle\": 45,\n          \"stops\": [\n            {\n              \"offset\": 0,\n              \"hex\": \"#ff0000\",\n              \"alpha\": 1.0\n            },\n            {\n              \"offset\": 1,\n              \"hex\": \"#0000ff\",\n              \"alpha\": 1.0\n            }\n          ]\n        },\n        \"stroke_hex\": \"#000000\",\n        \"stroke_alpha\": 1.0,\n        \"stroke_dash\": [5, 5],\n        \"line_cap\": \"round\",\n        \"line_join\": \"round\",\n        \"meta\": {\n          \"custom_property\": \"value\"\n        }\n      }\n    },\n    {\n      \"layerId\": \"layer-icon-001\",\n      \"type\": \"icon\",\n      \"visible\": true,\n      \"order\": 2,\n      \"position\": {\n        \"x\": 0.5,\n        \"y\": 0.3\n      },\n      \"scaleFactor\": 0.6,\n      \"rotation\": -25.0,\n      \"opacity\": 1.0,\n      \"flip\": {\n        \"horizontal\": true,\n        \"vertical\": false\n      },\n      \"anchor_x\": 0.5,\n      \"anchor_y\": 0.5,\n      \"blend_mode\": \"screen\",\n      \"is_visible\": true,\n      \"is_locked\": false,\n      \"common_style\": {\n        \"shadow\": {\n          \"dx\": 2,\n          \"dy\": 2,\n          \"blur\": 8,\n          \"hex\": \"#000000\",\n          \"alpha\": 0.2\n        }\n      },\n      \"icon\": {\n        \"src\": \"star_icon\",\n        \"color\": \"#ffd700\",\n        \"asset_id\": \"icon-asset-uuid-12345\",\n        \"tint_hex\": \"#ffd700\",\n        \"tint_alpha\": 0.9,\n        \"allow_recolor\": true\n      }\n    },\n    {\n      \"layerId\": \"layer-image-001\",\n      \"type\": \"image\",\n      \"visible\": true,\n      \"order\": 3,\n      \"position\": {\n        \"x\": 0.25,\n        \"y\": 0.7\n      },\n      \"scaleFactor\": 0.4,\n      \"rotation\": 30.0,\n      \"opacity\": 0.8,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": true\n      },\n      \"anchor_x\": 0.5,\n      \"anchor_y\": 0.5,\n      \"blend_mode\": \"overlay\",\n      \"is_visible\": true,\n      \"is_locked\": false,\n      \"common_style\": {\n        \"shadow\": {\n          \"dx\": 4,\n          \"dy\": 4,\n          \"blur\": 12,\n          \"hex\": \"#000000\",\n          \"alpha\": 0.4\n        }\n      },\n      \"image\": {\n        \"src\": \"https://example.com/image.jpg\",\n        \"type\": \"url\",\n        \"path\": \"https://example.com/image.jpg\",\n        \"asset_id\": \"image-asset-uuid-67890\",\n        \"crop\": {\n          \"x\": 0.1,\n          \"y\": 0.1,\n          \"w\": 0.8,\n          \"h\": 0.8\n        },\n        \"fit\": \"contain\",\n        \"rounding\": 10,\n        \"blur\": 2,\n        \"brightness\": 1.2,\n        \"contrast\": 1.1\n      }\n    },\n    {\n      \"layerId\": \"layer-text-001\",\n      \"type\": \"text\",\n      \"visible\": true,\n      \"order\": 4,\n      \"position\": {\n        \"x\": 0.5,\n        \"y\": 0.7\n      },\n      \"scaleFactor\": 1.0,\n      \"rotation\": 0.0,\n      \"opacity\": 1.0,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": false\n      },\n      \"anchor_x\": 0.5,\n      \"anchor_y\": 0.5,\n      \"blend_mode\": \"normal\",\n      \"is_visible\": true,\n      \"is_locked\": false,\n      \"common_style\": {\n        \"shadow\": {\n          \"dx\": 2,\n          \"dy\": 2,\n          \"blur\": 6,\n          \"hex\": \"#000000\",\n          \"alpha\": 0.5\n        }\n      },\n      \"text\": {\n        \"value\": \"COMPLETE LOGO\",\n        \"font\": \"Helvetica\",\n        \"fontColor\": \"#ffffff\",\n        \"fontWeight\": \"bold\",\n        \"fontStyle\": \"normal\",\n        \"alignment\": \"center\",\n        \"lineHeight\": 1.2,\n        \"letterSpacing\": 2,\n        \"fontSize\": 48,\n        \"font_id\": \"font-asset-uuid-11111\",\n        \"baseline\": \"alphabetic\",\n        \"fill_hex\": \"#ffffff\",\n        \"fill_alpha\": 1.0,\n        \"stroke_hex\": \"#000000\",\n        \"stroke_alpha\": 0.8,\n        \"stroke_width\": 2,\n        \"stroke_align\": \"outside\",\n        \"gradient\": {\n          \"type\": \"linear\",\n          \"angle\": 90,\n          \"stops\": [\n            {\n              \"offset\": 0,\n              \"hex\": \"#ff0000\",\n              \"alpha\": 1.0\n            },\n            {\n              \"offset\": 1,\n              \"hex\": \"#0000ff\",\n              \"alpha\": 1.0\n            }\n          ]\n        }\n      }\n    }\n  ],\n  \"colorsUsed\": [\n    {\n      \"role\": \"background\",\n      \"color\": \"#667eea\"\n    },\n    {\n      \"role\": \"background\",\n      \"color\": \"#764ba2\"\n    },\n    {\n      \"role\": \"background\",\n      \"color\": \"#f093fb\"\n    },\n    {\n      \"role\": \"shape\",\n      \"color\": \"#ffffff\"\n    },\n    {\n      \"role\": \"icon\",\n      \"color\": \"#ffd700\"\n    },\n    {\n      \"role\": \"text\",\n      \"color\": \"#ffffff\"\n    }\n  ],\n  \"alignments\": {\n    \"verticalAlign\": \"center\",\n    \"horizontalAlign\": \"center\"\n  },\n  \"responsive\": {\n    \"version\": \"3.0\",\n    \"description\": \"Fully responsive logo data - no absolute sizes stored\",\n    \"scalingMethod\": \"scaleFactor\",\n    \"positionMethod\": \"relative\",\n    \"fullyResponsive\": true\n  },\n  \"metadata\": {\n    \"createdAt\": \"2024-01-20T10:30:00.000Z\",\n    \"updatedAt\": \"2024-01-20T10:30:00.000Z\",\n    \"tags\": [\n      \"logo\",\n      \"complete\",\n      \"all-features\",\n      \"comprehensive\",\n      \"example\",\n      \"multi-layer\",\n      \"advanced\",\n      \"responsive\",\n      \"professional\"\n    ],\n    \"version\": 1,\n    \"responsive\": true\n  },\n  \"export\": {\n    \"format\": \"png\",\n    \"transparentBackground\": true,\n    \"quality\": 100,\n    \"responsive\": {\n      \"scalable\": true,\n      \"maintainAspectRatio\": true\n    }\n  }\n}"
+              "raw": "{\n  \"title\": \"Ultimate Logo with ALL Features\",\n  \"description\": \"This logo demonstrates ALL possible attributes and features\",\n  \"canvas_w\": 1080,\n  \"canvas_h\": 1080,\n  \"canvas_background_type\": \"gradient\",\n  \"canvas_background_gradient\": {\n    \"type\": \"linear\",\n    \"angle\": 135,\n    \"stops\": [\n      {\n        \"offset\": 0,\n        \"hex\": \"#667eea\",\n        \"alpha\": 1.0\n      },\n      {\n        \"offset\": 0.5,\n        \"hex\": \"#764ba2\",\n        \"alpha\": 0.8\n      },\n      {\n        \"offset\": 1,\n        \"hex\": \"#f093fb\",\n        \"alpha\": 1.0\n      }\n    ]\n  },\n  \"layers\": [\n    {\n      \"type\": \"text\",\n      \"text\": {\n        \"value\": \"COMPLETE LOGO\",\n        \"font\": \"Helvetica\",\n        \"fontSize\": 48,\n        \"fontColor\": \"#ffffff\",\n        \"fontWeight\": \"bold\",\n        \"fontStyle\": \"normal\",\n        \"alignment\": \"center\",\n        \"lineHeight\": 1.2,\n        \"letterSpacing\": 2,\n        \"fill_hex\": \"#ffffff\",\n        \"fill_alpha\": 1.0,\n        \"stroke_hex\": \"#000000\",\n        \"stroke_alpha\": 0.8,\n        \"stroke_width\": 2,\n        \"stroke_align\": \"outside\",\n        \"gradient\": {\n          \"type\": \"linear\",\n          \"angle\": 90,\n          \"stops\": [\n            {\n              \"offset\": 0,\n              \"hex\": \"#ff0000\",\n              \"alpha\": 1.0\n            },\n            {\n              \"offset\": 1,\n              \"hex\": \"#0000ff\",\n              \"alpha\": 1.0\n            }\n          ]\n        }\n      },\n      \"position\": {\n        \"x\": 0.5,\n        \"y\": 0.5\n      },\n      \"scaleFactor\": 1.0,\n      \"rotation\": 0.0,\n      \"opacity\": 1.0,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": false\n      }\n    }\n  ],\n  \"colorsUsed\": [\n    {\n      \"role\": \"background\",\n      \"color\": \"#667eea\"\n    },\n    {\n      \"role\": \"text\",\n      \"color\": \"#ffffff\"\n    }\n  ],\n  \"alignments\": {\n    \"verticalAlign\": \"center\",\n    \"horizontalAlign\": \"center\"\n  },\n  \"responsive\": {\n    \"version\": \"3.0\",\n    \"description\": \"Fully responsive logo data - no absolute sizes stored\",\n    \"scalingMethod\": \"scaleFactor\",\n    \"positionMethod\": \"relative\",\n    \"fullyResponsive\": true\n  },\n  \"metadata\": {\n    \"createdAt\": \"2024-01-20T10:30:00.000Z\",\n    \"updatedAt\": \"2024-01-20T10:30:00.000Z\",\n    \"tags\": [\n      \"logo\",\n      \"complete\",\n      \"all-features\",\n      \"comprehensive\",\n      \"example\",\n      \"multi-layer\",\n      \"advanced\",\n      \"responsive\",\n      \"professional\"\n    ],\n    \"version\": 1,\n    \"responsive\": true\n  },\n  \"export\": {\n    \"format\": \"png\",\n    \"transparentBackground\": true,\n    \"quality\": 100,\n    \"responsive\": {\n      \"scalable\": true,\n      \"maintainAspectRatio\": true\n    }\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/logo",
@@ -227,8 +265,48 @@
                 "exec": [
                   "if (pm.response.code === 201) {",
                   "    const response = pm.response.json();",
-                  "    pm.collectionVariables.set('logoId', response.data.id);",
-                  "    console.log('Logo created with ID:', response.data.id);",
+                  "    pm.collectionVariables.set('logoId', response.data.logoId);",
+                  "    console.log('Logo created with ID:', response.data.logoId);",
+                  "} else {",
+                  "    console.log('Error response:', pm.response.text());",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Logo - Multilingual Example",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Multilingual Logo\",\n  \"title_en\": \"Multilingual Logo\",\n  \"title_ar\": \"شعار متعدد اللغات\",\n  \"description\": \"A logo with multilingual support\",\n  \"description_en\": \"A logo with multilingual support\",\n  \"description_ar\": \"شعار مع دعم متعدد اللغات\",\n  \"tags\": [\"logo\", \"multilingual\"],\n  \"tags_en\": [\"logo\", \"multilingual\"],\n  \"tags_ar\": [\"شعار\", \"متعدد اللغات\"],\n  \"canvas_w\": 1080,\n  \"canvas_h\": 1080,\n  \"layers\": [\n    {\n      \"type\": \"text\",\n      \"text\": {\n        \"value\": \"Multilingual\",\n        \"fontSize\": 48,\n        \"fontColor\": \"#000000\"\n      },\n      \"position\": {\n        \"x\": 0.5,\n        \"y\": 0.5\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/logo",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo"]
+            },
+            "description": "Create a logo with multilingual support (English and Arabic)"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('logoId', response.data.logoId);",
+                  "    console.log('Multilingual logo created with ID:', response.data.logoId);",
+                  "} else {",
+                  "    console.log('Error response:', pm.response.text());",
                   "}"
                 ]
               }

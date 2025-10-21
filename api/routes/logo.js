@@ -510,8 +510,8 @@ router.post('/mobile', async (req, res) => {
         exportSettings?.transparentBackground || true, exportSettings?.quality || 100,
         exportSettings?.responsive?.scalable || true, exportSettings?.responsive?.maintainAspectRatio || true,
         canvas?.background?.type || 'solid', canvas?.background?.solidColor || '#ffffff',
-        canvas?.background?.gradient || null, canvas?.background?.image?.type || null,
-        canvas?.background?.image?.path || null,
+        canvas?.background?.gradient ? JSON.stringify(canvas.background.gradient) : null,
+        canvas?.background?.image?.type || null, canvas?.background?.image?.path || null,
         name_en, name_ar, description_en, description_ar,
         tags_en ? JSON.stringify(tags_en) : null,
         tags_ar ? JSON.stringify(tags_ar) : null
