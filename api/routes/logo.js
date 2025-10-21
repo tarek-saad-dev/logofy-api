@@ -183,7 +183,12 @@ router.get('/thumbnails', async (req, res) => {
     });
   } catch (err) {
     console.error('Error fetching logo thumbnails:', err);
-    req.sendError('serverError', 500);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch logo thumbnails",
+      language: "en",
+      direction: "ltr"
+    });
   }
 });
 
@@ -392,13 +397,22 @@ router.get('/mobile', async (req, res) => {
     const totalRes = await query(`SELECT COUNT(*)::int AS total FROM logos`);
     const total = totalRes.rows[0].total;
 
-    req.sendSuccess('logosFetched', {
+    res.json({
+      success: true,
+      message: "Logos fetched successfully",
       data,
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) }
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+      language: "en",
+      direction: "ltr"
     });
   } catch (err) {
     console.error('Error fetching mobile logos list:', err);
-    req.sendError('serverError', 500);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch mobile logos list",
+      language: "en",
+      direction: "ltr"
+    });
   }
 });
 
@@ -432,12 +446,22 @@ router.post('/mobile', async (req, res) => {
 
     // Validate that at least one name is provided
     if (!name && !name_en && !name_ar) {
-      return req.sendError('validationError', 400);
+      return res.status(400).json({
+        success: false,
+        message: "At least one name is required (name, name_en, or name_ar)",
+        language: "en",
+        direction: "ltr"
+      });
     }
 
     // Validate categoryId if provided
     if (categoryId && !categoryId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-      return req.sendError('validationError', 400);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid categoryId format",
+        language: "en",
+        direction: "ltr"
+      });
     }
 
     await client.query('BEGIN');
@@ -677,43 +701,54 @@ router.post('/mobile', async (req, res) => {
 
     await client.query('COMMIT');
 
-    req.sendSuccess('logoCreated', {
-      logoId: logo.id.toString(),
-      templateId: logo.template_id ? logo.template_id.toString() : null,
-      userId: logo.owner_id,
-      name: logo.title,
-      description: logo.description,
-      categoryId: logo.category_id,
-      canvas: {
-        aspectRatio: logo.canvas_h ? logo.canvas_w / logo.canvas_h : 1.0,
-        background: {
-          type: logo.canvas_background_type || 'solid',
-          solidColor: logo.canvas_background_solid_color || '#ffffff',
-          gradient: logo.canvas_background_gradient || null,
-          image: logo.canvas_background_image_path ? { type: logo.canvas_background_image_type || 'imported', path: logo.canvas_background_image_path } : null
-        }
+    res.status(201).json({
+      success: true,
+      message: "Logo created successfully",
+      data: {
+        logoId: logo.id.toString(),
+        templateId: logo.template_id ? logo.template_id.toString() : null,
+        userId: logo.owner_id,
+        name: logo.title,
+        description: logo.description,
+        categoryId: logo.category_id,
+        canvas: {
+          aspectRatio: logo.canvas_h ? logo.canvas_w / logo.canvas_h : 1.0,
+          background: {
+            type: logo.canvas_background_type || 'solid',
+            solidColor: logo.canvas_background_solid_color || '#ffffff',
+            gradient: logo.canvas_background_gradient || null,
+            image: logo.canvas_background_image_path ? { type: logo.canvas_background_image_type || 'imported', path: logo.canvas_background_image_path } : null
+          }
+        },
+        layers: createdLayers.map(layer => ({
+          layerId: layer.id.toString(),
+          type: layer.type.toLowerCase(),
+          visible: layer.is_visible,
+          order: layer.z_index,
+          position: { x: layer.x_norm, y: layer.y_norm },
+          scaleFactor: layer.scale,
+          rotation: layer.rotation_deg,
+          opacity: layer.opacity,
+          flip: { horizontal: layer.flip_horizontal, vertical: layer.flip_vertical }
+        })),
+        colorsUsed: colorsUsed,
+        alignments: alignments || { verticalAlign: 'center', horizontalAlign: 'center' },
+        responsive: responsive || { version: '3.0', description: 'Fully responsive logo data - no absolute sizes stored', scalingMethod: 'scaleFactor', positionMethod: 'relative', fullyResponsive: true },
+        metadata: { createdAt: new Date(logo.created_at).toISOString(), updatedAt: new Date(logo.updated_at).toISOString(), tags: logo.tags || ['logo', 'design', 'responsive'], version: logo.version || 3, responsive: logo.responsive || true },
+        export: exportSettings || { format: 'png', transparentBackground: true, quality: 100, responsive: { scalable: true, maintainAspectRatio: true } }
       },
-      layers: createdLayers.map(layer => ({
-        layerId: layer.id.toString(),
-        type: layer.type.toLowerCase(),
-        visible: layer.is_visible,
-        order: layer.z_index,
-        position: { x: layer.x_norm, y: layer.y_norm },
-        scaleFactor: layer.scale,
-        rotation: layer.rotation_deg,
-        opacity: layer.opacity,
-        flip: { horizontal: layer.flip_horizontal, vertical: layer.flip_vertical }
-      })),
-      colorsUsed: colorsUsed,
-      alignments: alignments || { verticalAlign: 'center', horizontalAlign: 'center' },
-      responsive: responsive || { version: '3.0', description: 'Fully responsive logo data - no absolute sizes stored', scalingMethod: 'scaleFactor', positionMethod: 'relative', fullyResponsive: true },
-      metadata: { createdAt: new Date(logo.created_at).toISOString(), updatedAt: new Date(logo.updated_at).toISOString(), tags: logo.tags || ['logo', 'design', 'responsive'], version: logo.version || 3, responsive: logo.responsive || true },
-      export: exportSettings || { format: 'png', transparentBackground: true, quality: 100, responsive: { scalable: true, maintainAspectRatio: true } }
-    }, 201);
+      language: "en",
+      direction: "ltr"
+    });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error creating logo from mobile format:', error);
-    req.sendError('serverError', 500);
+    res.status(500).json({
+      success: false,
+      message: "Failed to create logo",
+      language: "en",
+      direction: "ltr"
+    });
   } finally {
     client.release();
   }
@@ -1058,7 +1093,12 @@ router.post('/', async (req, res) => {
 
     // Validate that at least one title is provided (either legacy title or multilingual)
     if (!title && !title_en && !title_ar) {
-      return req.sendError('validationError', 400);
+      return res.status(400).json({
+        success: false,
+        message: "At least one title is required (title, title_en, or title_ar)",
+        language: "en",
+        direction: "ltr"
+      });
     }
 
     await client.query('BEGIN');
@@ -1808,10 +1848,15 @@ router.get('/icons/library', async (req, res) => {
       }
     };
     
-    req.sendSuccess('iconLibraryFetched', response);
+    res.json(response);
   } catch (error) {
     console.error('Error fetching icon library:', error);
-    req.sendError('serverError', 500);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch icon library",
+      language: "en",
+      direction: "ltr"
+    });
   }
 });
 
@@ -1848,13 +1893,22 @@ router.get('/icons/categories', async (req, res) => {
       rasterCount: parseInt(cat.raster_count)
     }));
     
-    req.sendSuccess('iconCategoriesFetched', {
+    res.json({
+      success: true,
+      message: "Icon categories fetched successfully",
       data: categories,
-      totalCategories: categories.length
+      totalCategories: categories.length,
+      language: "en",
+      direction: "ltr"
     });
   } catch (error) {
     console.error('Error fetching icon categories:', error);
-    req.sendError('serverError', 500);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch icon categories",
+      language: "en",
+      direction: "ltr"
+    });
   }
 });
 
@@ -1896,13 +1950,22 @@ router.get('/icons/featured', async (req, res) => {
       createdAt: new Date(icon.created_at).toISOString()
     }));
     
-    req.sendSuccess('featuredIconsFetched', {
+    res.json({
+      success: true,
+      message: "Featured icons fetched successfully",
       data: icons,
-      count: icons.length
+      count: icons.length,
+      language: "en",
+      direction: "ltr"
     });
   } catch (error) {
     console.error('Error fetching featured icons:', error);
-    req.sendError('serverError', 500);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch featured icons",
+      language: "en",
+      direction: "ltr"
+    });
   }
 });
 
@@ -1967,18 +2030,27 @@ router.get('/backgrounds', async (req, res) => {
       updatedAt: new Date(bg.updated_at).toISOString()
     }));
     
-    req.sendSuccess('backgroundsFetched', {
+    res.json({
+      success: true,
+      message: "Backgrounds fetched successfully",
       data: backgrounds,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
         total,
         pages: Math.ceil(total / limit)
-      }
+      },
+      language: "en",
+      direction: "ltr"
     });
   } catch (error) {
     console.error('Error fetching backgrounds:', error);
-    req.sendError('serverError', 500);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch backgrounds",
+      language: "en",
+      direction: "ltr"
+    });
   }
 });
 
@@ -2207,10 +2279,15 @@ router.get('/icons', async (req, res) => {
       }
     };
     
-    req.sendSuccess('iconsFetched', response);
+    res.json(response);
   } catch (error) {
     console.error('Error fetching icons:', error);
-    req.sendError('serverError', 500);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch icons",
+      language: "en",
+      direction: "ltr"
+    });
   }
 });
 

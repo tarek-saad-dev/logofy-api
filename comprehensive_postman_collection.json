@@ -1,0 +1,635 @@
+{
+  "info": {
+    "name": "Logo Maker API - Complete Comprehensive Documentation",
+    "description": "🚀 **Complete Logo Maker API Documentation with ALL Possible Attributes**\n\n## Overview\nThis collection contains comprehensive examples for the Logo Maker API with every possible attribute for each layer type.\n\n## Features\n- **Complete Layer Examples**: Every possible attribute for TEXT, SHAPE, ICON, IMAGE, BACKGROUND layers\n- **Mobile-Compatible Format**: Both standard and mobile API formats\n- **All Blend Modes**: Complete list of blend modes and their usage\n- **Comprehensive Attributes**: Every possible property documented with examples\n- **Real-world Examples**: Complete logo with all layer types and attributes\n\n## Base URL\n`{{baseUrl}}` (default: http://localhost:3000/api)\n\n## Layer Types Supported\n- **TEXT**: Rich text with fonts, stroke, shadows, gradients\n- **SHAPE**: Geometric shapes with all possible properties\n- **ICON**: SVG icons with dynamic coloring and transformations\n- **IMAGE**: Raster images with crop, filters, transformations\n- **BACKGROUND**: Solid colors, gradients, images, patterns\n\n## All Possible Attributes Included\n- Position, scale, rotation, opacity, flip\n- Blend modes, shadows, anchors\n- Type-specific properties for each layer\n- Legacy and modern API formats\n- Mobile-optimized configurations",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0
+    }
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    },
+    {
+      "key": "logoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "layerId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "assetId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "templateId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "user-uuid-67890",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🏥 Health Check",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/../health",
+              "host": ["{{baseUrl}}", "..", "health"]
+            },
+            "description": "Check if the API server is running and healthy."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🎨 Complete Logo Examples",
+      "item": [
+        {
+          "name": "Create Complete Logo - All Attributes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"logoId\": \"1759094821977\",\n  \"templateId\": \"template-uuid-12345\",\n  \"userId\": \"{{userId}}\",\n  \"name\": \"Complete Logo Example - All Features\",\n  \"description\": \"This example demonstrates ALL possible attributes for every layer type in the Logo Maker API\",\n  \"canvas\": {\n    \"aspectRatio\": 1.0,\n    \"background\": {\n      \"type\": \"gradient\",\n      \"gradient\": {\n        \"type\": \"linear\",\n        \"angle\": 135,\n        \"stops\": [\n          {\n            \"offset\": 0,\n            \"hex\": \"#667eea\",\n            \"alpha\": 1.0\n          },\n          {\n            \"offset\": 0.5,\n            \"hex\": \"#764ba2\",\n            \"alpha\": 0.8\n          },\n          {\n            \"offset\": 1,\n            \"hex\": \"#f093fb\",\n            \"alpha\": 1.0\n          }\n        ]\n      }\n    }\n  },\n  \"layers\": [\n    {\n      \"layerId\": \"layer-background-001\",\n      \"type\": \"background\",\n      \"visible\": true,\n      \"order\": 0,\n      \"position\": {\n        \"x\": 0,\n        \"y\": 0\n      },\n      \"scaleFactor\": 1.0,\n      \"rotation\": 0.0,\n      \"opacity\": 1.0,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": false\n      },\n      \"anchor_x\": 0.5,\n      \"anchor_y\": 0.5,\n      \"blend_mode\": \"normal\",\n      \"is_visible\": true,\n      \"is_locked\": false,\n      \"common_style\": {\n        \"shadow\": {\n          \"dx\": 0,\n          \"dy\": 0,\n          \"blur\": 0,\n          \"hex\": \"#000000\",\n          \"alpha\": 0\n        }\n      },\n      \"background\": {\n        \"type\": \"gradient\",\n        \"mode\": \"gradient\",\n        \"color\": \"#ffffff\",\n        \"fill_hex\": \"#ffffff\",\n        \"fill_alpha\": 1.0,\n        \"gradient\": {\n          \"type\": \"radial\",\n          \"angle\": 0,\n          \"stops\": [\n            {\n              \"offset\": 0,\n              \"hex\": \"#ff6b6b\",\n              \"alpha\": 1.0\n            },\n            {\n              \"offset\": 1,\n              \"hex\": \"#4ecdc4\",\n              \"alpha\": 1.0\n            }\n          ]\n        },\n        \"asset_id\": \"background-asset-uuid\",\n        \"repeat\": \"no-repeat\",\n        \"position\": \"center\",\n        \"size\": \"cover\",\n        \"image\": {\n          \"type\": \"imported\",\n          \"path\": \"https://example.com/background.jpg\"\n        }\n      }\n    },\n    {\n      \"layerId\": \"layer-shape-001\",\n      \"type\": \"shape\",\n      \"visible\": true,\n      \"order\": 1,\n      \"position\": {\n        \"x\": 0.5,\n        \"y\": 0.3\n      },\n      \"scaleFactor\": 0.8,\n      \"rotation\": 15.0,\n      \"opacity\": 0.9,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": false\n      },\n      \"anchor_x\": 0.5,\n      \"anchor_y\": 0.5,\n      \"blend_mode\": \"multiply\",\n      \"is_visible\": true,\n      \"is_locked\": false,\n      \"common_style\": {\n        \"shadow\": {\n          \"dx\": 3,\n          \"dy\": 3,\n          \"blur\": 10,\n          \"hex\": \"#000000\",\n          \"alpha\": 0.3\n        }\n      },\n      \"shape\": {\n        \"type\": \"rect\",\n        \"shape_kind\": \"rect\",\n        \"color\": \"#ffffff\",\n        \"strokeColor\": \"#000000\",\n        \"strokeWidth\": 3,\n        \"svg_path\": \"M10,10 L90,10 L90,90 L10,90 Z\",\n        \"points\": [10, 10, 90, 10, 90, 90, 10, 90],\n        \"rx\": 15,\n        \"ry\": 15,\n        \"fill_hex\": \"#ffffff\",\n        \"fill_alpha\": 0.8,\n        \"gradient\": {\n          \"type\": \"linear\",\n          \"angle\": 45,\n          \"stops\": [\n            {\n              \"offset\": 0,\n              \"hex\": \"#ff0000\",\n              \"alpha\": 1.0\n            },\n            {\n              \"offset\": 1,\n              \"hex\": \"#0000ff\",\n              \"alpha\": 1.0\n            }\n          ]\n        },\n        \"stroke_hex\": \"#000000\",\n        \"stroke_alpha\": 1.0,\n        \"stroke_dash\": [5, 5],\n        \"line_cap\": \"round\",\n        \"line_join\": \"round\",\n        \"meta\": {\n          \"custom_property\": \"value\"\n        }\n      }\n    },\n    {\n      \"layerId\": \"layer-icon-001\",\n      \"type\": \"icon\",\n      \"visible\": true,\n      \"order\": 2,\n      \"position\": {\n        \"x\": 0.5,\n        \"y\": 0.3\n      },\n      \"scaleFactor\": 0.6,\n      \"rotation\": -25.0,\n      \"opacity\": 1.0,\n      \"flip\": {\n        \"horizontal\": true,\n        \"vertical\": false\n      },\n      \"anchor_x\": 0.5,\n      \"anchor_y\": 0.5,\n      \"blend_mode\": \"screen\",\n      \"is_visible\": true,\n      \"is_locked\": false,\n      \"common_style\": {\n        \"shadow\": {\n          \"dx\": 2,\n          \"dy\": 2,\n          \"blur\": 8,\n          \"hex\": \"#000000\",\n          \"alpha\": 0.2\n        }\n      },\n      \"icon\": {\n        \"src\": \"star_icon\",\n        \"color\": \"#ffd700\",\n        \"asset_id\": \"icon-asset-uuid-12345\",\n        \"tint_hex\": \"#ffd700\",\n        \"tint_alpha\": 0.9,\n        \"allow_recolor\": true\n      }\n    },\n    {\n      \"layerId\": \"layer-image-001\",\n      \"type\": \"image\",\n      \"visible\": true,\n      \"order\": 3,\n      \"position\": {\n        \"x\": 0.25,\n        \"y\": 0.7\n      },\n      \"scaleFactor\": 0.4,\n      \"rotation\": 30.0,\n      \"opacity\": 0.8,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": true\n      },\n      \"anchor_x\": 0.5,\n      \"anchor_y\": 0.5,\n      \"blend_mode\": \"overlay\",\n      \"is_visible\": true,\n      \"is_locked\": false,\n      \"common_style\": {\n        \"shadow\": {\n          \"dx\": 4,\n          \"dy\": 4,\n          \"blur\": 12,\n          \"hex\": \"#000000\",\n          \"alpha\": 0.4\n        }\n      },\n      \"image\": {\n        \"src\": \"https://example.com/image.jpg\",\n        \"type\": \"url\",\n        \"path\": \"https://example.com/image.jpg\",\n        \"asset_id\": \"image-asset-uuid-67890\",\n        \"crop\": {\n          \"x\": 0.1,\n          \"y\": 0.1,\n          \"w\": 0.8,\n          \"h\": 0.8\n        },\n        \"fit\": \"contain\",\n        \"rounding\": 10,\n        \"blur\": 2,\n        \"brightness\": 1.2,\n        \"contrast\": 1.1\n      }\n    },\n    {\n      \"layerId\": \"layer-text-001\",\n      \"type\": \"text\",\n      \"visible\": true,\n      \"order\": 4,\n      \"position\": {\n        \"x\": 0.5,\n        \"y\": 0.7\n      },\n      \"scaleFactor\": 1.0,\n      \"rotation\": 0.0,\n      \"opacity\": 1.0,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": false\n      },\n      \"anchor_x\": 0.5,\n      \"anchor_y\": 0.5,\n      \"blend_mode\": \"normal\",\n      \"is_visible\": true,\n      \"is_locked\": false,\n      \"common_style\": {\n        \"shadow\": {\n          \"dx\": 2,\n          \"dy\": 2,\n          \"blur\": 6,\n          \"hex\": \"#000000\",\n          \"alpha\": 0.5\n        }\n      },\n      \"text\": {\n        \"value\": \"COMPLETE LOGO\",\n        \"font\": \"Helvetica\",\n        \"fontColor\": \"#ffffff\",\n        \"fontWeight\": \"bold\",\n        \"fontStyle\": \"normal\",\n        \"alignment\": \"center\",\n        \"lineHeight\": 1.2,\n        \"letterSpacing\": 2,\n        \"fontSize\": 48,\n        \"font_id\": \"font-asset-uuid-11111\",\n        \"baseline\": \"alphabetic\",\n        \"fill_hex\": \"#ffffff\",\n        \"fill_alpha\": 1.0,\n        \"stroke_hex\": \"#000000\",\n        \"stroke_alpha\": 0.8,\n        \"stroke_width\": 2,\n        \"stroke_align\": \"outside\",\n        \"gradient\": {\n          \"type\": \"linear\",\n          \"angle\": 90,\n          \"stops\": [\n            {\n              \"offset\": 0,\n              \"hex\": \"#ff0000\",\n              \"alpha\": 1.0\n            },\n            {\n              \"offset\": 1,\n              \"hex\": \"#0000ff\",\n              \"alpha\": 1.0\n            }\n          ]\n        }\n      }\n    },\n    {\n      \"layerId\": \"layer-text-002\",\n      \"type\": \"text\",\n      \"visible\": true,\n      \"order\": 5,\n      \"position\": {\n        \"x\": 0.5,\n        \"y\": 0.85\n      },\n      \"scaleFactor\": 0.6,\n      \"rotation\": 0.0,\n      \"opacity\": 0.9,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": false\n      },\n      \"anchor_x\": 0.5,\n      \"anchor_y\": 0.5,\n      \"blend_mode\": \"normal\",\n      \"is_visible\": true,\n      \"is_locked\": false,\n      \"common_style\": {\n        \"shadow\": {\n          \"dx\": 1,\n          \"dy\": 1,\n          \"blur\": 3,\n          \"hex\": \"#000000\",\n          \"alpha\": 0.3\n        }\n      },\n      \"text\": {\n        \"value\": \"With All Features\",\n        \"font\": \"Arial\",\n        \"fontColor\": \"#cccccc\",\n        \"fontWeight\": \"normal\",\n        \"fontStyle\": \"italic\",\n        \"alignment\": \"center\",\n        \"lineHeight\": 1.0,\n        \"letterSpacing\": 1,\n        \"fontSize\": 24,\n        \"font_id\": \"font-asset-uuid-22222\",\n        \"baseline\": \"alphabetic\",\n        \"fill_hex\": \"#cccccc\",\n        \"fill_alpha\": 0.9,\n        \"stroke_hex\": \"#000000\",\n        \"stroke_alpha\": 0.5,\n        \"stroke_width\": 1,\n        \"stroke_align\": \"center\"\n      }\n    }\n  ],\n  \"colorsUsed\": [\n    {\n      \"role\": \"background\",\n      \"color\": \"#667eea\"\n    },\n    {\n      \"role\": \"background\",\n      \"color\": \"#764ba2\"\n    },\n    {\n      \"role\": \"background\",\n      \"color\": \"#f093fb\"\n    },\n    {\n      \"role\": \"shape\",\n      \"color\": \"#ffffff\"\n    },\n    {\n      \"role\": \"icon\",\n      \"color\": \"#ffd700\"\n    },\n    {\n      \"role\": \"text\",\n      \"color\": \"#ffffff\"\n    },\n    {\n      \"role\": \"text\",\n      \"color\": \"#cccccc\"\n    }\n  ],\n  \"alignments\": {\n    \"verticalAlign\": \"center\",\n    \"horizontalAlign\": \"center\"\n  },\n  \"responsive\": {\n    \"version\": \"3.0\",\n    \"description\": \"Fully responsive logo data - no absolute sizes stored\",\n    \"scalingMethod\": \"scaleFactor\",\n    \"positionMethod\": \"relative\",\n    \"fullyResponsive\": true\n  },\n  \"metadata\": {\n    \"createdAt\": \"2024-01-20T10:30:00.000Z\",\n    \"updatedAt\": \"2024-01-20T10:30:00.000Z\",\n    \"tags\": [\n      \"logo\",\n      \"complete\",\n      \"all-features\",\n      \"comprehensive\",\n      \"example\",\n      \"multi-layer\",\n      \"advanced\",\n      \"responsive\",\n      \"professional\"\n    ],\n    \"version\": 1,\n    \"responsive\": true\n  },\n  \"export\": {\n    \"format\": \"png\",\n    \"transparentBackground\": true,\n    \"quality\": 100,\n    \"responsive\": {\n      \"scalable\": true,\n      \"maintainAspectRatio\": true\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/logo",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo"]
+            },
+            "description": "Create a complete logo with ALL possible attributes for every layer type. This example demonstrates every feature available in the Logo Maker API."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('logoId', response.data.id);",
+                  "    console.log('Complete logo created with ID:', response.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Mobile Logo - All Attributes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"logoId\": \"1759094821977\",\n  \"templateId\": null,\n  \"userId\": \"{{userId}}\",\n  \"name\": \"Mobile Complete Logo\",\n  \"description\": \"Mobile-optimized logo with all features\",\n  \"canvas\": {\n    \"aspectRatio\": 1.0,\n    \"background\": {\n      \"type\": \"solid\",\n      \"solidColor\": \"#ffffff\",\n      \"gradient\": null,\n      \"image\": null\n    }\n  },\n  \"layers\": [\n    {\n      \"layerId\": \"1759074588677\",\n      \"type\": \"text\",\n      \"visible\": true,\n      \"order\": 0,\n      \"position\": { \"x\": 0.5, \"y\": 0.5 },\n      \"scaleFactor\": 1.0,\n      \"rotation\": 0.0,\n      \"opacity\": 1.0,\n      \"flip\": { \"horizontal\": false, \"vertical\": false },\n      \"text\": {\n        \"value\": \"MOBILE LOGO\",\n        \"font\": \"Arial\",\n        \"fontColor\": \"#000000\",\n        \"fontWeight\": \"bold\",\n        \"fontStyle\": \"normal\",\n        \"alignment\": \"center\",\n        \"lineHeight\": 1.0,\n        \"letterSpacing\": 0\n      }\n    },\n    {\n      \"layerId\": \"1759074588678\",\n      \"type\": \"icon\",\n      \"visible\": true,\n      \"order\": 1,\n      \"position\": { \"x\": 0.5, \"y\": 0.3 },\n      \"scaleFactor\": 0.5,\n      \"rotation\": 0.0,\n      \"opacity\": 1.0,\n      \"flip\": { \"horizontal\": false, \"vertical\": false },\n      \"icon\": {\n        \"src\": \"star_icon\",\n        \"color\": \"#ffd700\"\n      }\n    }\n  ],\n  \"colorsUsed\": [\n    {\n      \"role\": \"text\",\n      \"color\": \"#000000\"\n    },\n    {\n      \"role\": \"icon\",\n      \"color\": \"#ffd700\"\n    }\n  ],\n  \"alignments\": {\n    \"verticalAlign\": \"center\",\n    \"horizontalAlign\": \"center\"\n  },\n  \"responsive\": {\n    \"version\": \"3.0\",\n    \"description\": \"Fully responsive logo data\",\n    \"scalingMethod\": \"scaleFactor\",\n    \"positionMethod\": \"relative\",\n    \"fullyResponsive\": true\n  },\n  \"metadata\": {\n    \"createdAt\": \"2024-01-20T10:30:00.000Z\",\n    \"updatedAt\": \"2024-01-20T10:30:00.000Z\",\n    \"tags\": [\"logo\", \"mobile\", \"responsive\"],\n    \"version\": 3,\n    \"responsive\": true\n  },\n  \"export\": {\n    \"format\": \"png\",\n    \"transparentBackground\": true,\n    \"quality\": 100,\n    \"responsive\": {\n      \"scalable\": true,\n      \"maintainAspectRatio\": true\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/logo/mobile",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo", "mobile"]
+            },
+            "description": "Create a mobile-optimized logo using the mobile API format with all possible attributes."
+          }
+        }
+      ]
+    },
+    {
+      "name": "📝 Individual Layer Examples",
+      "item": [
+        {
+          "name": "Text Layer - All Attributes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Text Layer Example\",\n  \"canvas\": {\n    \"aspectRatio\": 1.0,\n    \"background\": {\n      \"type\": \"solid\",\n      \"solidColor\": \"#ffffff\"\n    }\n  },\n  \"layers\": [\n    {\n      \"layerId\": \"text-layer-001\",\n      \"type\": \"text\",\n      \"visible\": true,\n      \"order\": 0,\n      \"position\": { \"x\": 0.5, \"y\": 0.5 },\n      \"scaleFactor\": 1.0,\n      \"rotation\": 0.0,\n      \"opacity\": 1.0,\n      \"flip\": { \"horizontal\": false, \"vertical\": false },\n      \"anchor_x\": 0.5,\n      \"anchor_y\": 0.5,\n      \"blend_mode\": \"normal\",\n      \"is_visible\": true,\n      \"is_locked\": false,\n      \"common_style\": {\n        \"shadow\": {\n          \"dx\": 2,\n          \"dy\": 2,\n          \"blur\": 6,\n          \"hex\": \"#000000\",\n          \"alpha\": 0.5\n        }\n      },\n      \"text\": {\n        \"value\": \"Complete Text Example\",\n        \"font\": \"Helvetica\",\n        \"fontColor\": \"#000000\",\n        \"fontWeight\": \"bold\",\n        \"fontStyle\": \"normal\",\n        \"alignment\": \"center\",\n        \"lineHeight\": 1.2,\n        \"letterSpacing\": 2,\n        \"fontSize\": 48,\n        \"font_id\": \"font-asset-uuid\",\n        \"baseline\": \"alphabetic\",\n        \"fill_hex\": \"#000000\",\n        \"fill_alpha\": 1.0,\n        \"stroke_hex\": \"#ffffff\",\n        \"stroke_alpha\": 0.8,\n        \"stroke_width\": 2,\n        \"stroke_align\": \"outside\",\n        \"gradient\": {\n          \"type\": \"linear\",\n          \"angle\": 90,\n          \"stops\": [\n            { \"offset\": 0, \"hex\": \"#ff0000\", \"alpha\": 1.0 },\n            { \"offset\": 1, \"hex\": \"#0000ff\", \"alpha\": 1.0 }\n          ]\n        }\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/logo",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo"]
+            },
+            "description": "Example of a TEXT layer with ALL possible attributes including fonts, stroke, shadows, gradients, and all text properties."
+          }
+        },
+        {
+          "name": "Shape Layer - All Attributes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Shape Layer Example\",\n  \"canvas\": {\n    \"aspectRatio\": 1.0,\n    \"background\": {\n      \"type\": \"solid\",\n      \"solidColor\": \"#ffffff\"\n    }\n  },\n  \"layers\": [\n    {\n      \"layerId\": \"shape-layer-001\",\n      \"type\": \"shape\",\n      \"visible\": true,\n      \"order\": 0,\n      \"position\": { \"x\": 0.5, \"y\": 0.5 },\n      \"scaleFactor\": 1.0,\n      \"rotation\": 45.0,\n      \"opacity\": 0.9,\n      \"flip\": { \"horizontal\": false, \"vertical\": false },\n      \"anchor_x\": 0.5,\n      \"anchor_y\": 0.5,\n      \"blend_mode\": \"multiply\",\n      \"is_visible\": true,\n      \"is_locked\": false,\n      \"common_style\": {\n        \"shadow\": {\n          \"dx\": 3,\n          \"dy\": 3,\n          \"blur\": 10,\n          \"hex\": \"#000000\",\n          \"alpha\": 0.3\n        }\n      },\n      \"shape\": {\n        \"type\": \"rect\",\n        \"shape_kind\": \"rect\",\n        \"color\": \"#ff0000\",\n        \"strokeColor\": \"#000000\",\n        \"strokeWidth\": 3,\n        \"svg_path\": \"M10,10 L90,10 L90,90 L10,90 Z\",\n        \"points\": [10, 10, 90, 10, 90, 90, 10, 90],\n        \"rx\": 15,\n        \"ry\": 15,\n        \"fill_hex\": \"#ff0000\",\n        \"fill_alpha\": 0.8,\n        \"gradient\": {\n          \"type\": \"linear\",\n          \"angle\": 45,\n          \"stops\": [\n            { \"offset\": 0, \"hex\": \"#ff0000\", \"alpha\": 1.0 },\n            { \"offset\": 1, \"hex\": \"#0000ff\", \"alpha\": 1.0 }\n          ]\n        },\n        \"stroke_hex\": \"#000000\",\n        \"stroke_alpha\": 1.0,\n        \"stroke_dash\": [5, 5],\n        \"line_cap\": \"round\",\n        \"line_join\": \"round\",\n        \"meta\": {\n          \"custom_property\": \"value\"\n        }\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/logo",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo"]
+            },
+            "description": "Example of a SHAPE layer with ALL possible attributes including shapes, stroke, gradients, corner radius, and all shape properties."
+          }
+        },
+        {
+          "name": "Icon Layer - All Attributes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Icon Layer Example\",\n  \"canvas\": {\n    \"aspectRatio\": 1.0,\n    \"background\": {\n      \"type\": \"solid\",\n      \"solidColor\": \"#ffffff\"\n    }\n  },\n  \"layers\": [\n    {\n      \"layerId\": \"icon-layer-001\",\n      \"type\": \"icon\",\n      \"visible\": true,\n      \"order\": 0,\n      \"position\": { \"x\": 0.5, \"y\": 0.5 },\n      \"scaleFactor\": 0.8,\n      \"rotation\": -25.0,\n      \"opacity\": 1.0,\n      \"flip\": { \"horizontal\": true, \"vertical\": false },\n      \"anchor_x\": 0.5,\n      \"anchor_y\": 0.5,\n      \"blend_mode\": \"screen\",\n      \"is_visible\": true,\n      \"is_locked\": false,\n      \"common_style\": {\n        \"shadow\": {\n          \"dx\": 2,\n          \"dy\": 2,\n          \"blur\": 8,\n          \"hex\": \"#000000\",\n          \"alpha\": 0.2\n        }\n      },\n      \"icon\": {\n        \"src\": \"star_icon\",\n        \"color\": \"#ffd700\",\n        \"asset_id\": \"icon-asset-uuid\",\n        \"tint_hex\": \"#ffd700\",\n        \"tint_alpha\": 0.9,\n        \"allow_recolor\": true\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/logo",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo"]
+            },
+            "description": "Example of an ICON layer with ALL possible attributes including source, tinting, recoloring, and all icon properties."
+          }
+        },
+        {
+          "name": "Image Layer - All Attributes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Image Layer Example\",\n  \"canvas\": {\n    \"aspectRatio\": 1.0,\n    \"background\": {\n      \"type\": \"solid\",\n      \"solidColor\": \"#ffffff\"\n    }\n  },\n  \"layers\": [\n    {\n      \"layerId\": \"image-layer-001\",\n      \"type\": \"image\",\n      \"visible\": true,\n      \"order\": 0,\n      \"position\": { \"x\": 0.5, \"y\": 0.5 },\n      \"scaleFactor\": 0.6,\n      \"rotation\": 30.0,\n      \"opacity\": 0.8,\n      \"flip\": { \"horizontal\": false, \"vertical\": true },\n      \"anchor_x\": 0.5,\n      \"anchor_y\": 0.5,\n      \"blend_mode\": \"overlay\",\n      \"is_visible\": true,\n      \"is_locked\": false,\n      \"common_style\": {\n        \"shadow\": {\n          \"dx\": 4,\n          \"dy\": 4,\n          \"blur\": 12,\n          \"hex\": \"#000000\",\n          \"alpha\": 0.4\n        }\n      },\n      \"image\": {\n        \"src\": \"https://example.com/image.jpg\",\n        \"type\": \"url\",\n        \"path\": \"https://example.com/image.jpg\",\n        \"asset_id\": \"image-asset-uuid\",\n        \"crop\": {\n          \"x\": 0.1,\n          \"y\": 0.1,\n          \"w\": 0.8,\n          \"h\": 0.8\n        },\n        \"fit\": \"contain\",\n        \"rounding\": 10,\n        \"blur\": 2,\n        \"brightness\": 1.2,\n        \"contrast\": 1.1\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/logo",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo"]
+            },
+            "description": "Example of an IMAGE layer with ALL possible attributes including crop, fit modes, filters, brightness, contrast, and all image properties."
+          }
+        },
+        {
+          "name": "Background Layer - All Attributes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Background Layer Example\",\n  \"canvas\": {\n    \"aspectRatio\": 1.0,\n    \"background\": {\n      \"type\": \"gradient\",\n      \"gradient\": {\n        \"type\": \"linear\",\n        \"angle\": 135,\n        \"stops\": [\n          { \"offset\": 0, \"hex\": \"#667eea\", \"alpha\": 1.0 },\n          { \"offset\": 1, \"hex\": \"#764ba2\", \"alpha\": 1.0 }\n        ]\n      }\n    }\n  },\n  \"layers\": [\n    {\n      \"layerId\": \"background-layer-001\",\n      \"type\": \"background\",\n      \"visible\": true,\n      \"order\": 0,\n      \"position\": { \"x\": 0, \"y\": 0 },\n      \"scaleFactor\": 1.0,\n      \"rotation\": 0.0,\n      \"opacity\": 1.0,\n      \"flip\": { \"horizontal\": false, \"vertical\": false },\n      \"anchor_x\": 0.5,\n      \"anchor_y\": 0.5,\n      \"blend_mode\": \"normal\",\n      \"is_visible\": true,\n      \"is_locked\": false,\n      \"common_style\": {\n        \"shadow\": {\n          \"dx\": 0,\n          \"dy\": 0,\n          \"blur\": 0,\n          \"hex\": \"#000000\",\n          \"alpha\": 0\n        }\n      },\n      \"background\": {\n        \"type\": \"gradient\",\n        \"mode\": \"gradient\",\n        \"color\": \"#ffffff\",\n        \"fill_hex\": \"#ffffff\",\n        \"fill_alpha\": 1.0,\n        \"gradient\": {\n          \"type\": \"radial\",\n          \"angle\": 0,\n          \"stops\": [\n            { \"offset\": 0, \"hex\": \"#ff6b6b\", \"alpha\": 1.0 },\n            { \"offset\": 1, \"hex\": \"#4ecdc4\", \"alpha\": 1.0 }\n          ]\n        },\n        \"asset_id\": \"background-asset-uuid\",\n        \"repeat\": \"no-repeat\",\n        \"position\": \"center\",\n        \"size\": \"cover\",\n        \"image\": {\n          \"type\": \"imported\",\n          \"path\": \"https://example.com/background.jpg\"\n        }\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/logo",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo"]
+            },
+            "description": "Example of a BACKGROUND layer with ALL possible attributes including solid colors, gradients, images, repeat modes, positioning, and all background properties."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔧 Layer Management",
+      "item": [
+        {
+          "name": "Get Layer",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/layers/{{layerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["layers", "{{layerId}}"]
+            },
+            "description": "Get a layer by ID with all its properties and type-specific data."
+          }
+        },
+        {
+          "name": "Update Layer Common Properties",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"x_norm\": 0.6,\n  \"y_norm\": 0.4,\n  \"scale\": 1.2,\n  \"rotation_deg\": 15,\n  \"opacity\": 0.8,\n  \"is_visible\": true,\n  \"is_locked\": false,\n  \"blend_mode\": \"multiply\",\n  \"flip_horizontal\": false,\n  \"flip_vertical\": true,\n  \"anchor_x\": 0.5,\n  \"anchor_y\": 0.5,\n  \"common_style\": {\n    \"shadow\": {\n      \"dx\": 3,\n      \"dy\": 3,\n      \"blur\": 10,\n      \"hex\": \"#000000\",\n      \"alpha\": 0.3\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/layers/{{layerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["layers", "{{layerId}}"]
+            },
+            "description": "Update common layer properties including position, scale, rotation, opacity, blend mode, flip, anchor, and shadow effects."
+          }
+        },
+        {
+          "name": "Update Text Layer - All Attributes",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Updated Text Content\",\n  \"font_id\": \"font-asset-uuid\",\n  \"font_size\": 72,\n  \"line_height\": 1.3,\n  \"letter_spacing\": 3,\n  \"align\": \"center\",\n  \"baseline\": \"alphabetic\",\n  \"fill_hex\": \"#ff0000\",\n  \"fill_alpha\": 0.9,\n  \"stroke_hex\": \"#ffffff\",\n  \"stroke_alpha\": 0.8,\n  \"stroke_width\": 4,\n  \"stroke_align\": \"outside\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/layers/{{layerId}}/text",
+              "host": ["{{baseUrl}}"],
+              "path": ["layers", "{{layerId}}", "text"]
+            },
+            "description": "Update text layer with ALL possible text attributes including content, font, size, colors, stroke, alignment, and spacing."
+          }
+        },
+        {
+          "name": "Update Shape Layer - All Attributes",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shape_kind\": \"circle\",\n  \"fill_hex\": \"#00ff00\",\n  \"fill_alpha\": 0.8,\n  \"stroke_hex\": \"#000000\",\n  \"stroke_alpha\": 1.0,\n  \"stroke_width\": 5,\n  \"rx\": 20,\n  \"ry\": 20,\n  \"stroke_dash\": [10, 5],\n  \"line_cap\": \"round\",\n  \"line_join\": \"round\",\n  \"svg_path\": \"M50,10 A40,40 0 1,1 49.9,10 Z\",\n  \"points\": [50, 10, 90, 50, 50, 90, 10, 50],\n  \"meta\": {\n    \"custom_property\": \"updated_value\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/layers/{{layerId}}/shape",
+              "host": ["{{baseUrl}}"],
+              "path": ["layers", "{{layerId}}", "shape"]
+            },
+            "description": "Update shape layer with ALL possible shape attributes including type, fill, stroke, corner radius, dash patterns, line caps, and custom properties."
+          }
+        },
+        {
+          "name": "Update Icon Layer - All Attributes",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"asset_id\": \"{{assetId}}\",\n  \"tint_hex\": \"#ff00ff\",\n  \"tint_alpha\": 0.7,\n  \"allow_recolor\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/layers/{{layerId}}/icon",
+              "host": ["{{baseUrl}}"],
+              "path": ["layers", "{{layerId}}", "icon"]
+            },
+            "description": "Update icon layer with ALL possible icon attributes including asset reference, tint color, opacity, and recoloring options."
+          }
+        },
+        {
+          "name": "Update Image Layer - All Attributes",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"asset_id\": \"{{assetId}}\",\n  \"crop\": {\n    \"x\": 0.2,\n    \"y\": 0.2,\n    \"w\": 0.6,\n    \"h\": 0.6\n  },\n  \"fit\": \"cover\",\n  \"rounding\": 15,\n  \"blur\": 3,\n  \"brightness\": 1.5,\n  \"contrast\": 1.3\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/layers/{{layerId}}/image",
+              "host": ["{{baseUrl}}"],
+              "path": ["layers", "{{layerId}}", "image"]
+            },
+            "description": "Update image layer with ALL possible image attributes including crop, fit mode, rounding, blur, brightness, and contrast adjustments."
+          }
+        },
+        {
+          "name": "Update Background Layer - All Attributes",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"gradient\",\n  \"fill_hex\": \"#ffffff\",\n  \"fill_alpha\": 1.0,\n  \"gradient\": {\n    \"type\": \"radial\",\n    \"angle\": 0,\n    \"stops\": [\n      {\n        \"offset\": 0,\n        \"hex\": \"#ff0000\",\n        \"alpha\": 1.0\n      },\n      {\n        \"offset\": 1,\n        \"hex\": \"#0000ff\",\n        \"alpha\": 1.0\n      }\n    ]\n  },\n  \"asset_id\": \"background-asset-uuid\",\n  \"repeat\": \"repeat\",\n  \"position\": \"top left\",\n  \"size\": \"200px 300px\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/layers/{{layerId}}/background",
+              "host": ["{{baseUrl}}"],
+              "path": ["layers", "{{layerId}}", "background"]
+            },
+            "description": "Update background layer with ALL possible background attributes including mode, colors, gradients, repeat, position, and size."
+          }
+        }
+      ]
+    },
+    {
+      "name": "📁 Asset Management",
+      "item": [
+        {
+          "name": "Get Assets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/assets?kind=vector&category=icons&search=star&page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["assets"],
+              "query": [
+                {
+                  "key": "kind",
+                  "value": "vector",
+                  "description": "Filter by asset kind: raster, vector, font, pattern"
+                },
+                {
+                  "key": "category",
+                  "value": "icons",
+                  "description": "Filter by category"
+                },
+                {
+                  "key": "search",
+                  "value": "star",
+                  "description": "Search in name and tags"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number for pagination"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Number of items per page"
+                }
+              ]
+            },
+            "description": "Get all assets with filtering and pagination options."
+          }
+        },
+        {
+          "name": "Upload Asset",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "File to upload (PNG, JPEG, SVG, etc.)"
+                },
+                {
+                  "key": "kind",
+                  "value": "vector",
+                  "type": "text",
+                  "description": "Asset kind: raster, vector, font, pattern"
+                },
+                {
+                  "key": "name",
+                  "value": "Star Icon",
+                  "type": "text",
+                  "description": "Asset name"
+                },
+                {
+                  "key": "meta",
+                  "value": "{\"category\": \"icons\", \"tags\": [\"star\", \"symbol\", \"decorative\"]}",
+                  "type": "text",
+                  "description": "Metadata as JSON string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/assets/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["assets", "upload"]
+            },
+            "description": "Upload a file to Cloudinary and create an asset record."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('assetId', response.data.id);",
+                  "    console.log('Asset created with ID:', response.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "📤 Export & Rendering",
+      "item": [
+        {
+          "name": "Export as PNG - All Options",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logo/{{logoId}}/export.png?width=1920&height=1080&dpi=300&quality=95",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo", "{{logoId}}", "export.png"],
+              "query": [
+                {
+                  "key": "width",
+                  "value": "1920",
+                  "description": "Output width in pixels"
+                },
+                {
+                  "key": "height",
+                  "value": "1080",
+                  "description": "Output height in pixels"
+                },
+                {
+                  "key": "dpi",
+                  "value": "300",
+                  "description": "DPI for print quality"
+                },
+                {
+                  "key": "quality",
+                  "value": "95",
+                  "description": "JPEG quality (1-100)"
+                }
+              ]
+            },
+            "description": "Export logo as PNG with customizable dimensions and quality."
+          }
+        },
+        {
+          "name": "Export as SVG - All Options",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logo/{{logoId}}/export.svg?width=1920&height=1080",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo", "{{logoId}}", "export.svg"],
+              "query": [
+                {
+                  "key": "width",
+                  "value": "1920",
+                  "description": "Output width in pixels"
+                },
+                {
+                  "key": "height",
+                  "value": "1080",
+                  "description": "Output height in pixels"
+                }
+              ]
+            },
+            "description": "Export logo as SVG with customizable dimensions."
+          }
+        },
+        {
+          "name": "Generate Thumbnail - All Options",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logo/{{logoId}}/thumbnail?width=300&height=300",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo", "{{logoId}}", "thumbnail"],
+              "query": [
+                {
+                  "key": "width",
+                  "value": "300",
+                  "description": "Thumbnail width"
+                },
+                {
+                  "key": "height",
+                  "value": "300",
+                  "description": "Thumbnail height"
+                }
+              ]
+            },
+            "description": "Generate a thumbnail image for the logo."
+          }
+        }
+      ]
+    },
+    {
+      "name": "📋 All Possible Attributes Reference",
+      "item": [
+        {
+          "name": "Get All Possible Attributes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/../comprehensive_logo_example.json",
+              "host": ["{{baseUrl}}", "..", "comprehensive_logo_example.json"]
+            },
+            "description": "Reference document containing ALL possible attributes for every layer type and configuration option."
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Set default values if not already set",
+          "if (!pm.collectionVariables.get('baseUrl')) {",
+          "    pm.collectionVariables.set('baseUrl', 'http://localhost:3000/api');",
+          "}",
+          "if (!pm.collectionVariables.get('userId')) {",
+          "    pm.collectionVariables.set('userId', 'user-uuid-67890');",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global test script for all requests",
+          "pm.test('Response time is less than 5000ms', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+          "});",
+          "",
+          "pm.test('Response has success field', function () {",
+          "    if (pm.response.code === 200 || pm.response.code === 201) {",
+          "        const jsonData = pm.response.json();",
+          "        pm.expect(jsonData).to.have.property('success');",
+          "    }",
+          "});"
+        ]
+      }
+    }
+  ]
+}

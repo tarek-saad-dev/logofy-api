@@ -1,0 +1,1052 @@
+{
+  "comprehensive_logo_example": {
+    "description": "Complete Logo Maker API Example with ALL possible attributes for every layer type",
+    "version": "1.0.0",
+    "base_url": "http://localhost:3000/api",
+    "endpoints": {
+      "create_logo": "POST /api/logo",
+      "create_mobile_logo": "POST /api/logo/mobile"
+    },
+    "example_request": {
+      "logoId": "1759094821977",
+      "templateId": "template-uuid-12345",
+      "userId": "user-uuid-67890",
+      "name": "Complete Logo Example - All Features",
+      "description": "This example demonstrates ALL possible attributes for every layer type in the Logo Maker API",
+      "canvas": {
+        "aspectRatio": 1.0,
+        "background": {
+          "type": "gradient",
+          "gradient": {
+            "type": "linear",
+            "angle": 135,
+            "stops": [
+              {
+                "offset": 0,
+                "hex": "#667eea",
+                "alpha": 1.0
+              },
+              {
+                "offset": 0.5,
+                "hex": "#764ba2",
+                "alpha": 0.8
+              },
+              {
+                "offset": 1,
+                "hex": "#f093fb",
+                "alpha": 1.0
+              }
+            ]
+          }
+        }
+      },
+      "layers": [
+        {
+          "layerId": "layer-background-001",
+          "type": "background",
+          "visible": true,
+          "order": 0,
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "scaleFactor": 1.0,
+          "rotation": 0.0,
+          "opacity": 1.0,
+          "flip": {
+            "horizontal": false,
+            "vertical": false
+          },
+          "anchor_x": 0.5,
+          "anchor_y": 0.5,
+          "blend_mode": "normal",
+          "is_visible": true,
+          "is_locked": false,
+          "common_style": {
+            "shadow": {
+              "dx": 0,
+              "dy": 0,
+              "blur": 0,
+              "hex": "#000000",
+              "alpha": 0
+            }
+          },
+          "background": {
+            "type": "gradient",
+            "mode": "gradient",
+            "color": "#ffffff",
+            "fill_hex": "#ffffff",
+            "fill_alpha": 1.0,
+            "gradient": {
+              "type": "radial",
+              "angle": 0,
+              "stops": [
+                {
+                  "offset": 0,
+                  "hex": "#ff6b6b",
+                  "alpha": 1.0
+                },
+                {
+                  "offset": 1,
+                  "hex": "#4ecdc4",
+                  "alpha": 1.0
+                }
+              ]
+            },
+            "asset_id": "background-asset-uuid",
+            "repeat": "no-repeat",
+            "position": "center",
+            "size": "cover",
+            "image": {
+              "type": "imported",
+              "path": "https://example.com/background.jpg"
+            }
+          }
+        },
+        {
+          "layerId": "layer-shape-001",
+          "type": "shape",
+          "visible": true,
+          "order": 1,
+          "position": {
+            "x": 0.5,
+            "y": 0.3
+          },
+          "scaleFactor": 0.8,
+          "rotation": 15.0,
+          "opacity": 0.9,
+          "flip": {
+            "horizontal": false,
+            "vertical": false
+          },
+          "anchor_x": 0.5,
+          "anchor_y": 0.5,
+          "blend_mode": "multiply",
+          "is_visible": true,
+          "is_locked": false,
+          "common_style": {
+            "shadow": {
+              "dx": 3,
+              "dy": 3,
+              "blur": 10,
+              "hex": "#000000",
+              "alpha": 0.3
+            }
+          },
+          "shape": {
+            "type": "rect",
+            "shape_kind": "rect",
+            "color": "#ffffff",
+            "strokeColor": "#000000",
+            "strokeWidth": 3,
+            "svg_path": "M10,10 L90,10 L90,90 L10,90 Z",
+            "points": [10, 10, 90, 10, 90, 90, 10, 90],
+            "rx": 15,
+            "ry": 15,
+            "fill_hex": "#ffffff",
+            "fill_alpha": 0.8,
+            "gradient": {
+              "type": "linear",
+              "angle": 45,
+              "stops": [
+                {
+                  "offset": 0,
+                  "hex": "#ff0000",
+                  "alpha": 1.0
+                },
+                {
+                  "offset": 1,
+                  "hex": "#0000ff",
+                  "alpha": 1.0
+                }
+              ]
+            },
+            "stroke_hex": "#000000",
+            "stroke_alpha": 1.0,
+            "stroke_dash": [5, 5],
+            "line_cap": "round",
+            "line_join": "round",
+            "meta": {
+              "custom_property": "value"
+            }
+          }
+        },
+        {
+          "layerId": "layer-icon-001",
+          "type": "icon",
+          "visible": true,
+          "order": 2,
+          "position": {
+            "x": 0.5,
+            "y": 0.3
+          },
+          "scaleFactor": 0.6,
+          "rotation": -25.0,
+          "opacity": 1.0,
+          "flip": {
+            "horizontal": true,
+            "vertical": false
+          },
+          "anchor_x": 0.5,
+          "anchor_y": 0.5,
+          "blend_mode": "screen",
+          "is_visible": true,
+          "is_locked": false,
+          "common_style": {
+            "shadow": {
+              "dx": 2,
+              "dy": 2,
+              "blur": 8,
+              "hex": "#000000",
+              "alpha": 0.2
+            }
+          },
+          "icon": {
+            "src": "star_icon",
+            "color": "#ffd700",
+            "asset_id": "icon-asset-uuid-12345",
+            "tint_hex": "#ffd700",
+            "tint_alpha": 0.9,
+            "allow_recolor": true
+          }
+        },
+        {
+          "layerId": "layer-image-001",
+          "type": "image",
+          "visible": true,
+          "order": 3,
+          "position": {
+            "x": 0.25,
+            "y": 0.7
+          },
+          "scaleFactor": 0.4,
+          "rotation": 30.0,
+          "opacity": 0.8,
+          "flip": {
+            "horizontal": false,
+            "vertical": true
+          },
+          "anchor_x": 0.5,
+          "anchor_y": 0.5,
+          "blend_mode": "overlay",
+          "is_visible": true,
+          "is_locked": false,
+          "common_style": {
+            "shadow": {
+              "dx": 4,
+              "dy": 4,
+              "blur": 12,
+              "hex": "#000000",
+              "alpha": 0.4
+            }
+          },
+          "image": {
+            "src": "https://example.com/image.jpg",
+            "type": "url",
+            "path": "https://example.com/image.jpg",
+            "asset_id": "image-asset-uuid-67890",
+            "crop": {
+              "x": 0.1,
+              "y": 0.1,
+              "w": 0.8,
+              "h": 0.8
+            },
+            "fit": "contain",
+            "rounding": 10,
+            "blur": 2,
+            "brightness": 1.2,
+            "contrast": 1.1
+          }
+        },
+        {
+          "layerId": "layer-text-001",
+          "type": "text",
+          "visible": true,
+          "order": 4,
+          "position": {
+            "x": 0.5,
+            "y": 0.7
+          },
+          "scaleFactor": 1.0,
+          "rotation": 0.0,
+          "opacity": 1.0,
+          "flip": {
+            "horizontal": false,
+            "vertical": false
+          },
+          "anchor_x": 0.5,
+          "anchor_y": 0.5,
+          "blend_mode": "normal",
+          "is_visible": true,
+          "is_locked": false,
+          "common_style": {
+            "shadow": {
+              "dx": 2,
+              "dy": 2,
+              "blur": 6,
+              "hex": "#000000",
+              "alpha": 0.5
+            }
+          },
+          "text": {
+            "value": "COMPLETE LOGO",
+            "font": "Helvetica",
+            "fontColor": "#ffffff",
+            "fontWeight": "bold",
+            "fontStyle": "normal",
+            "alignment": "center",
+            "lineHeight": 1.2,
+            "letterSpacing": 2,
+            "fontSize": 48,
+            "font_id": "font-asset-uuid-11111",
+            "baseline": "alphabetic",
+            "fill_hex": "#ffffff",
+            "fill_alpha": 1.0,
+            "stroke_hex": "#000000",
+            "stroke_alpha": 0.8,
+            "stroke_width": 2,
+            "stroke_align": "outside",
+            "gradient": {
+              "type": "linear",
+              "angle": 90,
+              "stops": [
+                {
+                  "offset": 0,
+                  "hex": "#ff0000",
+                  "alpha": 1.0
+                },
+                {
+                  "offset": 1,
+                  "hex": "#0000ff",
+                  "alpha": 1.0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "layerId": "layer-text-002",
+          "type": "text",
+          "visible": true,
+          "order": 5,
+          "position": {
+            "x": 0.5,
+            "y": 0.85
+          },
+          "scaleFactor": 0.6,
+          "rotation": 0.0,
+          "opacity": 0.9,
+          "flip": {
+            "horizontal": false,
+            "vertical": false
+          },
+          "anchor_x": 0.5,
+          "anchor_y": 0.5,
+          "blend_mode": "normal",
+          "is_visible": true,
+          "is_locked": false,
+          "common_style": {
+            "shadow": {
+              "dx": 1,
+              "dy": 1,
+              "blur": 3,
+              "hex": "#000000",
+              "alpha": 0.3
+            }
+          },
+          "text": {
+            "value": "With All Features",
+            "font": "Arial",
+            "fontColor": "#cccccc",
+            "fontWeight": "normal",
+            "fontStyle": "italic",
+            "alignment": "center",
+            "lineHeight": 1.0,
+            "letterSpacing": 1,
+            "fontSize": 24,
+            "font_id": "font-asset-uuid-22222",
+            "baseline": "alphabetic",
+            "fill_hex": "#cccccc",
+            "fill_alpha": 0.9,
+            "stroke_hex": "#000000",
+            "stroke_alpha": 0.5,
+            "stroke_width": 1,
+            "stroke_align": "center"
+          }
+        }
+      ],
+      "colorsUsed": [
+        {
+          "role": "background",
+          "color": "#667eea"
+        },
+        {
+          "role": "background",
+          "color": "#764ba2"
+        },
+        {
+          "role": "background",
+          "color": "#f093fb"
+        },
+        {
+          "role": "shape",
+          "color": "#ffffff"
+        },
+        {
+          "role": "icon",
+          "color": "#ffd700"
+        },
+        {
+          "role": "text",
+          "color": "#ffffff"
+        },
+        {
+          "role": "text",
+          "color": "#cccccc"
+        }
+      ],
+      "alignments": {
+        "verticalAlign": "center",
+        "horizontalAlign": "center"
+      },
+      "responsive": {
+        "version": "3.0",
+        "description": "Fully responsive logo data - no absolute sizes stored",
+        "scalingMethod": "scaleFactor",
+        "positionMethod": "relative",
+        "fullyResponsive": true
+      },
+      "metadata": {
+        "createdAt": "2024-01-20T10:30:00.000Z",
+        "updatedAt": "2024-01-20T10:30:00.000Z",
+        "tags": [
+          "logo",
+          "complete",
+          "all-features",
+          "comprehensive",
+          "example",
+          "multi-layer",
+          "advanced",
+          "responsive",
+          "professional"
+        ],
+        "version": 1,
+        "responsive": true
+      },
+      "export": {
+        "format": "png",
+        "transparentBackground": true,
+        "quality": 100,
+        "responsive": {
+          "scalable": true,
+          "maintainAspectRatio": true
+        }
+      }
+    },
+    "alternative_standard_format": {
+      "description": "Same logo in standard API format with legacy properties",
+      "owner_id": "user-uuid-67890",
+      "title": "Complete Logo Example - All Features",
+      "canvas_w": 1080,
+      "canvas_h": 1080,
+      "dpi": 300,
+      "category_id": "category-uuid-12345",
+      "is_template": false,
+      "layers": [
+        {
+          "type": "BACKGROUND",
+          "name": "Background Layer",
+          "z_index": 0,
+          "x_norm": 0,
+          "y_norm": 0,
+          "scale": 1,
+          "rotation_deg": 0,
+          "anchor_x": 0.5,
+          "anchor_y": 0.5,
+          "opacity": 1,
+          "blend_mode": "normal",
+          "is_visible": true,
+          "is_locked": false,
+          "flip_horizontal": false,
+          "flip_vertical": false,
+          "common_style": {
+            "shadow": {
+              "dx": 0,
+              "dy": 0,
+              "blur": 0,
+              "hex": "#000000",
+              "alpha": 0
+            }
+          },
+          "background": {
+            "mode": "gradient",
+            "gradient": {
+              "type": "radial",
+              "angle": 0,
+              "stops": [
+                {
+                  "offset": 0,
+                  "hex": "#ff6b6b",
+                  "alpha": 1.0
+                },
+                {
+                  "offset": 1,
+                  "hex": "#4ecdc4",
+                  "alpha": 1.0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "SHAPE",
+          "name": "Shape Layer",
+          "z_index": 1,
+          "x_norm": 0.5,
+          "y_norm": 0.3,
+          "scale": 0.8,
+          "rotation_deg": 15,
+          "anchor_x": 0.5,
+          "anchor_y": 0.5,
+          "opacity": 0.9,
+          "blend_mode": "multiply",
+          "is_visible": true,
+          "is_locked": false,
+          "flip_horizontal": false,
+          "flip_vertical": false,
+          "common_style": {
+            "shadow": {
+              "dx": 3,
+              "dy": 3,
+              "blur": 10,
+              "hex": "#000000",
+              "alpha": 0.3
+            }
+          },
+          "shape": {
+            "shape_kind": "rect",
+            "fill_hex": "#ffffff",
+            "fill_alpha": 0.8,
+            "stroke_hex": "#000000",
+            "stroke_alpha": 1.0,
+            "stroke_width": 3,
+            "rx": 15,
+            "ry": 15,
+            "stroke_dash": [5, 5],
+            "line_cap": "round",
+            "line_join": "round"
+          }
+        },
+        {
+          "type": "ICON",
+          "name": "Icon Layer",
+          "z_index": 2,
+          "x_norm": 0.5,
+          "y_norm": 0.3,
+          "scale": 0.6,
+          "rotation_deg": -25,
+          "anchor_x": 0.5,
+          "anchor_y": 0.5,
+          "opacity": 1,
+          "blend_mode": "screen",
+          "is_visible": true,
+          "is_locked": false,
+          "flip_horizontal": true,
+          "flip_vertical": false,
+          "common_style": {
+            "shadow": {
+              "dx": 2,
+              "dy": 2,
+              "blur": 8,
+              "hex": "#000000",
+              "alpha": 0.2
+            }
+          },
+          "icon": {
+            "asset_id": "icon-asset-uuid-12345",
+            "tint_hex": "#ffd700",
+            "tint_alpha": 0.9,
+            "allow_recolor": true
+          }
+        },
+        {
+          "type": "IMAGE",
+          "name": "Image Layer",
+          "z_index": 3,
+          "x_norm": 0.25,
+          "y_norm": 0.7,
+          "scale": 0.4,
+          "rotation_deg": 30,
+          "anchor_x": 0.5,
+          "anchor_y": 0.5,
+          "opacity": 0.8,
+          "blend_mode": "overlay",
+          "is_visible": true,
+          "is_locked": false,
+          "flip_horizontal": false,
+          "flip_vertical": true,
+          "common_style": {
+            "shadow": {
+              "dx": 4,
+              "dy": 4,
+              "blur": 12,
+              "hex": "#000000",
+              "alpha": 0.4
+            }
+          },
+          "image": {
+            "asset_id": "image-asset-uuid-67890",
+            "crop": {
+              "x": 0.1,
+              "y": 0.1,
+              "w": 0.8,
+              "h": 0.8
+            },
+            "fit": "contain",
+            "brightness": 1.2,
+            "contrast": 1.1,
+            "blur": 2
+          }
+        },
+        {
+          "type": "TEXT",
+          "name": "Main Text",
+          "z_index": 4,
+          "x_norm": 0.5,
+          "y_norm": 0.7,
+          "scale": 1.0,
+          "rotation_deg": 0,
+          "anchor_x": 0.5,
+          "anchor_y": 0.5,
+          "opacity": 1,
+          "blend_mode": "normal",
+          "is_visible": true,
+          "is_locked": false,
+          "flip_horizontal": false,
+          "flip_vertical": false,
+          "common_style": {
+            "shadow": {
+              "dx": 2,
+              "dy": 2,
+              "blur": 6,
+              "hex": "#000000",
+              "alpha": 0.5
+            }
+          },
+          "text": {
+            "content": "COMPLETE LOGO",
+            "font_id": "font-asset-uuid-11111",
+            "font_size": 48,
+            "line_height": 1.2,
+            "letter_spacing": 2,
+            "align": "center",
+            "baseline": "alphabetic",
+            "fill_hex": "#ffffff",
+            "fill_alpha": 1.0,
+            "stroke_hex": "#000000",
+            "stroke_alpha": 0.8,
+            "stroke_width": 2,
+            "stroke_align": "outside"
+          }
+        },
+        {
+          "type": "TEXT",
+          "name": "Subtitle Text",
+          "z_index": 5,
+          "x_norm": 0.5,
+          "y_norm": 0.85,
+          "scale": 0.6,
+          "rotation_deg": 0,
+          "anchor_x": 0.5,
+          "anchor_y": 0.5,
+          "opacity": 0.9,
+          "blend_mode": "normal",
+          "is_visible": true,
+          "is_locked": false,
+          "flip_horizontal": false,
+          "flip_vertical": false,
+          "common_style": {
+            "shadow": {
+              "dx": 1,
+              "dy": 1,
+              "blur": 3,
+              "hex": "#000000",
+              "alpha": 0.3
+            }
+          },
+          "text": {
+            "content": "With All Features",
+            "font_id": "font-asset-uuid-22222",
+            "font_size": 24,
+            "line_height": 1.0,
+            "letter_spacing": 1,
+            "align": "center",
+            "baseline": "alphabetic",
+            "fill_hex": "#cccccc",
+            "fill_alpha": 0.9,
+            "stroke_hex": "#000000",
+            "stroke_alpha": 0.5,
+            "stroke_width": 1,
+            "stroke_align": "center"
+          }
+        }
+      ]
+    },
+    "all_possible_attributes": {
+      "description": "Complete list of ALL possible attributes for each layer type",
+      "common_layer_attributes": [
+        "layerId",
+        "type",
+        "visible",
+        "order",
+        "position",
+        "scaleFactor",
+        "rotation",
+        "opacity",
+        "flip",
+        "anchor_x",
+        "anchor_y",
+        "blend_mode",
+        "is_visible",
+        "is_locked",
+        "common_style",
+        "flip_horizontal",
+        "flip_vertical",
+        "name",
+        "z_index",
+        "x_norm",
+        "y_norm",
+        "scale",
+        "rotation_deg"
+      ],
+      "text_layer_attributes": [
+        "value",
+        "content",
+        "font",
+        "fontColor",
+        "fontWeight",
+        "fontStyle",
+        "alignment",
+        "align",
+        "lineHeight",
+        "line_height",
+        "letterSpacing",
+        "letter_spacing",
+        "fontSize",
+        "font_size",
+        "font_id",
+        "baseline",
+        "fill_hex",
+        "fill_alpha",
+        "stroke_hex",
+        "stroke_alpha",
+        "stroke_width",
+        "stroke_align",
+        "gradient"
+      ],
+      "shape_layer_attributes": [
+        "type",
+        "shape_kind",
+        "color",
+        "strokeColor",
+        "strokeWidth",
+        "stroke_width",
+        "svg_path",
+        "points",
+        "rx",
+        "ry",
+        "fill_hex",
+        "fill_alpha",
+        "gradient",
+        "stroke_hex",
+        "stroke_alpha",
+        "stroke_dash",
+        "line_cap",
+        "line_join",
+        "meta"
+      ],
+      "icon_layer_attributes": [
+        "src",
+        "color",
+        "asset_id",
+        "tint_hex",
+        "tint_alpha",
+        "allow_recolor"
+      ],
+      "image_layer_attributes": [
+        "src",
+        "type",
+        "path",
+        "asset_id",
+        "crop",
+        "fit",
+        "rounding",
+        "blur",
+        "brightness",
+        "contrast"
+      ],
+      "background_layer_attributes": [
+        "type",
+        "mode",
+        "color",
+        "image",
+        "fill_hex",
+        "fill_alpha",
+        "gradient",
+        "asset_id",
+        "repeat",
+        "position",
+        "size"
+      ],
+      "canvas_attributes": [
+        "aspectRatio",
+        "background"
+      ],
+      "background_configuration_attributes": [
+        "type",
+        "solidColor",
+        "gradient",
+        "image"
+      ],
+      "gradient_attributes": [
+        "type",
+        "angle",
+        "stops"
+      ],
+      "gradient_stop_attributes": [
+        "offset",
+        "hex",
+        "alpha"
+      ],
+      "crop_attributes": [
+        "x",
+        "y",
+        "w",
+        "h"
+      ],
+      "position_attributes": [
+        "x",
+        "y"
+      ],
+      "flip_attributes": [
+        "horizontal",
+        "vertical"
+      ],
+      "common_style_attributes": [
+        "shadow"
+      ],
+      "shadow_attributes": [
+        "dx",
+        "dy",
+        "blur",
+        "hex",
+        "alpha"
+      ],
+      "colors_used_attributes": [
+        "role",
+        "color"
+      ],
+      "alignments_attributes": [
+        "verticalAlign",
+        "horizontalAlign"
+      ],
+      "responsive_attributes": [
+        "version",
+        "description",
+        "scalingMethod",
+        "positionMethod",
+        "fullyResponsive"
+      ],
+      "metadata_attributes": [
+        "createdAt",
+        "updatedAt",
+        "tags",
+        "version",
+        "responsive"
+      ],
+      "export_attributes": [
+        "format",
+        "transparentBackground",
+        "quality",
+        "responsive"
+      ],
+      "responsive_export_attributes": [
+        "scalable",
+        "maintainAspectRatio"
+      ]
+    },
+    "blend_modes": [
+      "normal",
+      "multiply",
+      "screen",
+      "overlay",
+      "darken",
+      "lighten",
+      "color-burn",
+      "color-dodge",
+      "difference",
+      "exclusion",
+      "hue",
+      "saturation",
+      "color",
+      "luminosity",
+      "soft-light",
+      "hard-light"
+    ],
+    "shape_types": [
+      "rect",
+      "circle",
+      "ellipse",
+      "polygon",
+      "path",
+      "line",
+      "triangle",
+      "star",
+      "heart",
+      "diamond",
+      "hexagon",
+      "octagon"
+    ],
+    "font_weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "normal",
+      "bold",
+      "bolder",
+      "lighter"
+    ],
+    "font_styles": [
+      "normal",
+      "italic",
+      "oblique"
+    ],
+    "text_alignments": [
+      "left",
+      "center",
+      "right",
+      "justify"
+    ],
+    "text_baselines": [
+      "alphabetic",
+      "top",
+      "hanging",
+      "middle",
+      "ideographic",
+      "bottom"
+    ],
+    "stroke_alignments": [
+      "inside",
+      "outside",
+      "center"
+    ],
+    "line_caps": [
+      "butt",
+      "round",
+      "square"
+    ],
+    "line_joins": [
+      "miter",
+      "round",
+      "bevel"
+    ],
+    "image_fit_modes": [
+      "contain",
+      "cover",
+      "fill",
+      "scale-down",
+      "none"
+    ],
+    "background_repeat_modes": [
+      "no-repeat",
+      "repeat",
+      "repeat-x",
+      "repeat-y",
+      "space",
+      "round"
+    ],
+    "background_positions": [
+      "top",
+      "bottom",
+      "left",
+      "right",
+      "center",
+      "top left",
+      "top right",
+      "bottom left",
+      "bottom right",
+      "50% 50%",
+      "100px 200px"
+    ],
+    "background_sizes": [
+      "auto",
+      "cover",
+      "contain",
+      "100% 100%",
+      "200px 300px"
+    ],
+    "export_formats": [
+      "png",
+      "svg",
+      "jpg",
+      "jpeg",
+      "webp"
+    ],
+    "scaling_methods": [
+      "scaleFactor",
+      "absolute",
+      "relative"
+    ],
+    "position_methods": [
+      "relative",
+      "absolute"
+    ],
+    "color_roles": [
+      "text",
+      "icon",
+      "shape",
+      "background"
+    ],
+    "vertical_alignments": [
+      "top",
+      "center",
+      "bottom"
+    ],
+    "horizontal_alignments": [
+      "left",
+      "center",
+      "right"
+    ],
+    "gradient_types": [
+      "linear",
+      "radial"
+    ],
+    "background_types": [
+      "solid",
+      "gradient",
+      "image"
+    ],
+    "image_types": [
+      "imported",
+      "url"
+    ],
+    "layer_types": [
+      "text",
+      "shape",
+      "icon",
+      "image",
+      "background",
+      "TEXT",
+      "SHAPE",
+      "ICON",
+      "IMAGE",
+      "BACKGROUND"
+    ]
+  }
+}

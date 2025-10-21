@@ -1,0 +1,732 @@
+{
+  "info": {
+    "name": "🚀 ULTIMATE Logo Maker API - Complete Feature Set",
+    "description": "# 🎨 ULTIMATE Logo Maker API Collection\n\n## 🌟 Complete Feature Set\nThis is the most comprehensive Postman collection for the Logo Maker API, including **ALL** possible features:\n\n### ✨ Core Features\n- **Multi-layer Logo Creation**: Background, Text, Shape, Icon, Image layers\n- **Template System**: Categories, templates, and inheritance\n- **Asset Management**: Cloudinary integration for all file types\n- **Version Control**: Snapshot-based undo/redo system\n- **Export Options**: PNG and SVG export with customizable dimensions\n- **Advanced Layer Properties**: Position, scale, rotation, opacity, blend modes, shadows\n\n### 🌍 Localization Support\n- **English (EN)** and **Arabic (AR)** language support\n- **RTL Support** for Arabic content\n- **Localized Messages** and error responses\n- **Date Formatting** per language\n- **Query Parameter & Header** language detection\n\n### 🎨 Advanced Design Features\n- **Gradient Legacy Formats**: Linear, radial, and complex gradients\n- **Shape Src Properties**: Custom SVG paths and asset references\n- **Text Properties**: Complete typography control with gradients\n- **Blend Modes**: 16 different blend modes for layers\n- **Shadow Effects**: Advanced shadow configurations\n- **Stroke Options**: Multiple stroke styles and alignments\n\n### 📱 Mobile Integration\n- **Mobile Endpoints**: Optimized for mobile applications\n- **Structured Responses**: Mobile-friendly data formats\n- **Responsive Design**: Scale factor and relative positioning\n- **Thumbnail Generation**: Multiple size options\n\n### 🗂️ Library Management\n- **Background Library**: Raster and vector backgrounds\n- **Icon Library**: SVG icons with dynamic coloring\n- **Asset Upload**: File upload with metadata\n- **Category System**: Organized asset management\n\n### 🔧 Advanced API Features\n- **Version Control**: Logo versioning and snapshots\n- **Template System**: Reusable logo templates\n- **Export Formats**: PNG, SVG, JPG, WebP\n- **Quality Control**: DPI and quality settings\n- **Responsive Scaling**: Multiple scaling methods",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": {
+      "major": 2,
+      "minor": 0,
+      "patch": 0
+    }
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    },
+    {
+      "key": "logoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "layerId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "assetId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "templateId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "550e8400-e29b-41d4-a716-446655440000",
+      "type": "string"
+    },
+    {
+      "key": "language",
+      "value": "en",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🏥 Health Check",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/../health",
+              "host": ["{{baseUrl}}", "..", "health"]
+            },
+            "description": "Check if the API server is running and healthy."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🌍 Localization & Multilingual",
+      "item": [
+        {
+          "name": "Get Logo (English)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logo/{{logoId}}?lang=en",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo", "{{logoId}}"],
+              "query": [
+                {
+                  "key": "lang",
+                  "value": "en",
+                  "description": "English language"
+                }
+              ]
+            },
+            "description": "Get logo with English localization"
+          }
+        },
+        {
+          "name": "Get Logo (Arabic)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logo/{{logoId}}?lang=ar",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo", "{{logoId}}"],
+              "query": [
+                {
+                  "key": "lang",
+                  "value": "ar",
+                  "description": "Arabic language"
+                }
+              ]
+            },
+            "description": "Get logo with Arabic localization and RTL support"
+          }
+        },
+        {
+          "name": "Get Thumbnails (English)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logo/thumbnails?lang=en&page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo", "thumbnails"],
+              "query": [
+                {
+                  "key": "lang",
+                  "value": "en",
+                  "description": "English language"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Items per page"
+                }
+              ]
+            },
+            "description": "Get logo thumbnails with English localization"
+          }
+        },
+        {
+          "name": "Get Thumbnails (Arabic)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logo/thumbnails?lang=ar&page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo", "thumbnails"],
+              "query": [
+                {
+                  "key": "lang",
+                  "value": "ar",
+                  "description": "Arabic language"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Items per page"
+                }
+              ]
+            },
+            "description": "Get logo thumbnails with Arabic localization and RTL support"
+          }
+        },
+        {
+          "name": "Create Logo with Localization",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "{{language}}",
+                "description": "Language preference"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Multilingual Logo\",\n  \"name_en\": \"Multilingual Logo\",\n  \"name_ar\": \"شعار متعدد اللغات\",\n  \"description\": \"A logo with multilingual support\",\n  \"description_en\": \"A logo with multilingual support\",\n  \"description_ar\": \"شعار مع دعم متعدد اللغات\",\n  \"tags\": [\"logo\", \"multilingual\"],\n  \"tags_en\": [\"logo\", \"multilingual\"],\n  \"tags_ar\": [\"شعار\", \"متعدد اللغات\"],\n  \"canvas\": {\n    \"aspectRatio\": 1.0,\n    \"background\": {\n      \"type\": \"solid\",\n      \"solidColor\": \"#ffffff\"\n    }\n  },\n  \"layers\": [\n    {\n      \"type\": \"text\",\n      \"text\": {\n        \"value\": \"Multilingual\",\n        \"fontSize\": 48,\n        \"fontColor\": \"#000000\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/logo",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo"]
+            },
+            "description": "Create a logo with multilingual support"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🎨 Logo Management - Complete",
+      "item": [
+        {
+          "name": "Create Logo - All Features",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"logoId\": \"{{$randomUUID}}\",\n  \"templateId\": \"template-uuid-12345\",\n  \"userId\": \"{{userId}}\",\n  \"name\": \"Ultimate Logo with ALL Features\",\n  \"description\": \"This logo demonstrates ALL possible attributes and features\",\n  \"canvas\": {\n    \"aspectRatio\": 1.0,\n    \"background\": {\n      \"type\": \"gradient\",\n      \"gradient\": {\n        \"type\": \"linear\",\n        \"angle\": 135,\n        \"stops\": [\n          {\n            \"offset\": 0,\n            \"hex\": \"#667eea\",\n            \"alpha\": 1.0\n          },\n          {\n            \"offset\": 0.5,\n            \"hex\": \"#764ba2\",\n            \"alpha\": 0.8\n          },\n          {\n            \"offset\": 1,\n            \"hex\": \"#f093fb\",\n            \"alpha\": 1.0\n          }\n        ]\n      }\n    }\n  },\n  \"layers\": [\n    {\n      \"layerId\": \"layer-background-001\",\n      \"type\": \"background\",\n      \"visible\": true,\n      \"order\": 0,\n      \"position\": {\n        \"x\": 0,\n        \"y\": 0\n      },\n      \"scaleFactor\": 1.0,\n      \"rotation\": 0.0,\n      \"opacity\": 1.0,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": false\n      },\n      \"anchor_x\": 0.5,\n      \"anchor_y\": 0.5,\n      \"blend_mode\": \"normal\",\n      \"is_visible\": true,\n      \"is_locked\": false,\n      \"common_style\": {\n        \"shadow\": {\n          \"dx\": 0,\n          \"dy\": 0,\n          \"blur\": 0,\n          \"hex\": \"#000000\",\n          \"alpha\": 0\n        }\n      },\n      \"background\": {\n        \"type\": \"gradient\",\n        \"mode\": \"gradient\",\n        \"color\": \"#ffffff\",\n        \"fill_hex\": \"#ffffff\",\n        \"fill_alpha\": 1.0,\n        \"gradient\": {\n          \"type\": \"radial\",\n          \"angle\": 0,\n          \"stops\": [\n            {\n              \"offset\": 0,\n              \"hex\": \"#ff6b6b\",\n              \"alpha\": 1.0\n            },\n            {\n              \"offset\": 1,\n              \"hex\": \"#4ecdc4\",\n              \"alpha\": 1.0\n            }\n          ]\n        },\n        \"asset_id\": \"background-asset-uuid\",\n        \"repeat\": \"no-repeat\",\n        \"position\": \"center\",\n        \"size\": \"cover\",\n        \"image\": {\n          \"type\": \"imported\",\n          \"path\": \"https://example.com/background.jpg\"\n        }\n      }\n    },\n    {\n      \"layerId\": \"layer-shape-001\",\n      \"type\": \"shape\",\n      \"visible\": true,\n      \"order\": 1,\n      \"position\": {\n        \"x\": 0.5,\n        \"y\": 0.3\n      },\n      \"scaleFactor\": 0.8,\n      \"rotation\": 15.0,\n      \"opacity\": 0.9,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": false\n      },\n      \"anchor_x\": 0.5,\n      \"anchor_y\": 0.5,\n      \"blend_mode\": \"multiply\",\n      \"is_visible\": true,\n      \"is_locked\": false,\n      \"common_style\": {\n        \"shadow\": {\n          \"dx\": 3,\n          \"dy\": 3,\n          \"blur\": 10,\n          \"hex\": \"#000000\",\n          \"alpha\": 0.3\n        }\n      },\n      \"shape\": {\n        \"src\": \"assets/local/Basic/13.svg\",\n        \"type\": \"rect\",\n        \"shape_kind\": \"rect\",\n        \"color\": \"#ffffff\",\n        \"strokeColor\": \"#000000\",\n        \"strokeWidth\": 3,\n        \"svg_path\": \"M10,10 L90,10 L90,90 L10,90 Z\",\n        \"points\": [10, 10, 90, 10, 90, 90, 10, 90],\n        \"rx\": 15,\n        \"ry\": 15,\n        \"fill_hex\": \"#ffffff\",\n        \"fill_alpha\": 0.8,\n        \"gradient\": {\n          \"type\": \"linear\",\n          \"angle\": 45,\n          \"stops\": [\n            {\n              \"offset\": 0,\n              \"hex\": \"#ff0000\",\n              \"alpha\": 1.0\n            },\n            {\n              \"offset\": 1,\n              \"hex\": \"#0000ff\",\n              \"alpha\": 1.0\n            }\n          ]\n        },\n        \"stroke_hex\": \"#000000\",\n        \"stroke_alpha\": 1.0,\n        \"stroke_dash\": [5, 5],\n        \"line_cap\": \"round\",\n        \"line_join\": \"round\",\n        \"meta\": {\n          \"custom_property\": \"value\"\n        }\n      }\n    },\n    {\n      \"layerId\": \"layer-icon-001\",\n      \"type\": \"icon\",\n      \"visible\": true,\n      \"order\": 2,\n      \"position\": {\n        \"x\": 0.5,\n        \"y\": 0.3\n      },\n      \"scaleFactor\": 0.6,\n      \"rotation\": -25.0,\n      \"opacity\": 1.0,\n      \"flip\": {\n        \"horizontal\": true,\n        \"vertical\": false\n      },\n      \"anchor_x\": 0.5,\n      \"anchor_y\": 0.5,\n      \"blend_mode\": \"screen\",\n      \"is_visible\": true,\n      \"is_locked\": false,\n      \"common_style\": {\n        \"shadow\": {\n          \"dx\": 2,\n          \"dy\": 2,\n          \"blur\": 8,\n          \"hex\": \"#000000\",\n          \"alpha\": 0.2\n        }\n      },\n      \"icon\": {\n        \"src\": \"star_icon\",\n        \"color\": \"#ffd700\",\n        \"asset_id\": \"icon-asset-uuid-12345\",\n        \"tint_hex\": \"#ffd700\",\n        \"tint_alpha\": 0.9,\n        \"allow_recolor\": true\n      }\n    },\n    {\n      \"layerId\": \"layer-image-001\",\n      \"type\": \"image\",\n      \"visible\": true,\n      \"order\": 3,\n      \"position\": {\n        \"x\": 0.25,\n        \"y\": 0.7\n      },\n      \"scaleFactor\": 0.4,\n      \"rotation\": 30.0,\n      \"opacity\": 0.8,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": true\n      },\n      \"anchor_x\": 0.5,\n      \"anchor_y\": 0.5,\n      \"blend_mode\": \"overlay\",\n      \"is_visible\": true,\n      \"is_locked\": false,\n      \"common_style\": {\n        \"shadow\": {\n          \"dx\": 4,\n          \"dy\": 4,\n          \"blur\": 12,\n          \"hex\": \"#000000\",\n          \"alpha\": 0.4\n        }\n      },\n      \"image\": {\n        \"src\": \"https://example.com/image.jpg\",\n        \"type\": \"url\",\n        \"path\": \"https://example.com/image.jpg\",\n        \"asset_id\": \"image-asset-uuid-67890\",\n        \"crop\": {\n          \"x\": 0.1,\n          \"y\": 0.1,\n          \"w\": 0.8,\n          \"h\": 0.8\n        },\n        \"fit\": \"contain\",\n        \"rounding\": 10,\n        \"blur\": 2,\n        \"brightness\": 1.2,\n        \"contrast\": 1.1\n      }\n    },\n    {\n      \"layerId\": \"layer-text-001\",\n      \"type\": \"text\",\n      \"visible\": true,\n      \"order\": 4,\n      \"position\": {\n        \"x\": 0.5,\n        \"y\": 0.7\n      },\n      \"scaleFactor\": 1.0,\n      \"rotation\": 0.0,\n      \"opacity\": 1.0,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": false\n      },\n      \"anchor_x\": 0.5,\n      \"anchor_y\": 0.5,\n      \"blend_mode\": \"normal\",\n      \"is_visible\": true,\n      \"is_locked\": false,\n      \"common_style\": {\n        \"shadow\": {\n          \"dx\": 2,\n          \"dy\": 2,\n          \"blur\": 6,\n          \"hex\": \"#000000\",\n          \"alpha\": 0.5\n        }\n      },\n      \"text\": {\n        \"value\": \"COMPLETE LOGO\",\n        \"font\": \"Helvetica\",\n        \"fontColor\": \"#ffffff\",\n        \"fontWeight\": \"bold\",\n        \"fontStyle\": \"normal\",\n        \"alignment\": \"center\",\n        \"lineHeight\": 1.2,\n        \"letterSpacing\": 2,\n        \"fontSize\": 48,\n        \"font_id\": \"font-asset-uuid-11111\",\n        \"baseline\": \"alphabetic\",\n        \"fill_hex\": \"#ffffff\",\n        \"fill_alpha\": 1.0,\n        \"stroke_hex\": \"#000000\",\n        \"stroke_alpha\": 0.8,\n        \"stroke_width\": 2,\n        \"stroke_align\": \"outside\",\n        \"gradient\": {\n          \"type\": \"linear\",\n          \"angle\": 90,\n          \"stops\": [\n            {\n              \"offset\": 0,\n              \"hex\": \"#ff0000\",\n              \"alpha\": 1.0\n            },\n            {\n              \"offset\": 1,\n              \"hex\": \"#0000ff\",\n              \"alpha\": 1.0\n            }\n          ]\n        }\n      }\n    }\n  ],\n  \"colorsUsed\": [\n    {\n      \"role\": \"background\",\n      \"color\": \"#667eea\"\n    },\n    {\n      \"role\": \"background\",\n      \"color\": \"#764ba2\"\n    },\n    {\n      \"role\": \"background\",\n      \"color\": \"#f093fb\"\n    },\n    {\n      \"role\": \"shape\",\n      \"color\": \"#ffffff\"\n    },\n    {\n      \"role\": \"icon\",\n      \"color\": \"#ffd700\"\n    },\n    {\n      \"role\": \"text\",\n      \"color\": \"#ffffff\"\n    }\n  ],\n  \"alignments\": {\n    \"verticalAlign\": \"center\",\n    \"horizontalAlign\": \"center\"\n  },\n  \"responsive\": {\n    \"version\": \"3.0\",\n    \"description\": \"Fully responsive logo data - no absolute sizes stored\",\n    \"scalingMethod\": \"scaleFactor\",\n    \"positionMethod\": \"relative\",\n    \"fullyResponsive\": true\n  },\n  \"metadata\": {\n    \"createdAt\": \"2024-01-20T10:30:00.000Z\",\n    \"updatedAt\": \"2024-01-20T10:30:00.000Z\",\n    \"tags\": [\n      \"logo\",\n      \"complete\",\n      \"all-features\",\n      \"comprehensive\",\n      \"example\",\n      \"multi-layer\",\n      \"advanced\",\n      \"responsive\",\n      \"professional\"\n    ],\n    \"version\": 1,\n    \"responsive\": true\n  },\n  \"export\": {\n    \"format\": \"png\",\n    \"transparentBackground\": true,\n    \"quality\": 100,\n    \"responsive\": {\n      \"scalable\": true,\n      \"maintainAspectRatio\": true\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/logo",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo"]
+            },
+            "description": "Create a logo with ALL possible features and attributes"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('logoId', response.data.id);",
+                  "    console.log('Logo created with ID:', response.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Mobile Logo - All Features",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"logoId\": \"{{$randomUUID}}\",\n  \"userId\": \"{{userId}}\",\n  \"name\": \"Ultimate Mobile Logo\",\n  \"description\": \"Mobile-optimized logo with all features\",\n  \"canvas\": {\n    \"aspectRatio\": 1.0,\n    \"background\": {\n      \"type\": \"gradient\",\n      \"gradient\": {\n        \"type\": \"linear\",\n        \"angle\": 45,\n        \"stops\": [\n          {\n            \"offset\": 0,\n            \"hex\": \"#FF6B6B\",\n            \"alpha\": 1\n          },\n          {\n            \"offset\": 1,\n            \"hex\": \"#4ECDC4\",\n            \"alpha\": 1\n          }\n        ]\n      }\n    }\n  },\n  \"layers\": [\n    {\n      \"layerId\": \"mobile-shape-001\",\n      \"type\": \"shape\",\n      \"visible\": true,\n      \"order\": 0,\n      \"position\": {\n        \"x\": 0.5,\n        \"y\": 0.5\n      },\n      \"scaleFactor\": 0.8,\n      \"rotation\": 0.0,\n      \"opacity\": 1.0,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": false\n      },\n      \"shape\": {\n        \"src\": \"assets/local/Basic/13.svg\",\n        \"type\": \"rect\",\n        \"color\": \"#ffffff\",\n        \"strokeColor\": \"#000000\",\n        \"strokeWidth\": 2,\n        \"rx\": 10,\n        \"ry\": 10\n      }\n    },\n    {\n      \"layerId\": \"mobile-text-001\",\n      \"type\": \"text\",\n      \"visible\": true,\n      \"order\": 1,\n      \"position\": {\n        \"x\": 0.5,\n        \"y\": 0.5\n      },\n      \"scaleFactor\": 1.0,\n      \"rotation\": 0.0,\n      \"opacity\": 1.0,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": false\n      },\n      \"text\": {\n        \"value\": \"MOBILE LOGO\",\n        \"font\": \"Arial\",\n        \"fontSize\": 36,\n        \"fontColor\": \"#000000\",\n        \"fontWeight\": \"bold\",\n        \"fontStyle\": \"normal\",\n        \"alignment\": \"center\",\n        \"lineHeight\": 1.2,\n        \"letterSpacing\": 1,\n        \"fill_hex\": \"#000000\",\n        \"fill_alpha\": 1.0,\n        \"stroke_hex\": \"#ffffff\",\n        \"stroke_alpha\": 0.8,\n        \"stroke_width\": 1,\n        \"stroke_align\": \"outside\"\n      }\n    }\n  ],\n  \"colorsUsed\": [\n    {\n      \"role\": \"shape\",\n      \"color\": \"#ffffff\"\n    },\n    {\n      \"role\": \"text\",\n      \"color\": \"#000000\"\n    }\n  ],\n  \"alignments\": {\n    \"verticalAlign\": \"center\",\n    \"horizontalAlign\": \"center\"\n  },\n  \"responsive\": {\n    \"version\": \"3.0\",\n    \"description\": \"Fully responsive logo data - no absolute sizes stored\",\n    \"scalingMethod\": \"scaleFactor\",\n    \"positionMethod\": \"relative\",\n    \"fullyResponsive\": true\n  },\n  \"metadata\": {\n    \"createdAt\": \"2024-01-20T10:30:00.000Z\",\n    \"updatedAt\": \"2024-01-20T10:30:00.000Z\",\n    \"tags\": [\"logo\", \"mobile\", \"responsive\", \"optimized\"],\n    \"version\": 1,\n    \"responsive\": true\n  },\n  \"export\": {\n    \"format\": \"png\",\n    \"transparentBackground\": true,\n    \"quality\": 100,\n    \"responsive\": {\n      \"scalable\": true,\n      \"maintainAspectRatio\": true\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/logo/mobile",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo", "mobile"]
+            },
+            "description": "Create a mobile-optimized logo with all features"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('logoId', response.data.logoId);",
+                  "    console.log('Mobile logo created with ID:', response.data.logoId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Logo - Complete",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logo/{{logoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo", "{{logoId}}"]
+            },
+            "description": "Get a logo by ID with all layers and their properties"
+          }
+        },
+        {
+          "name": "Get Mobile Logo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logo/{{logoId}}/mobile",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo", "{{logoId}}", "mobile"]
+            },
+            "description": "Get logo in mobile-optimized format"
+          }
+        },
+        {
+          "name": "Get Mobile Structured Logo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logo/{{logoId}}/mobile-structured",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo", "{{logoId}}", "mobile-structured"]
+            },
+            "description": "Get logo in mobile-structured format with organized data"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔧 Layer Management - Advanced",
+      "item": [
+        {
+          "name": "Update Text Layer - All Properties",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"UPDATED TEXT\",\n  \"font_id\": \"font-asset-uuid\",\n  \"font_size\": 72,\n  \"line_height\": 1.5,\n  \"letter_spacing\": 3,\n  \"align\": \"center\",\n  \"baseline\": \"alphabetic\",\n  \"fill_hex\": \"#FF0000\",\n  \"fill_alpha\": 0.9,\n  \"stroke_hex\": \"#FFFFFF\",\n  \"stroke_alpha\": 0.8,\n  \"stroke_width\": 4,\n  \"stroke_align\": \"outside\",\n  \"gradient\": {\n    \"type\": \"linear\",\n    \"angle\": 45,\n    \"stops\": [\n      {\n        \"offset\": 0,\n        \"hex\": \"#ff0000\",\n        \"alpha\": 1\n      },\n      {\n        \"offset\": 1,\n        \"hex\": \"#0000ff\",\n        \"alpha\": 1\n      }\n    ]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/layers/{{layerId}}/text",
+              "host": ["{{baseUrl}}"],
+              "path": ["layers", "{{layerId}}", "text"]
+            },
+            "description": "Update text layer with all possible properties including gradients"
+          }
+        },
+        {
+          "name": "Update Shape Layer - All Properties",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shape_kind\": \"rect\",\n  \"src\": \"assets/local/Basic/13.svg\",\n  \"svg_path\": \"M10,10 L90,10 L90,90 L10,90 Z\",\n  \"points\": [10, 10, 90, 10, 90, 90, 10, 90],\n  \"fill_hex\": \"#00FF00\",\n  \"fill_alpha\": 0.8,\n  \"stroke_hex\": \"#000000\",\n  \"stroke_alpha\": 1.0,\n  \"stroke_width\": 3,\n  \"rx\": 15,\n  \"ry\": 15,\n  \"stroke_dash\": [5, 5],\n  \"line_cap\": \"round\",\n  \"line_join\": \"round\",\n  \"gradient\": {\n    \"type\": \"linear\",\n    \"angle\": 90,\n    \"stops\": [\n      {\n        \"offset\": 0,\n        \"hex\": \"#ff0000\",\n        \"alpha\": 1\n      },\n      {\n        \"offset\": 1,\n        \"hex\": \"#0000ff\",\n        \"alpha\": 1\n      }\n    ]\n  },\n  \"meta\": {\n    \"custom_property\": \"value\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/layers/{{layerId}}/shape",
+              "host": ["{{baseUrl}}"],
+              "path": ["layers", "{{layerId}}", "shape"]
+            },
+            "description": "Update shape layer with all properties including src, gradients, and stroke options"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📁 Asset Management - Complete",
+      "item": [
+        {
+          "name": "Get Assets - All Filters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/assets?kind=vector&category=icons&search=arrow&page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["assets"],
+              "query": [
+                {
+                  "key": "kind",
+                  "value": "vector",
+                  "description": "Filter by asset kind: raster, vector, font, pattern"
+                },
+                {
+                  "key": "category",
+                  "value": "icons",
+                  "description": "Filter by category"
+                },
+                {
+                  "key": "search",
+                  "value": "arrow",
+                  "description": "Search in name and tags"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number for pagination"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Number of items per page"
+                }
+              ]
+            },
+            "description": "Get all assets with comprehensive filtering and pagination options"
+          }
+        },
+        {
+          "name": "Upload Asset - Complete",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "File to upload (PNG, JPEG, SVG, etc.)"
+                },
+                {
+                  "key": "kind",
+                  "value": "vector",
+                  "type": "text",
+                  "description": "Asset kind: raster, vector, font, pattern"
+                },
+                {
+                  "key": "name",
+                  "value": "Arrow Icon",
+                  "type": "text",
+                  "description": "Asset name"
+                },
+                {
+                  "key": "meta",
+                  "value": "{\"category\": \"icons\", \"tags\": [\"arrow\", \"direction\"], \"description\": \"A directional arrow icon\"}",
+                  "type": "text",
+                  "description": "Metadata as JSON string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/assets/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["assets", "upload"]
+            },
+            "description": "Upload a file to Cloudinary and create an asset record with complete metadata"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📤 Export & Rendering - Complete",
+      "item": [
+        {
+          "name": "Export as PNG - All Options",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logo/{{logoId}}/export.png?width=1920&height=1080&dpi=300&quality=95&format=png&transparent=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo", "{{logoId}}", "export.png"],
+              "query": [
+                {
+                  "key": "width",
+                  "value": "1920",
+                  "description": "Output width in pixels"
+                },
+                {
+                  "key": "height",
+                  "value": "1080",
+                  "description": "Output height in pixels"
+                },
+                {
+                  "key": "dpi",
+                  "value": "300",
+                  "description": "DPI for print quality"
+                },
+                {
+                  "key": "quality",
+                  "value": "95",
+                  "description": "Image quality (1-100)"
+                },
+                {
+                  "key": "format",
+                  "value": "png",
+                  "description": "Output format"
+                },
+                {
+                  "key": "transparent",
+                  "value": "true",
+                  "description": "Transparent background"
+                }
+              ]
+            },
+            "description": "Export logo as PNG with all customizable options"
+          }
+        },
+        {
+          "name": "Export as SVG - All Options",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logo/{{logoId}}/export.svg?width=1920&height=1080&scalable=true&responsive=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo", "{{logoId}}", "export.svg"],
+              "query": [
+                {
+                  "key": "width",
+                  "value": "1920",
+                  "description": "Output width in pixels"
+                },
+                {
+                  "key": "height",
+                  "value": "1080",
+                  "description": "Output height in pixels"
+                },
+                {
+                  "key": "scalable",
+                  "value": "true",
+                  "description": "Make SVG scalable"
+                },
+                {
+                  "key": "responsive",
+                  "value": "true",
+                  "description": "Make SVG responsive"
+                }
+              ]
+            },
+            "description": "Export logo as SVG with all customizable options"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📚 Library Management - Complete",
+      "item": [
+        {
+          "name": "Get Backgrounds - All Filters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logo/backgrounds?page=1&limit=20&category=abstract&type=raster&search=gradient",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo", "backgrounds"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Items per page"
+                },
+                {
+                  "key": "category",
+                  "value": "abstract",
+                  "description": "Filter by category"
+                },
+                {
+                  "key": "type",
+                  "value": "raster",
+                  "description": "Filter by type (raster/vector)"
+                },
+                {
+                  "key": "search",
+                  "value": "gradient",
+                  "description": "Search in name and tags"
+                }
+              ]
+            },
+            "description": "Get all backgrounds from the library with comprehensive filtering"
+          }
+        },
+        {
+          "name": "Get Icons - All Filters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logo/icons?page=1&limit=20&category=emotions&type=vector&search=heart",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo", "icons"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Items per page"
+                },
+                {
+                  "key": "category",
+                  "value": "emotions",
+                  "description": "Filter by category"
+                },
+                {
+                  "key": "type",
+                  "value": "vector",
+                  "description": "Filter by type (raster/vector)"
+                },
+                {
+                  "key": "search",
+                  "value": "heart",
+                  "description": "Search in name and tags"
+                }
+              ]
+            },
+            "description": "Get all icons from the library with comprehensive filtering"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🎨 Advanced Features - Complete",
+      "item": [
+        {
+          "name": "Create Logo with Gradient Legacy Format",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Gradient Legacy Format Logo\",\n  \"description\": \"Logo using legacy gradient format for backward compatibility\",\n  \"canvas\": {\n    \"aspectRatio\": 1.0,\n    \"background\": {\n      \"type\": \"gradient\",\n      \"gradient\": {\n        \"type\": \"linear\",\n        \"angle\": 45,\n        \"stops\": [\n          {\n            \"offset\": 0,\n            \"hex\": \"#FF6B6B\",\n            \"alpha\": 1\n          },\n          {\n            \"offset\": 0.5,\n            \"hex\": \"#4ECDC4\",\n            \"alpha\": 0.8\n          },\n          {\n            \"offset\": 1,\n            \"hex\": \"#45B7D1\",\n            \"alpha\": 1\n          }\n        ]\n      }\n    }\n  },\n  \"layers\": [\n    {\n      \"type\": \"text\",\n      \"text\": {\n        \"value\": \"LEGACY GRADIENT\",\n        \"fontSize\": 48,\n        \"fontColor\": \"#ffffff\",\n        \"gradient\": {\n          \"type\": \"radial\",\n          \"stops\": [\n            {\n              \"offset\": 0,\n              \"hex\": \"#ff0000\",\n              \"alpha\": 1\n            },\n            {\n              \"offset\": 1,\n              \"hex\": \"#0000ff\",\n              \"alpha\": 1\n            }\n          ]\n        }\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/logo/mobile",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo", "mobile"]
+            },
+            "description": "Create logo using legacy gradient format for backward compatibility"
+          }
+        },
+        {
+          "name": "Create Logo with Shape Src Properties",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Shape Src Properties Logo\",\n  \"description\": \"Logo demonstrating shape src properties and custom SVG paths\",\n  \"canvas\": {\n    \"aspectRatio\": 1.0,\n    \"background\": {\n      \"type\": \"solid\",\n      \"solidColor\": \"#ffffff\"\n    }\n  },\n  \"layers\": [\n    {\n      \"type\": \"shape\",\n      \"shape\": {\n        \"src\": \"assets/local/Basic/13.svg\",\n        \"type\": \"rect\",\n        \"color\": \"#673ab7\",\n        \"strokeColor\": \"#000000\",\n        \"strokeWidth\": 2,\n        \"svg_path\": \"M10,10 L90,10 L90,90 L10,90 Z\",\n        \"points\": [10, 10, 90, 10, 90, 90, 10, 90],\n        \"rx\": 15,\n        \"ry\": 15,\n        \"fill_hex\": \"#673ab7\",\n        \"fill_alpha\": 0.8,\n        \"stroke_hex\": \"#000000\",\n        \"stroke_alpha\": 1.0,\n        \"stroke_dash\": [5, 5],\n        \"line_cap\": \"round\",\n        \"line_join\": \"round\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/logo/mobile",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo", "mobile"]
+            },
+            "description": "Create logo demonstrating shape src properties and custom SVG paths"
+          }
+        },
+        {
+          "name": "Create Logo with All Text Properties",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Complete Text Properties Logo\",\n  \"description\": \"Logo demonstrating all possible text properties and styling options\",\n  \"canvas\": {\n    \"aspectRatio\": 1.0,\n    \"background\": {\n      \"type\": \"solid\",\n      \"solidColor\": \"#ffffff\"\n    }\n  },\n  \"layers\": [\n    {\n      \"type\": \"text\",\n      \"text\": {\n        \"value\": \"COMPLETE TEXT\",\n        \"font\": \"Helvetica\",\n        \"fontSize\": 48,\n        \"fontColor\": \"#000000\",\n        \"fontWeight\": \"bold\",\n        \"fontStyle\": \"italic\",\n        \"alignment\": \"center\",\n        \"baseline\": \"alphabetic\",\n        \"lineHeight\": 1.2,\n        \"letterSpacing\": 2.0,\n        \"fill_hex\": \"#000000\",\n        \"fill_alpha\": 0.8,\n        \"stroke_hex\": \"#ff0000\",\n        \"stroke_alpha\": 0.5,\n        \"stroke_width\": 2.0,\n        \"stroke_align\": \"outside\",\n        \"gradient\": {\n          \"type\": \"linear\",\n          \"angle\": 45,\n          \"stops\": [\n            {\n              \"offset\": 0,\n              \"hex\": \"#ff0000\",\n              \"alpha\": 1\n            },\n            {\n              \"offset\": 1,\n              \"hex\": \"#0000ff\",\n              \"alpha\": 1\n            }\n          ]\n        }\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/logo/mobile",
+              "host": ["{{baseUrl}}"],
+              "path": ["logo", "mobile"]
+            },
+            "description": "Create logo demonstrating all possible text properties and styling options"
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Set default values if not already set",
+          "if (!pm.collectionVariables.get('baseUrl')) {",
+          "    pm.collectionVariables.set('baseUrl', 'http://localhost:3000/api');",
+          "}",
+          "if (!pm.collectionVariables.get('userId')) {",
+          "    pm.collectionVariables.set('userId', '550e8400-e29b-41d4-a716-446655440000');",
+          "}",
+          "if (!pm.collectionVariables.get('language')) {",
+          "    pm.collectionVariables.set('language', 'en');",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global test script for all requests",
+          "pm.test('Response time is less than 5000ms', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+          "});",
+          "",
+          "pm.test('Response has success field', function () {",
+          "    if (pm.response.code === 200 || pm.response.code === 201) {",
+          "        const jsonData = pm.response.json();",
+          "        pm.expect(jsonData).to.have.property('success');",
+          "    }",
+          "});"
+        ]
+      }
+    }
+  ]
+}
