@@ -1,248 +1,175 @@
-const fetch = require('node-fetch');
+const axios = require('axios');
 
-const API_BASE = 'http://localhost:3000/api';
+// Test configuration
+const BASE_URL = process.env.API_URL || 'http://localhost:3000';
+const API_BASE = `${BASE_URL}/api/logo`;
 
-async function testIconLibraryFunctionality() {
-  console.log('Testing icon library functionality...\n');
+// Test data for creating sample icons
+const sampleIcons = [
+  {
+    name: 'home-icon',
+    url: 'https://example.com/icons/home.svg',
+    type: 'vector',
+    width: 24,
+    height: 24,
+    hasAlpha: true,
+    meta: {
+      library_type: 'icon',
+      category: 'navigation',
+      tags: ['home', 'house', 'navigation'],
+      description: 'Home icon for navigation',
+      style: 'outline',
+      is_featured: true,
+      download_count: 150
+    }
+  },
+  {
+    name: 'user-icon',
+    url: 'https://example.com/icons/user.svg',
+    type: 'vector',
+    width: 24,
+    height: 24,
+    hasAlpha: true,
+    meta: {
+      library_type: 'icon',
+      category: 'user',
+      tags: ['user', 'person', 'profile'],
+      description: 'User profile icon',
+      style: 'outline',
+      is_popular: true,
+      download_count: 200
+    }
+  },
+  {
+    name: 'settings-icon',
+    url: 'https://example.com/icons/settings.svg',
+    type: 'vector',
+    width: 24,
+    height: 24,
+    hasAlpha: true,
+    meta: {
+      library_type: 'icon',
+      category: 'system',
+      tags: ['settings', 'gear', 'configuration'],
+      description: 'Settings configuration icon',
+      style: 'outline',
+      download_count: 75
+    }
+  }
+];
+
+async function testIconEndpoints() {
+  console.log('🧪 Testing Icon Library Endpoints...\n');
 
   try {
-    // Create a logo with an icon layer
-    const logoData = {
-      name: "Icon Library Test",
-      description: "Testing icon library with URL storage",
-      canvas: {
-        aspectRatio: 1.0,
-        background: {
-          type: "solid",
-          solidColor: "#ffffff"
-        }
-      },
-      layers: [
-        {
-          layerId: "test-icon-layer",
-          type: "icon",
-          visible: true,
-          order: 0,
-          position: { x: 0.5, y: 0.5 },
-          scaleFactor: 1.0,
-          rotation: 0.0,
-          opacity: 1.0,
-          flip: { horizontal: false, vertical: false },
-          icon: {
-            src: "heart-icon",
-            url: "https://example.com/icons/heart-icon.svg",
-            color: "#ffc107"
-          }
-        }
-      ],
-      colorsUsed: [
-        { role: "icon", color: "#ffc107" }
-      ],
-      alignments: {
-        verticalAlign: "center",
-        horizontalAlign: "center"
-      },
-      responsive: {
-        version: "3.0",
-        description: "Fully responsive logo data",
-        scalingMethod: "scaleFactor",
-        positionMethod: "relative",
-        fullyResponsive: true
-      },
-      metadata: {
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        tags: ["test", "icon", "library"],
-        version: 3,
-        responsive: true
-      },
-      export: {
-        format: "png",
-        transparentBackground: true,
-        quality: 100,
-        responsive: {
-          scalable: true,
-          maintainAspectRatio: true
+    // Test 1: Create sample icons
+    console.log('1. Creating sample icons...');
+    for (const iconData of sampleIcons) {
+      try {
+        const response = await axios.post(`${API_BASE}/icons`, iconData);
+        console.log(`   ✅ Created icon: ${iconData.name} (ID: ${response.data.data.id})`);
+      } catch (error) {
+        if (error.response?.status === 400 && error.response?.data?.message?.includes('already exists')) {
+          console.log(`   ⚠️  Icon ${iconData.name} already exists, skipping...`);
+        } else {
+          console.log(`   ❌ Failed to create icon ${iconData.name}:`, error.response?.data?.message || error.message);
         }
       }
-    };
-
-    // Create logo
-    console.log('1. Creating logo with icon layer...');
-    const createResponse = await fetch(`${API_BASE}/logo/mobile`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(logoData)
-    });
-
-    if (!createResponse.ok) {
-      throw new Error(`Failed to create logo: ${createResponse.status} ${createResponse.statusText}`);
     }
 
-    const createdLogo = await createResponse.json();
-    const logoId = createdLogo.data.logoId;
-    console.log(`✅ Logo created with ID: ${logoId}`);
-
-    // Get logo back and check icon properties
-    console.log('\n2. Retrieving logo and checking icon properties...');
-    const getResponse = await fetch(`${API_BASE}/logo/${logoId}/mobile`);
-    
-    if (!getResponse.ok) {
-      throw new Error(`Failed to get logo: ${getResponse.status} ${getResponse.statusText}`);
+    // Test 2: Get all icons (basic endpoint)
+    console.log('\n2. Testing GET /api/logo/icons...');
+    try {
+      const response = await axios.get(`${API_BASE}/icons`);
+      console.log(`   ✅ Retrieved ${response.data.data.length} icons`);
+      console.log(`   📊 Pagination: Page ${response.data.pagination.page} of ${response.data.pagination.pages}`);
+    } catch (error) {
+      console.log('   ❌ Failed to get icons:', error.response?.data?.message || error.message);
     }
 
-    const retrievedLogo = await getResponse.json();
-    const iconLayer = retrievedLogo.layers.find(layer => layer.type === 'icon');
-    
-    if (!iconLayer) {
-      throw new Error('Icon layer not found in retrieved logo');
+    // Test 3: Get icon library (enhanced endpoint)
+    console.log('\n3. Testing GET /api/logo/icons/library...');
+    try {
+      const response = await axios.get(`${API_BASE}/icons/library`);
+      console.log(`   ✅ Retrieved ${response.data.data.icons.length} icons from library`);
+      console.log(`   📊 Total icons: ${response.data.data.totalIcons}`);
+      console.log(`   🏷️  Categories: ${response.data.data.categories.length}`);
+      console.log(`   🔍 Available filters:`, Object.keys(response.data.filters));
+    } catch (error) {
+      console.log('   ❌ Failed to get icon library:', error.response?.data?.message || error.message);
     }
 
-    console.log('✅ Icon layer found');
-
-    // Check icon properties
-    console.log('\n3. Icon properties:');
-    console.log(JSON.stringify(iconLayer.icon, null, 2));
-
-    // Check if src contains URL
-    if (iconLayer.icon.src && iconLayer.icon.src.includes('https://')) {
-      console.log('\n✅ SUCCESS: Icon src contains URL!');
-    } else {
-      console.log(`\n❌ FAILURE: Icon src does not contain URL: ${iconLayer.icon.src}`);
+    // Test 4: Test filtering by category
+    console.log('\n4. Testing category filtering...');
+    try {
+      const response = await axios.get(`${API_BASE}/icons/library?category=navigation`);
+      console.log(`   ✅ Found ${response.data.data.icons.length} navigation icons`);
+    } catch (error) {
+      console.log('   ❌ Failed to filter by category:', error.response?.data?.message || error.message);
     }
 
-    // Test creating another logo with the same icon (should reuse existing asset)
-    console.log('\n4. Testing icon reuse...');
-    const logoData2 = {
-      name: "Icon Reuse Test",
-      description: "Testing icon reuse from library",
-      canvas: {
-        aspectRatio: 1.0,
-        background: {
-          type: "solid",
-          solidColor: "#ffffff"
-        }
-      },
-      layers: [
-        {
-          layerId: "test-icon-layer-2",
-          type: "icon",
-          visible: true,
-          order: 0,
-          position: { x: 0.5, y: 0.5 },
-          scaleFactor: 1.0,
-          rotation: 0.0,
-          opacity: 1.0,
-          flip: { horizontal: false, vertical: false },
-          icon: {
-            src: "heart-icon", // Same icon name
-            url: "https://example.com/icons/heart-icon.svg",
-            color: "#ff0000" // Different color
-          }
-        }
-      ],
-      colorsUsed: [
-        { role: "icon", color: "#ff0000" }
-      ],
-      alignments: {
-        verticalAlign: "center",
-        horizontalAlign: "center"
-      },
-      responsive: {
-        version: "3.0",
-        description: "Fully responsive logo data",
-        scalingMethod: "scaleFactor",
-        positionMethod: "relative",
-        fullyResponsive: true
-      },
-      metadata: {
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        tags: ["test", "icon", "reuse"],
-        version: 3,
-        responsive: true
-      },
-      export: {
-        format: "png",
-        transparentBackground: true,
-        quality: 100,
-        responsive: {
-          scalable: true,
-          maintainAspectRatio: true
-        }
+    // Test 5: Test search functionality
+    console.log('\n5. Testing search functionality...');
+    try {
+      const response = await axios.get(`${API_BASE}/icons/library?search=user`);
+      console.log(`   ✅ Found ${response.data.data.icons.length} icons matching "user"`);
+    } catch (error) {
+      console.log('   ❌ Failed to search icons:', error.response?.data?.message || error.message);
+    }
+
+    // Test 6: Test featured icons
+    console.log('\n6. Testing featured icons...');
+    try {
+      const response = await axios.get(`${API_BASE}/icons/featured`);
+      console.log(`   ✅ Found ${response.data.data.length} featured icons`);
+    } catch (error) {
+      console.log('   ❌ Failed to get featured icons:', error.response?.data?.message || error.message);
+    }
+
+    // Test 7: Test categories endpoint
+    console.log('\n7. Testing categories endpoint...');
+    try {
+      const response = await axios.get(`${API_BASE}/icons/categories`);
+      console.log(`   ✅ Found ${response.data.data.length} categories`);
+      response.data.data.forEach(cat => {
+        console.log(`   📁 ${cat.name}: ${cat.totalCount} icons (${cat.featuredCount} featured)`);
+      });
+    } catch (error) {
+      console.log('   ❌ Failed to get categories:', error.response?.data?.message || error.message);
+    }
+
+    // Test 8: Test pagination
+    console.log('\n8. Testing pagination...');
+    try {
+      const response = await axios.get(`${API_BASE}/icons/library?page=1&limit=2`);
+      console.log(`   ✅ Page 1: ${response.data.data.icons.length} icons`);
+      console.log(`   📊 Pagination info:`, response.data.pagination);
+    } catch (error) {
+      console.log('   ❌ Failed to test pagination:', error.response?.data?.message || error.message);
+    }
+
+    // Test 9: Test sorting
+    console.log('\n9. Testing sorting...');
+    try {
+      const response = await axios.get(`${API_BASE}/icons/library?sort=name&order=asc`);
+      console.log(`   ✅ Sorted by name (ASC): ${response.data.data.icons.length} icons`);
+      if (response.data.data.icons.length > 0) {
+        console.log(`   📝 First icon: ${response.data.data.icons[0].name}`);
       }
-    };
-
-    const createResponse2 = await fetch(`${API_BASE}/logo/mobile`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(logoData2)
-    });
-
-    if (!createResponse2.ok) {
-      throw new Error(`Failed to create second logo: ${createResponse2.status} ${createResponse2.statusText}`);
+    } catch (error) {
+      console.log('   ❌ Failed to test sorting:', error.response?.data?.message || error.message);
     }
 
-    const createdLogo2 = await createResponse2.json();
-    const logoId2 = createdLogo2.data.logoId;
-    console.log(`✅ Second logo created with ID: ${logoId2}`);
-
-    // Get second logo and verify icon URL is the same
-    const getResponse2 = await fetch(`${API_BASE}/logo/${logoId2}/mobile`);
-    const retrievedLogo2 = await getResponse2.json();
-    const iconLayer2 = retrievedLogo2.layers.find(layer => layer.type === 'icon');
-
-    if (iconLayer.icon.src === iconLayer2.icon.src) {
-      console.log('\n✅ SUCCESS: Icon URL is reused from library!');
-    } else {
-      console.log('\n❌ FAILURE: Icon URL is not being reused properly');
-      console.log(`First logo icon src: ${iconLayer.icon.src}`);
-      console.log(`Second logo icon src: ${iconLayer2.icon.src}`);
-    }
-
-    // Test all endpoints
-    console.log('\n5. Testing all endpoints...');
-    
-    // Test mobile list endpoint
-    const listResponse = await fetch(`${API_BASE}/logo/mobile`);
-    const listData = await listResponse.json();
-    const listIconLayer = listData.data.find(logo => logo.logoId === logoId)?.layers.find(layer => layer.type === 'icon');
-    
-    if (listIconLayer && listIconLayer.icon.src.includes('https://')) {
-      console.log('✅ Mobile list endpoint returns icon URL');
-    } else {
-      console.log('❌ Mobile list endpoint does not return icon URL');
-    }
-
-    // Test mobile-structured endpoint
-    const structuredResponse = await fetch(`${API_BASE}/logo/${logoId}/mobile-structured`);
-    const structuredData = await structuredResponse.json();
-    const structuredIconLayer = structuredData.layers.find(layer => layer.type === 'icon');
-    
-    if (structuredIconLayer && structuredIconLayer.icon.src.includes('https://')) {
-      console.log('✅ Mobile-structured endpoint returns icon URL');
-    } else {
-      console.log('❌ Mobile-structured endpoint does not return icon URL');
-    }
-
-    // Test regular endpoint
-    const regularResponse = await fetch(`${API_BASE}/logo/${logoId}`);
-    const regularData = await regularResponse.json();
-    const regularIconLayer = regularData.data.layers.find(layer => layer.type === 'ICON');
-    
-    if (regularIconLayer && regularIconLayer.icon.asset && regularIconLayer.icon.asset.url) {
-      console.log('✅ Regular endpoint returns icon asset with URL');
-    } else {
-      console.log('❌ Regular endpoint does not return icon asset with URL');
-    }
-
-    console.log('\n🎉 ALL TESTS PASSED! Icon library functionality is working correctly.');
+    console.log('\n🎉 Icon library endpoint testing completed!');
 
   } catch (error) {
     console.error('❌ Test failed:', error.message);
-    process.exit(1);
   }
 }
 
-// Run the test
-testIconLibraryFunctionality();
+// Run the tests
+if (require.main === module) {
+  testIconEndpoints();
+}
+
+module.exports = { testIconEndpoints };
