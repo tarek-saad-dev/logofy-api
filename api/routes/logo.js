@@ -4,6 +4,7 @@ const { query, getClient } = require('../config/database');
 const { localization } = require('../middleware/localization');
 const { ok, fail } = require('../utils/envelope');
 const { getLogoMobile } = require('../controllers/logoMobile');
+const { getLogoMobileLegacy, getAllLogosMobileLegacy } = require('../controllers/logoMobileLegacy');
 
 // ==============================================
 // GRADIENT TRANSFORMATION UTILITIES
@@ -1419,8 +1420,14 @@ router.get('/:id/versions', async (req, res) => {
 // MOBILE-COMPATIBLE ENDPOINTS
 // ==============================================
 
+// GET /api/logo/mobile/legacy - Get all logos in mobile legacy format (must be before /:id routes)
+router.get('/mobile/legacy', getAllLogosMobileLegacy);
+
 // GET /api/logo/:id/mobile - Get logo in mobile-compatible format
 router.get('/:id/mobile', getLogoMobile);
+
+// GET /api/logo/:id/mobile/legacy - Get logo in mobile legacy format
+router.get('/:id/mobile/legacy', getLogoMobileLegacy);
 
 
 // GET /api/logo/:id/mobile-structured - Return exact mobile JSON structure as requested
