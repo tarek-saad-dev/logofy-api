@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { query, getClient } = require('../config/database');
-const { localizationMiddleware } = require('../utils/localization');
+const { localization } = require('../middleware/localization');
+const { ok, fail } = require('../utils/envelope');
+const { getLogoMobile } = require('../controllers/logoMobile');
 
 // ==============================================
 // GRADIENT TRANSFORMATION UTILITIES
@@ -69,7 +71,7 @@ function transformBackgroundToLegacy(background) {
 // ==============================================
 
 // Apply localization middleware to all routes
-router.use(localizationMiddleware);
+router.use(localization);
 
 // ==============================================
 // STATIC ROUTES FIRST (avoid shadowing by /:id)
@@ -81,6 +83,7 @@ router.get('/thumbnails', async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page ?? '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit ?? '20', 10)));
     const categoryId = req.query.category_id;
+    const lang = req.query.lang || 'en';
     const offset = (page - 1) * limit;
 
     // Build query with optional category filter
@@ -96,9 +99,13 @@ router.get('/thumbnails', async (req, res) => {
       SELECT 
         l.id,
         l.title,
+        l.title_en,
+        l.title_ar,
         l.thumbnail_url,
         l.category_id,
         c.name as category_name,
+        c.name_en as category_name_en,
+        c.name_ar as category_name_ar,
         l.created_at,
         l.updated_at
       FROM logos l
@@ -120,15 +127,18 @@ router.get('/thumbnails', async (req, res) => {
     const totalRes = await query(countQuery, countParams);
     const total = totalRes.rows[0].total;
 
-    // Format response data
+    // Format response data with localization
     const formattedLogos = logosRes.rows.map(logo => ({
       id: logo.id,
-      title: logo.title,
+      title: lang === 'ar' ? (logo.title_ar || logo.title_en || logo.title) : (logo.title_en || logo.title),
       thumbnailUrl: logo.thumbnail_url,
       categoryId: logo.category_id,
-      categoryName: logo.category_name,
+      categoryName: lang === 'ar' ? (logo.category_name_ar || logo.category_name_en || logo.category_name) : (logo.category_name_en || logo.category_name),
       createdAt: new Date(logo.created_at).toISOString(),
-      updatedAt: new Date(logo.updated_at).toISOString()
+      updatedAt: new Date(logo.updated_at).toISOString(),
+      // Add language metadata
+      language: lang,
+      direction: lang === 'ar' ? 'rtl' : 'ltr'
     }));
 
     // Group logos by category into list of lists
@@ -182,6 +192,7 @@ router.get('/mobile', async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page ?? '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit ?? '20', 10)));
+    const lang = req.query.lang || 'en';
     const offset = (page - 1) * limit;
 
     const logosRes = await query(`
@@ -338,8 +349,8 @@ router.get('/mobile', async (req, res) => {
         logoId: logo.id.toString(),
         templateId: logo.template_id ? logo.template_id.toString() : null,
         userId: logo.owner_id || 'current_user',
-        name: logo.title,
-        description: logo.description || `Logo created on ${new Date(logo.created_at).toISOString()}`,
+        name: lang === 'ar' ? (logo.title_ar || logo.title_en || logo.title) : (logo.title_en || logo.title),
+        description: lang === 'ar' ? (logo.description_ar || logo.description_en || logo.description) : (logo.description_en || logo.description) || `Logo created on ${new Date(logo.created_at).toISOString()}`,
         canvas: {
           aspectRatio: logo.canvas_h ? logo.canvas_w / logo.canvas_h : 1.0,
           background: {
@@ -371,7 +382,10 @@ router.get('/mobile', async (req, res) => {
           transparentBackground: logo.export_transparent_background ?? true,
           quality: logo.export_quality || 100,
           responsive: { scalable: logo.export_scalable ?? true, maintainAspectRatio: logo.export_maintain_aspect_ratio ?? true }
-        }
+        },
+        // Add language metadata
+        language: lang,
+        direction: lang === 'ar' ? 'rtl' : 'ltr'
       };
     });
 
@@ -399,6 +413,13 @@ router.post('/mobile', async (req, res) => {
       userId,
       name,
       description,
+      // Multilingual fields
+      name_en,
+      name_ar,
+      description_en,
+      description_ar,
+      tags_en,
+      tags_ar,
       canvas,
       layers = [],
       colorsUsed = [],
@@ -409,7 +430,8 @@ router.post('/mobile', async (req, res) => {
       categoryId
     } = req.body;
 
-    if (!name) {
+    // Validate that at least one name is provided
+    if (!name && !name_en && !name_ar) {
       return req.sendError('validationError', 400);
     }
 
@@ -448,8 +470,9 @@ router.post('/mobile', async (req, res) => {
           scaling_method, position_method, fully_responsive, tags, version, responsive,
           export_format, export_transparent_background, export_quality, export_scalable, export_maintain_aspect_ratio,
           canvas_background_type, canvas_background_solid_color, canvas_background_gradient,
-          canvas_background_image_type, canvas_background_image_path
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31)
+          canvas_background_image_type, canvas_background_image_path,
+          title_en, title_ar, description_en, description_ar, tags_en, tags_ar
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37)
         RETURNING *
       `, [
         logoId, ownerId, name, description || `Logo created on ${new Date().toISOString()}`,
@@ -464,7 +487,10 @@ router.post('/mobile', async (req, res) => {
         exportSettings?.responsive?.scalable || true, exportSettings?.responsive?.maintainAspectRatio || true,
         canvas?.background?.type || 'solid', canvas?.background?.solidColor || '#ffffff',
         canvas?.background?.gradient || null, canvas?.background?.image?.type || null,
-        canvas?.background?.image?.path || null
+        canvas?.background?.image?.path || null,
+        name_en, name_ar, description_en, description_ar,
+        tags_en ? JSON.stringify(tags_en) : null,
+        tags_ar ? JSON.stringify(tags_ar) : null
       ]);
     } else {
       logoRes = await client.query(`
@@ -474,8 +500,9 @@ router.post('/mobile', async (req, res) => {
           scaling_method, position_method, fully_responsive, tags, version, responsive,
           export_format, export_transparent_background, export_quality, export_scalable, export_maintain_aspect_ratio,
           canvas_background_type, canvas_background_solid_color, canvas_background_gradient,
-          canvas_background_image_type, canvas_background_image_path
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
+          canvas_background_image_type, canvas_background_image_path,
+          title_en, title_ar, description_en, description_ar, tags_en, tags_ar
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36)
         RETURNING *
       `, [
         ownerId, name, description || `Logo created on ${new Date().toISOString()}`,
@@ -490,7 +517,10 @@ router.post('/mobile', async (req, res) => {
         exportSettings?.responsive?.scalable || true, exportSettings?.responsive?.maintainAspectRatio || true,
         canvas?.background?.type || 'solid', canvas?.background?.solidColor || '#ffffff',
         canvas?.background?.gradient || null, canvas?.background?.image?.type || null,
-        canvas?.background?.image?.path || null
+        canvas?.background?.image?.path || null,
+        name_en, name_ar, description_en, description_ar,
+        tags_en ? JSON.stringify(tags_en) : null,
+        tags_ar ? JSON.stringify(tags_ar) : null
       ]);
     }
 
@@ -697,14 +727,14 @@ router.post('/mobile', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { format } = req.query;
+    const { format, lang = 'en' } = req.query;
     
     // If mobile format is requested, redirect to mobile endpoint
     if (format === 'mobile') {
       return res.redirect(`/api/logo/${id}/mobile`);
     }
 
-    // Fetch logo basic info with all new fields
+    // Fetch logo basic info with all new fields including multilingual support
     const logoRes = await query(`
       SELECT 
         l.id, l.owner_id, l.title, l.description, l.canvas_w, l.canvas_h, l.dpi,
@@ -717,14 +747,19 @@ router.get('/:id', async (req, res) => {
         l.canvas_background_type, l.canvas_background_solid_color, l.canvas_background_gradient,
         l.canvas_background_image_type, l.canvas_background_image_path,
         l.created_at, l.updated_at,
-        c.name as category_name
+        -- Multilingual fields
+        l.title_en, l.title_ar, l.description_en, l.description_ar, l.tags_en, l.tags_ar,
+        -- Category multilingual fields
+        c.name as category_name, c.name_en as category_name_en, c.name_ar as category_name_ar,
+        c.description as category_description, c.description_en as category_description_en, c.description_ar as category_description_ar
       FROM logos l
       LEFT JOIN categories c ON c.id = l.category_id
       WHERE l.id = $1
     `, [id]);
 
     if (logoRes.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Logo not found' });
+      const lang = res.locals.lang ?? "en";
+      return res.status(404).json(fail(lang, lang === "ar" ? "الشعار غير موجود" : "Logo not found"));
     }
 
     const logo = logoRes.rows[0];
@@ -935,16 +970,29 @@ router.get('/:id', async (req, res) => {
       }
     });
 
-    res.json({ 
-      success: true, 
-      data: { 
-        ...logo, 
-        layers 
-      } 
-    });
+    // Localize the logo data based on language preference
+    const localizedLogo = {
+      ...logo,
+      // Use localized text based on language preference
+      title: lang === 'ar' ? (logo.title_ar || logo.title_en || logo.title) : (logo.title_en || logo.title),
+      description: lang === 'ar' ? (logo.description_ar || logo.description_en || logo.description) : (logo.description_en || logo.description),
+      tags: lang === 'ar' ? (logo.tags_ar || logo.tags_en || logo.tags) : (logo.tags_en || logo.tags),
+      category_name: lang === 'ar' ? (logo.category_name_ar || logo.category_name_en || logo.category_name) : (logo.category_name_en || logo.category_name),
+      category_description: lang === 'ar' ? (logo.category_description_ar || logo.category_description_en || logo.category_description) : (logo.category_description_en || logo.category_description),
+      // Add language metadata
+      language: lang,
+      direction: lang === 'ar' ? 'rtl' : 'ltr'
+    };
+
+    const lang = res.locals.lang ?? "en";
+    return res.json(ok({ 
+      ...localizedLogo, 
+      layers 
+    }, lang, lang === "ar" ? "تم جلب الشعار بنجاح" : "Logo fetched successfully"));
   } catch (error) {
     console.error('Error fetching logo with layers:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch logo' });
+    const lang = res.locals.lang ?? "en";
+    return res.status(500).json(fail(lang, lang === "ar" ? "خطأ في جلب الشعار" : "Failed to fetch logo"));
   }
 });
 
@@ -971,6 +1019,13 @@ router.post('/', async (req, res) => {
       owner_id, 
       title, 
       description,
+      // Multilingual fields
+      title_en,
+      title_ar,
+      description_en,
+      description_ar,
+      tags_en,
+      tags_ar,
       canvas_w = 1080, 
       canvas_h = 1080, 
       dpi, 
@@ -1001,8 +1056,9 @@ router.post('/', async (req, res) => {
       layers = [] 
     } = req.body;
 
-    if (!title) {
-      return res.status(400).json({ success: false, message: 'title is required' });
+    // Validate that at least one title is provided (either legacy title or multilingual)
+    if (!title && !title_en && !title_ar) {
+      return req.sendError('validationError', 400);
     }
 
     await client.query('BEGIN');
@@ -1034,7 +1090,7 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // Create logo with all new fields
+    // Create logo with all new fields including multilingual support
     const logoRes = await client.query(`
       INSERT INTO logos (
         owner_id, title, description, canvas_w, canvas_h, dpi, category_id, is_template, template_id,
@@ -1042,8 +1098,9 @@ router.post('/', async (req, res) => {
         scaling_method, position_method, fully_responsive, tags, version, responsive,
         export_format, export_transparent_background, export_quality, export_scalable, export_maintain_aspect_ratio,
         canvas_background_type, canvas_background_solid_color, canvas_background_gradient,
-        canvas_background_image_type, canvas_background_image_path
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
+        canvas_background_image_type, canvas_background_image_path,
+        title_en, title_ar, description_en, description_ar, tags_en, tags_ar
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36)
       RETURNING *
     `, [
       actualOwnerId, title, description, canvas_w, canvas_h, dpi, category_id, is_template, template_id,
@@ -1051,7 +1108,10 @@ router.post('/', async (req, res) => {
       scaling_method, position_method, fully_responsive, JSON.stringify(tags), version, responsive,
       export_format, export_transparent_background, export_quality, export_scalable, export_maintain_aspect_ratio,
       canvas_background_type, canvas_background_solid_color, canvas_background_gradient,
-      canvas_background_image_type, canvas_background_image_path
+      canvas_background_image_type, canvas_background_image_path,
+      title_en, title_ar, description_en, description_ar, 
+      tags_en ? JSON.stringify(tags_en) : null, 
+      tags_ar ? JSON.stringify(tags_ar) : null
     ]);
 
     const logo = logoRes.rows[0];
@@ -1163,17 +1223,16 @@ router.post('/', async (req, res) => {
 
     await client.query('COMMIT');
 
-    res.status(201).json({
-      success: true,
-      data: {
-        ...logo,
-        layers: createdLayers
-      }
-    });
+    const lang = res.locals.lang ?? "en";
+    return res.status(201).json(ok({
+      ...logo,
+      layers: createdLayers
+    }, lang, lang === "ar" ? "تم إنشاء الشعار بنجاح" : "Logo created successfully"));
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error creating logo:', error);
-    res.status(500).json({ success: false, message: error.message || 'Failed to create logo' });
+    const lang = res.locals.lang ?? "en";
+    return res.status(500).json(fail(lang, lang === "ar" ? "خطأ في إنشاء الشعار" : "Failed to create logo"));
   } finally {
     client.release();
   }
@@ -1213,13 +1272,16 @@ router.patch('/:id', async (req, res) => {
     `, values);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Logo not found' });
+      const lang = res.locals.lang ?? "en";
+      return res.status(404).json(fail(lang, lang === "ar" ? "الشعار غير موجود" : "Logo not found"));
     }
 
-    res.json({ success: true, data: result.rows[0] });
+    const lang = res.locals.lang ?? "en";
+    return res.json(ok(result.rows[0], lang, lang === "ar" ? "تم تحديث الشعار بنجاح" : "Logo updated successfully"));
   } catch (error) {
     console.error('Error updating logo:', error);
-    res.status(500).json({ success: false, message: 'Failed to update logo' });
+    const lang = res.locals.lang ?? "en";
+    return res.status(500).json(fail(lang, lang === "ar" ? "خطأ في تحديث الشعار" : "Failed to update logo"));
   }
 });
 
@@ -1230,17 +1292,16 @@ router.delete('/:id', async (req, res) => {
     const result = await query('DELETE FROM logos WHERE id = $1 RETURNING *', [id]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Logo not found' });
+      const lang = res.locals.lang ?? "en";
+      return res.status(404).json(fail(lang, lang === "ar" ? "الشعار غير موجود" : "Logo not found"));
     }
 
-    res.json({ 
-      success: true, 
-      message: 'Logo deleted successfully',
-      data: result.rows[0]
-    });
+    const lang = res.locals.lang ?? "en";
+    return res.json(ok(result.rows[0], lang, lang === "ar" ? "تم حذف الشعار بنجاح" : "Logo deleted successfully"));
   } catch (error) {
     console.error('Error deleting logo:', error);
-    res.status(500).json({ success: false, message: 'Failed to delete logo' });
+    const lang = res.locals.lang ?? "en";
+    return res.status(500).json(fail(lang, lang === "ar" ? "خطأ في حذف الشعار" : "Failed to delete logo"));
   }
 });
 
@@ -1254,7 +1315,8 @@ router.post('/:id/version', async (req, res) => {
     const logoResult = await query('SELECT get_logo_with_layers($1) as snapshot', [id]);
     
     if (!logoResult.rows[0].snapshot) {
-      return res.status(404).json({ success: false, message: 'Logo not found' });
+      const lang = res.locals.lang ?? "en";
+      return res.status(404).json(fail(lang, lang === "ar" ? "الشعار غير موجود" : "Logo not found"));
     }
 
     // Create version
@@ -1314,287 +1376,7 @@ router.get('/:id/versions', async (req, res) => {
 // ==============================================
 
 // GET /api/logo/:id/mobile - Get logo in mobile-compatible format
-router.get('/:id/mobile', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { format } = req.query;
-    const useLegacyFormat = format === 'legacy';
-
-    // Fetch logo basic info with all new fields
-    const logoRes = await query(`
-      SELECT 
-        l.id, l.owner_id, l.title, l.description, l.canvas_w, l.canvas_h, l.dpi,
-        l.thumbnail_url, l.is_template, l.category_id, l.template_id,
-        l.colors_used, l.vertical_align, l.horizontal_align,
-        l.responsive_version, l.responsive_description, l.scaling_method, l.position_method,
-        l.fully_responsive, l.tags, l.version, l.responsive,
-        l.export_format, l.export_transparent_background, l.export_quality,
-        l.export_scalable, l.export_maintain_aspect_ratio,
-        l.canvas_background_type, l.canvas_background_solid_color, l.canvas_background_gradient,
-        l.canvas_background_image_type, l.canvas_background_image_path,
-        l.created_at, l.updated_at,
-        c.name as category_name
-      FROM logos l
-      LEFT JOIN categories c ON c.id = l.category_id
-      WHERE l.id = $1
-    `, [id]);
-
-    if (logoRes.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Logo not found' });
-    }
-
-    const logo = logoRes.rows[0];
-
-    // Fetch all layers with their type-specific data
-    const layersRes = await query(`
-      SELECT 
-        lay.id, lay.logo_id, lay.type, lay.name, lay.z_index,
-        lay.x_norm, lay.y_norm, lay.scale, lay.rotation_deg,
-        lay.anchor_x, lay.anchor_y, lay.opacity, lay.blend_mode,
-        lay.is_visible, lay.is_locked, lay.common_style,
-        lay.flip_horizontal, lay.flip_vertical,
-        lay.created_at, lay.updated_at,
-        
-        -- Text layer data
-        lt.content, lt.font_id, lt.font_size, lt.line_height, lt.letter_spacing,
-        lt.align, lt.baseline, lt.fill_hex, lt.fill_alpha, lt.stroke_hex,
-        lt.stroke_alpha, lt.stroke_width, lt.stroke_align, lt.gradient as text_gradient,
-        lt.underline, lt.underline_direction, lt.text_case, lt.font_style, lt.font_weight,
-        lt.text_decoration, lt.text_transform, lt.font_variant,
-        
-        -- Shape layer data
-        ls.shape_kind, ls.svg_path, ls.points, ls.rx, ls.ry,
-        ls.fill_hex as shape_fill_hex, ls.fill_alpha as shape_fill_alpha,
-        ls.gradient as shape_gradient, ls.stroke_hex as shape_stroke_hex,
-        ls.stroke_alpha as shape_stroke_alpha, ls.stroke_width as shape_stroke_width,
-        ls.stroke_dash, ls.line_cap, ls.line_join, ls.meta as shape_meta,
-        
-        -- Icon layer data
-        li.asset_id as icon_asset_id, li.tint_hex, li.tint_alpha, li.allow_recolor,
-        
-        -- Image layer data
-        lim.asset_id as image_asset_id, lim.crop, lim.fit, lim.rounding,
-        lim.blur, lim.brightness, lim.contrast,
-        
-        -- Background layer data
-        lb.mode, lb.fill_hex as bg_fill_hex, lb.fill_alpha as bg_fill_alpha,
-        lb.gradient as bg_gradient, lb.asset_id as bg_asset_id,
-        lb.repeat, lb.position, lb.size,
-        
-        -- Asset data for icons and images
-        ai.id as asset_id, ai.kind as asset_kind, ai.name as asset_name,
-        ai.url as asset_url, ai.width as asset_width, ai.height as asset_height,
-        ai.has_alpha as asset_has_alpha, ai.vector_svg, ai.meta as asset_meta,
-        
-        -- Font data for text layers
-        f.family as font_family, f.style as font_style, f.weight as font_weight,
-        f.url as font_url, f.fallbacks as font_fallbacks
-      FROM layers lay
-      LEFT JOIN layer_text lt ON lt.layer_id = lay.id
-      LEFT JOIN layer_shape ls ON ls.layer_id = lay.id
-      LEFT JOIN layer_icon li ON li.layer_id = lay.id
-      LEFT JOIN layer_image lim ON lim.layer_id = lay.id
-      LEFT JOIN layer_background lb ON lb.layer_id = lay.id
-      LEFT JOIN assets ai ON (ai.id = li.asset_id OR ai.id = lim.asset_id OR ai.id = lb.asset_id)
-      LEFT JOIN fonts f ON f.id = lt.font_id
-      WHERE lay.logo_id = $1
-      ORDER BY lay.z_index ASC, lay.created_at ASC
-    `, [id]);
-
-    // Process layers into mobile-compatible format
-    const num = v => (v === null || v === undefined ? null : typeof v === 'number' ? v : parseFloat(v));
-    const layers = layersRes.rows.map(row => {
-      const baseLayer = {
-        layerId: row.id.toString(),
-        type: row.type.toLowerCase(),
-        visible: !!row.is_visible,
-        order: row.z_index | 0,
-        position: {
-          x: num(row.x_norm) ?? 0.5,
-          y: num(row.y_norm) ?? 0.5
-        },
-        scaleFactor: num(row.scale) ?? 1,
-        rotation: num(row.rotation_deg) ?? 0,
-        opacity: num(row.opacity) ?? 1,
-        flip: {
-          horizontal: !!row.flip_horizontal,
-          vertical: !!row.flip_vertical
-        }
-      };
-
-      // Add type-specific properties
-      switch (row.type) {
-        case 'TEXT':
-          return {
-            ...baseLayer,
-            text: {
-              value: row.content || '',
-              font: row.font_family || 'Arial',
-              fontSize: num(row.font_size) ?? 48,
-              fontColor: row.fill_hex || '#000000',
-              fontWeight: row.font_weight || 'normal',
-              fontStyle: row.font_style || 'normal',
-              alignment: row.align || 'center',
-              baseline: row.baseline || 'alphabetic',
-              lineHeight: num(row.line_height) ?? 1.0,
-              letterSpacing: num(row.letter_spacing) ?? 0,
-              fillAlpha: num(row.fill_alpha) ?? 1.0,
-              strokeHex: row.stroke_hex || null,
-              strokeAlpha: num(row.stroke_alpha) ?? null,
-              strokeWidth: num(row.stroke_width) ?? null,
-              strokeAlign: row.stroke_align || null,
-              gradient: row.text_gradient || null,
-              underline: row.underline || false,
-              underlineDirection: row.underline_direction || 'horizontal',
-              textCase: row.text_case || 'normal',
-              fontStyle: row.font_style || 'normal',
-              fontWeight: row.font_weight || 'normal',
-              textDecoration: row.text_decoration || 'none',
-              textTransform: row.text_transform || 'none',
-              fontVariant: row.font_variant || 'normal'
-            }
-          };
-
-        case 'ICON':
-          return {
-            ...baseLayer,
-            icon: { 
-              src: row.asset_url || row.asset_name || (row.asset_id ? `icon_${row.asset_id}` : ''), 
-              color: row.tint_hex || '#000000' 
-            }
-          };
-
-        case 'IMAGE':
-          return {
-            ...baseLayer,
-            image: row.asset_url ? { type: 'imported', path: row.asset_url } : null
-          };
-
-        case 'SHAPE':
-          return {
-            ...baseLayer,
-            shape: {
-              src: row.shape_meta?.src || null,
-              type: row.shape_kind || 'rect',
-              color: row.shape_fill_hex || '#000000',
-              strokeColor: row.shape_stroke_hex || null,
-              strokeWidth: num(row.shape_stroke_width) ?? 0
-            }
-          };
-
-        case 'BACKGROUND':
-          return {
-            ...baseLayer,
-            background: {
-              type: row.mode || 'solid',
-              color: row.bg_fill_hex || '#ffffff',
-              image: row.asset_url ? {
-                type: 'imported',
-                path: row.asset_url,
-                src: row.asset_name || row.asset_url
-              } : null
-            }
-          };
-
-        default:
-          return baseLayer;
-      }
-    });
-
-    // Extract colors used from layers
-    const colorsUsed = [];
-    layersRes.rows.forEach(row => {
-      if (row.fill_hex && row.type === 'TEXT') {
-        colorsUsed.push({
-          role: 'text',
-          color: row.fill_hex
-        });
-      }
-      if (row.tint_hex && (row.type === 'ICON' || row.type === 'IMAGE')) {
-        colorsUsed.push({
-          role: 'icon',
-          color: row.tint_hex
-        });
-      }
-      if (row.shape_fill_hex && row.type === 'SHAPE') {
-        colorsUsed.push({
-          role: 'shape',
-          color: row.shape_fill_hex
-        });
-      }
-    });
-
-    // Remove duplicates
-    const uniqueColors = colorsUsed.filter((color, index, self) => 
-      index === self.findIndex(c => c.color === color.color && c.role === color.role)
-    );
-
-    // Build mobile-compatible response
-    const mobileResponse = {
-      logoId: logo.id.toString(),
-      templateId: logo.template_id ? logo.template_id.toString() : null,
-      userId: logo.owner_id || 'current_user',
-      name: logo.title,
-      description: logo.description || `Logo created on ${new Date(logo.created_at).toISOString()}`,
-      canvas: {
-        aspectRatio: logo.canvas_h ? logo.canvas_w / logo.canvas_h : 1.0,
-        background: useLegacyFormat ? 
-          transformBackgroundToLegacy({
-            type: logo.canvas_background_type || 'solid',
-            solidColor: logo.canvas_background_solid_color || '#ffffff',
-            gradient: logo.canvas_background_gradient || null,
-            image: logo.canvas_background_image_path ? {
-              type: logo.canvas_background_image_type || 'imported',
-              path: logo.canvas_background_image_path
-            } : null
-          }) :
-          {
-            type: logo.canvas_background_type || 'solid',
-            solidColor: logo.canvas_background_solid_color || '#ffffff',
-            gradient: logo.canvas_background_gradient || null,
-            image: logo.canvas_background_image_path ? {
-              type: logo.canvas_background_image_type || 'imported',
-              path: logo.canvas_background_image_path
-            } : null
-          }
-      },
-      layers: layers,
-      colorsUsed: logo.colors_used || uniqueColors,
-      alignments: {
-        verticalAlign: logo.vertical_align || 'center',
-        horizontalAlign: logo.horizontal_align || 'center'
-      },
-      responsive: {
-        version: logo.responsive_version || '3.0',
-        description: logo.responsive_description || 'Fully responsive logo data - no absolute sizes stored',
-        scalingMethod: logo.scaling_method || 'scaleFactor',
-        positionMethod: logo.position_method || 'relative',
-        fullyResponsive: logo.fully_responsive || true
-      },
-      metadata: {
-        createdAt: new Date(logo.created_at).toISOString(),
-        updatedAt: new Date(logo.updated_at).toISOString(),
-        tags: logo.tags || ['logo', 'design', 'responsive'],
-        version: logo.version || 3,
-        responsive: logo.responsive || true
-      },
-      export: {
-        format: logo.export_format || 'png',
-        transparentBackground: logo.export_transparent_background || true,
-        quality: logo.export_quality || 100,
-        responsive: {
-          scalable: logo.export_scalable || true,
-          maintainAspectRatio: logo.export_maintain_aspect_ratio || true
-        }
-      }
-    };
-
-    res.json(mobileResponse);
-  } catch (error) {
-    console.error('Error fetching logo in mobile format:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch logo' });
-  }
-});
+router.get('/:id/mobile', getLogoMobile);
 
 
 // GET /api/logo/:id/mobile-structured - Return exact mobile JSON structure as requested
@@ -1622,7 +1404,8 @@ router.get('/:id/mobile-structured', async (req, res) => {
     `, [id]);
 
     if (logoRes.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Logo not found' });
+      const lang = res.locals.lang ?? "en";
+      return res.status(404).json(fail(lang, lang === "ar" ? "الشعار غير موجود" : "Logo not found"));
     }
 
     const logo = logoRes.rows[0];
