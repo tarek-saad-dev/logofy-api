@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const router = express.Router();
 const { query, getClient } = require('../config/database');
 const { localization } = require('../middleware/localization');
@@ -182,7 +182,7 @@ router.get('/thumbnails', async (req, res) => {
         pages: Math.ceil(total / limit),
         categoriesCount: categoryGroups.length
       }
-    }, currentLang, currentLang === "ar" ? "تم جلب الشعارات بنجاح" : "Logos fetched successfully"));
+    }, currentLang, currentLang === "ar" ? "ØªÙ… Ø¬Ù„Ø¨ Ø§Ù„Ø´Ø¹Ø§Ø±Ø§Øª Ø¨Ù†Ø¬Ø§Ø­" : "Logos fetched successfully"));
   } catch (err) {
     console.error('Error fetching logo thumbnails:', err);
     res.status(500).json({
@@ -757,6 +757,1064 @@ router.post('/mobile', async (req, res) => {
 });
 
 // ==============================================
+// ICON LIBRARY ENDPOINTS (Client-Side Focused)
+// ==============================================
+
+// GET /api/logo/icons/library - Get icons optimized for client-side library display
+router.get('/icons/library', async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 100, 
+      category, 
+      type, 
+      search, 
+      tags,
+      sort = 'popularity',
+      order = 'desc',
+      featured = false,
+      style
+    } = req.query;
+    
+    const offset = (page - 1) * limit;
+    const lang = req.query.lang || 'en';
+    
+    // Build WHERE clause with filters
+    let whereClause = "WHERE ai.kind IN ('vector', 'raster') AND (ai.meta->>'library_type' = 'icon' OR ai.meta->>'library_type' IS NULL)";
+    let queryParams = [];
+    let paramCount = 0;
+    
+    // Featured filter
+    if (featured === 'true') {
+      whereClause += ` AND (ai.meta->>'is_featured' = 'true' OR ai.meta->>'is_popular' = 'true')`;
+    }
+    
+    // Category filter
+    if (category) {
+      paramCount++;
+      whereClause += ` AND ai.meta->>'category' = $${paramCount}`;
+      queryParams.push(category);
+    }
+    
+    // Type filter (vector/raster)
+    if (type) {
+      paramCount++;
+      whereClause += ` AND ai.kind = $${paramCount}`;
+      queryParams.push(type);
+    }
+    
+    // Style filter (outline, filled, etc.)
+    if (style) {
+      paramCount++;
+      whereClause += ` AND ai.meta->>'style' = $${paramCount}`;
+      queryParams.push(style);
+    }
+    
+    // Search filter (name, tags, description)
+    if (search) {
+      paramCount++;
+      whereClause += ` AND (
+        ai.name ILIKE $${paramCount} OR 
+        ai.meta->>'description' ILIKE $${paramCount} OR
+        ai.meta->>'tags' ILIKE $${paramCount} OR
+        ai.meta->>'keywords' ILIKE $${paramCount}
+      )`;
+      queryParams.push(`%${search}%`);
+    }
+    
+    // Tags filter
+    if (tags) {
+      const tagArray = Array.isArray(tags) ? tags : tags.split(',');
+      paramCount++;
+      whereClause += ` AND ai.meta->'tags' @> $${paramCount}`;
+      queryParams.push(JSON.stringify(tagArray));
+    }
+    
+    // Custom sorting for library display
+    let orderClause = '';
+    switch (sort) {
+      case 'popularity':
+        orderClause = 'ORDER BY (ai.meta->>\'download_count\')::int DESC, ai.created_at DESC';
+        break;
+      case 'newest':
+        orderClause = 'ORDER BY ai.created_at DESC';
+        break;
+      case 'oldest':
+        orderClause = 'ORDER BY ai.created_at ASC';
+        break;
+      case 'name':
+        orderClause = `ORDER BY ai.name ${order.toLowerCase() === 'asc' ? 'ASC' : 'DESC'}`;
+        break;
+      case 'category':
+        orderClause = 'ORDER BY ai.meta->>\'category\' ASC, ai.name ASC';
+        break;
+      default:
+        orderClause = 'ORDER BY (ai.meta->>\'download_count\')::int DESC, ai.created_at DESC';
+    }
+    
+    // Add limit and offset parameters
+    paramCount++;
+    queryParams.push(limit);
+    paramCount++;
+    queryParams.push(offset);
+    
+    const iconsRes = await query(`
+      SELECT 
+        ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
+        ai.has_alpha, ai.vector_svg, ai.meta, ai.dominant_hex,
+        ai.created_at, ai.updated_at
+      FROM assets ai
+      ${whereClause}
+      ${orderClause}
+      LIMIT $${paramCount - 1} OFFSET $${paramCount}
+    `, queryParams);
+    
+    // Get total count for pagination (without limit and offset)
+    const countParams = queryParams.slice(0, -2); // Remove limit and offset from end
+    const totalRes = await query(`
+      SELECT COUNT(*)::int AS total 
+      FROM assets ai 
+      ${whereClause}
+    `, countParams);
+    
+    const total = totalRes.rows[0].total;
+    
+    // Get category statistics
+    const categoriesRes = await query(`
+      SELECT 
+        ai.meta->>'category' as category, 
+        COUNT(*) as count,
+        COUNT(CASE WHEN ai.meta->>'is_featured' = 'true' THEN 1 END) as featured_count
+      FROM assets ai
+      WHERE ai.kind IN ('vector', 'raster') AND (ai.meta->>'library_type' = 'icon' OR ai.meta->>'library_type' IS NULL)
+      AND ai.meta->>'category' IS NOT NULL
+      GROUP BY ai.meta->>'category'
+      ORDER BY count DESC
+    `);
+    
+    // Format icons for client-side display
+    const icons = iconsRes.rows.map(icon => ({
+      id: icon.id,
+      name: icon.name,
+      url: icon.url,
+      type: icon.kind,
+      width: icon.width,
+      height: icon.height,
+      hasAlpha: icon.has_alpha,
+      vectorSvg: icon.vector_svg,
+      dominantColor: icon.dominant_hex,
+      category: icon.meta?.category || 'general',
+      tags: Array.isArray(icon.meta?.tags) ? icon.meta.tags : (icon.meta?.tags ? icon.meta.tags.split(',') : []),
+      description: icon.meta?.description || '',
+      keywords: icon.meta?.keywords || [],
+      style: icon.meta?.style || 'outline',
+      isFeatured: icon.meta?.is_featured || false,
+      isPopular: icon.meta?.is_popular || false,
+      isNew: icon.meta?.is_new || false,
+      downloadCount: parseInt(icon.meta?.download_count) || 0,
+      rating: parseFloat(icon.meta?.rating) || 0,
+      createdAt: new Date(icon.created_at).toISOString(),
+      updatedAt: new Date(icon.updated_at).toISOString()
+    }));
+    
+    // Prepare response optimized for client-side library
+    const response = {
+      success: true,
+      data: {
+        icons: icons,
+        totalIcons: total,
+        categories: categoriesRes.rows.map(cat => ({
+          name: cat.category,
+          count: parseInt(cat.count),
+          featuredCount: parseInt(cat.featured_count)
+        }))
+      },
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1
+      },
+      filters: {
+        availableCategories: categoriesRes.rows.map(cat => cat.category),
+        availableTypes: ['vector', 'raster'],
+        availableStyles: ['outline', 'filled', 'duotone', 'solid'],
+        sortOptions: [
+          { value: 'popularity', label: 'Most Popular' },
+          { value: 'newest', label: 'Newest' },
+          { value: 'oldest', label: 'Oldest' },
+          { value: 'name', label: 'Name A-Z' },
+          { value: 'category', label: 'Category' }
+        ]
+      },
+      metadata: {
+        searchTerm: search || null,
+        appliedFilters: {
+          category: category || null,
+          type: type || null,
+          style: style || null,
+          featured: featured === 'true' || null,
+          tags: tags || null
+        },
+        sort: {
+          field: sort,
+          order: order
+        },
+        language: lang
+      }
+    };
+    
+    res.json(response);
+  } catch (error) {
+    console.error('Error fetching icon library:', error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch icon library",
+      language: "en",
+      direction: "ltr"
+    });
+  }
+});
+
+// GET /api/logo/icons/categories - Get all icon categories with counts
+router.get('/icons/categories', async (req, res) => {
+  try {
+    const { includeEmpty = false } = req.query;
+    
+    let whereClause = "WHERE ai.kind IN ('vector', 'raster') AND (ai.meta->>'library_type' = 'icon' OR ai.meta->>'library_type' IS NULL)";
+    if (includeEmpty !== 'true') {
+      whereClause += " AND ai.meta->>'category' IS NOT NULL";
+    }
+    
+    const categoriesRes = await query(`
+      SELECT 
+        COALESCE(ai.meta->>'category', 'uncategorized') as category,
+        COUNT(*) as total_count,
+        COUNT(CASE WHEN ai.meta->>'is_featured' = 'true' THEN 1 END) as featured_count,
+        COUNT(CASE WHEN ai.meta->>'is_new' = 'true' THEN 1 END) as new_count,
+        COUNT(CASE WHEN ai.kind = 'vector' THEN 1 END) as vector_count,
+        COUNT(CASE WHEN ai.kind = 'raster' THEN 1 END) as raster_count
+      FROM assets ai
+      ${whereClause}
+      GROUP BY COALESCE(ai.meta->>'category', 'uncategorized')
+      ORDER BY total_count DESC
+    `);
+    
+    const categories = categoriesRes.rows.map(cat => ({
+      name: cat.category,
+      totalCount: parseInt(cat.total_count),
+      featuredCount: parseInt(cat.featured_count),
+      newCount: parseInt(cat.new_count),
+      vectorCount: parseInt(cat.vector_count),
+      rasterCount: parseInt(cat.raster_count)
+    }));
+    
+    res.json({
+      success: true,
+      message: "Icon categories fetched successfully",
+      data: categories,
+      totalCategories: categories.length,
+      language: "en",
+      direction: "ltr"
+    });
+  } catch (error) {
+    console.error('Error fetching icon categories:', error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch icon categories",
+      language: "en",
+      direction: "ltr"
+    });
+  }
+});
+
+// GET /api/logo/icons/featured - Get featured icons
+router.get('/icons/featured', async (req, res) => {
+  try {
+    const { limit = 20 } = req.query;
+    
+    const iconsRes = await query(`
+      SELECT 
+        ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
+        ai.has_alpha, ai.vector_svg, ai.meta, ai.dominant_hex,
+        ai.created_at, ai.updated_at
+      FROM assets ai
+      WHERE ai.kind IN ('vector', 'raster') 
+      AND (ai.meta->>'library_type' = 'icon' OR ai.meta->>'library_type' IS NULL)
+      AND (ai.meta->>'is_featured' = 'true' OR ai.meta->>'is_popular' = 'true')
+      ORDER BY (ai.meta->>'download_count')::int DESC, ai.created_at DESC
+      LIMIT $1
+    `, [parseInt(limit)]);
+    
+    const icons = iconsRes.rows.map(icon => ({
+      id: icon.id,
+      name: icon.name,
+      url: icon.url,
+      type: icon.kind,
+      width: icon.width,
+      height: icon.height,
+      hasAlpha: icon.has_alpha,
+      vectorSvg: icon.vector_svg,
+      dominantColor: icon.dominant_hex,
+      category: icon.meta?.category || 'general',
+      tags: Array.isArray(icon.meta?.tags) ? icon.meta.tags : (icon.meta?.tags ? icon.meta.tags.split(',') : []),
+      description: icon.meta?.description || '',
+      style: icon.meta?.style || 'outline',
+      isFeatured: icon.meta?.is_featured || false,
+      isPopular: icon.meta?.is_popular || false,
+      downloadCount: parseInt(icon.meta?.download_count) || 0,
+      createdAt: new Date(icon.created_at).toISOString()
+    }));
+    
+    res.json({
+      success: true,
+      message: "Featured icons fetched successfully",
+      data: icons,
+      count: icons.length,
+      language: "en",
+      direction: "ltr"
+    });
+  } catch (error) {
+    console.error('Error fetching featured icons:', error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch featured icons",
+      language: "en",
+      direction: "ltr"
+    });
+  }
+});
+
+// GET /api/logo/icons - Get all icon assets for client-side library display
+router.get('/icons', async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 50, 
+      category, 
+      type, 
+      search, 
+      tags,
+      sort = 'created_at',
+      order = 'desc',
+      groupBy = 'category'
+    } = req.query;
+    
+    const offset = (page - 1) * limit;
+    const lang = req.query.lang || 'en';
+    
+    // Build WHERE clause with filters
+    let whereClause = "WHERE ai.kind IN ('vector', 'raster') AND (ai.meta->>'library_type' = 'icon' OR ai.meta->>'library_type' IS NULL)";
+    let queryParams = [];
+    let paramCount = 0;
+    
+    // Category filter
+    if (category) {
+      paramCount++;
+      whereClause += ` AND ai.meta->>'category' = $${paramCount}`;
+      queryParams.push(category);
+    }
+    
+    // Type filter (vector/raster)
+    if (type) {
+      paramCount++;
+      whereClause += ` AND ai.kind = $${paramCount}`;
+      queryParams.push(type);
+    }
+    
+    // Search filter (name, tags, description)
+    if (search) {
+      paramCount++;
+      whereClause += ` AND (
+        ai.name ILIKE $${paramCount} OR 
+        ai.meta->>'description' ILIKE $${paramCount} OR
+        ai.meta->>'tags' ILIKE $${paramCount}
+      )`;
+      queryParams.push(`%${search}%`);
+    }
+    
+    // Tags filter
+    if (tags) {
+      const tagArray = Array.isArray(tags) ? tags : tags.split(',');
+      paramCount++;
+      whereClause += ` AND ai.meta->'tags' @> $${paramCount}`;
+      queryParams.push(JSON.stringify(tagArray));
+    }
+    
+    // Validate sort field
+    const allowedSortFields = ['created_at', 'updated_at', 'name', 'category'];
+    const sortField = allowedSortFields.includes(sort) ? sort : 'created_at';
+    const sortOrder = order.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+    
+    // Add limit and offset parameters at the end
+    paramCount++;
+    queryParams.push(limit);
+    paramCount++;
+    queryParams.push(offset);
+    
+    const iconsRes = await query(`
+      SELECT 
+        ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
+        ai.has_alpha, ai.vector_svg, ai.meta, ai.dominant_hex,
+        ai.created_at, ai.updated_at
+      FROM assets ai
+      ${whereClause}
+      ORDER BY ai.${sortField} ${sortOrder}
+      LIMIT $${paramCount - 1} OFFSET $${paramCount}
+    `, queryParams);
+    
+    // Get total count for pagination (without limit and offset)
+    const countParams = queryParams.slice(0, -2); // Remove limit and offset from end
+    const totalRes = await query(`
+      SELECT COUNT(*)::int AS total 
+      FROM assets ai 
+      ${whereClause}
+    `, countParams);
+    
+    const total = totalRes.rows[0].total;
+    
+    // Get all categories for filtering
+    const categoriesRes = await query(`
+      SELECT DISTINCT ai.meta->>'category' as category, COUNT(*) as count
+      FROM assets ai
+      WHERE ai.kind IN ('vector', 'raster') AND (ai.meta->>'library_type' = 'icon' OR ai.meta->>'library_type' IS NULL)
+      AND ai.meta->>'category' IS NOT NULL
+      GROUP BY ai.meta->>'category'
+      ORDER BY count DESC
+    `);
+    
+    // Format icons with enhanced metadata
+    const icons = iconsRes.rows.map(icon => ({
+      id: icon.id,
+      name: icon.name,
+      url: icon.url,
+      type: icon.kind,
+      width: icon.width,
+      height: icon.height,
+      hasAlpha: icon.has_alpha,
+      vectorSvg: icon.vector_svg,
+      dominantColor: icon.dominant_hex,
+      category: icon.meta?.category || 'general',
+      tags: Array.isArray(icon.meta?.tags) ? icon.meta.tags : (icon.meta?.tags ? icon.meta.tags.split(',') : []),
+      description: icon.meta?.description || '',
+      keywords: icon.meta?.keywords || [],
+      style: icon.meta?.style || 'outline',
+      isPopular: icon.meta?.is_popular || false,
+      isNew: icon.meta?.is_new || false,
+      downloadCount: icon.meta?.download_count || 0,
+      createdAt: new Date(icon.created_at).toISOString(),
+      updatedAt: new Date(icon.updated_at).toISOString()
+    }));
+    
+    // Group icons by category if requested
+    let groupedData = icons;
+    if (groupBy === 'category') {
+      const categoryGroups = {};
+      icons.forEach(icon => {
+        const categoryName = icon.category || 'uncategorized';
+        if (!categoryGroups[categoryName]) {
+          categoryGroups[categoryName] = {
+            category: categoryName,
+            count: 0,
+            icons: []
+          };
+        }
+        categoryGroups[categoryName].icons.push(icon);
+        categoryGroups[categoryName].count++;
+      });
+      
+      groupedData = Object.values(categoryGroups).sort((a, b) => b.count - a.count);
+    }
+    
+    // Prepare response
+    const response = {
+      success: true,
+      data: groupedData,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      },
+      filters: {
+        categories: categoriesRes.rows.map(cat => ({
+          name: cat.category,
+          count: parseInt(cat.count)
+        })),
+        types: [
+          { name: 'vector', count: icons.filter(i => i.type === 'vector').length },
+          { name: 'raster', count: icons.filter(i => i.type === 'raster').length }
+        ]
+      },
+      metadata: {
+        totalIcons: total,
+        searchTerm: search || null,
+        appliedFilters: {
+          category: category || null,
+          type: type || null,
+          tags: tags || null
+        },
+        sort: {
+          field: sortField,
+          order: order
+        }
+      }
+    };
+    
+    res.json(response);
+  } catch (error) {
+    console.error('Error fetching icons:', error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch icons",
+      language: "en",
+      direction: "ltr"
+    });
+  }
+});
+
+// POST /api/logo/icons - Add new icon to library
+router.post('/icons', async (req, res) => {
+  try {
+    const {
+      name,
+      url,
+      type = 'vector',
+      width = 100,
+      height = 100,
+      hasAlpha = true,
+      vectorSvg = null,
+      category = 'general',
+      tags = [],
+      description = ''
+    } = req.body;
+    
+    if (!name || !url) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'name and url are required' 
+      });
+    }
+    
+    const meta = {
+      library_type: 'icon',
+      category,
+      tags,
+      description
+    };
+    
+    const result = await query(`
+      INSERT INTO assets (kind, name, url, width, height, has_alpha, vector_svg, meta)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `, [type, name, url, width, height, hasAlpha, vectorSvg, JSON.stringify(meta)]);
+    
+    const icon = result.rows[0];
+    
+    res.status(201).json({
+      success: true,
+      data: {
+        id: icon.id,
+        name: icon.name,
+        url: icon.url,
+        type: icon.kind,
+        width: icon.width,
+        height: icon.height,
+        hasAlpha: icon.has_alpha,
+        vectorSvg: icon.vector_svg,
+        category: icon.meta?.category || 'general',
+        tags: icon.meta?.tags || [],
+        description: icon.meta?.description || '',
+        createdAt: new Date(icon.created_at).toISOString(),
+        updatedAt: new Date(icon.updated_at).toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Error creating icon:', error);
+    res.status(500).json({ success: false, message: 'Failed to create icon' });
+  }
+});
+
+// GET /api/logo/backgrounds - Get all background assets
+router.get('/backgrounds', async (req, res) => {
+  try {
+    const { page = 1, limit = 20, category, type } = req.query;
+    const offset = (page - 1) * limit;
+    
+    let whereClause = "WHERE ai.kind IN ('raster', 'vector') AND ai.meta->>'library_type' = 'background'";
+    let queryParams = [];
+    let paramCount = 0;
+    
+    if (category) {
+      paramCount++;
+      whereClause += ` AND ai.meta->>'category' = $${paramCount}`;
+      queryParams.push(category);
+    }
+    
+    if (type) {
+      paramCount++;
+      whereClause += ` AND ai.kind = $${paramCount}`;
+      queryParams.push(type);
+    }
+    
+    // Add limit and offset parameters
+    paramCount++;
+    queryParams.push(limit);
+    paramCount++;
+    queryParams.push(offset);
+    
+    const backgroundsRes = await query(`
+      SELECT 
+        ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
+        ai.has_alpha, ai.vector_svg, ai.meta,
+        ai.created_at, ai.updated_at
+      FROM assets ai
+      ${whereClause}
+      ORDER BY ai.created_at DESC
+      LIMIT $${paramCount - 1} OFFSET $${paramCount}
+    `, queryParams);
+    
+    const totalRes = await query(`
+      SELECT COUNT(*)::int AS total 
+      FROM assets ai 
+      ${whereClause}
+    `, queryParams.slice(0, -2));
+    
+    const total = totalRes.rows[0].total;
+    
+    const backgrounds = backgroundsRes.rows.map(bg => ({
+      id: bg.id,
+      name: bg.name,
+      url: bg.url,
+      type: bg.kind,
+      width: bg.width,
+      height: bg.height,
+      hasAlpha: bg.has_alpha,
+      vectorSvg: bg.vector_svg,
+      category: bg.meta?.category || 'general',
+      tags: bg.meta?.tags || [],
+      description: bg.meta?.description || '',
+      createdAt: new Date(bg.created_at).toISOString(),
+      updatedAt: new Date(bg.updated_at).toISOString()
+    }));
+    
+    res.json({
+      success: true,
+      message: "Backgrounds fetched successfully",
+      data: backgrounds,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      },
+      language: "en",
+      direction: "ltr"
+    });
+  } catch (error) {
+    console.error('Error fetching backgrounds:', error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch backgrounds",
+      language: "en",
+      direction: "ltr"
+    });
+  }
+});
+
+// POST /api/logo/backgrounds - Add new background to library
+router.post('/backgrounds', async (req, res) => {
+  try {
+    const {
+      name,
+      url,
+      type = 'raster',
+      width = 1920,
+      height = 1080,
+      hasAlpha = false,
+      vectorSvg = null,
+      category = 'general',
+      tags = [],
+      description = ''
+    } = req.body;
+    
+    if (!name || !url) {
+      return res.status(400).json({
+        success: false,
+        message: 'name and url are required',
+        language: "en",
+        direction: "ltr"
+      });
+    }
+    
+    const meta = {
+      library_type: 'background',
+      category,
+      tags,
+      description
+    };
+    
+    const result = await query(`
+      INSERT INTO assets (kind, name, url, width, height, has_alpha, vector_svg, meta)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `, [type, name, url, width, height, hasAlpha, vectorSvg, JSON.stringify(meta)]);
+    
+    const background = result.rows[0];
+    
+    res.status(201).json({
+      success: true,
+      message: "Background created successfully",
+      data: {
+        id: background.id,
+        name: background.name,
+        url: background.url,
+        type: background.kind,
+        width: background.width,
+        height: background.height,
+        hasAlpha: background.has_alpha,
+        vectorSvg: background.vector_svg,
+        category: background.meta?.category || 'general',
+        tags: background.meta?.tags || [],
+        description: background.meta?.description || '',
+        createdAt: new Date(background.created_at).toISOString(),
+        updatedAt: new Date(background.updated_at).toISOString()
+      },
+      language: "en",
+      direction: "ltr"
+    });
+  } catch (error) {
+    console.error('Error creating background:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create background',
+      language: "en",
+      direction: "ltr"
+    });
+  }
+});
+
+// GET /api/logo/icons/:id - Get specific icon
+router.get('/icons/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await query(`
+      SELECT 
+        ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
+        ai.has_alpha, ai.vector_svg, ai.meta, ai.dominant_hex,
+        ai.created_at, ai.updated_at
+      FROM assets ai
+      WHERE ai.id = $1 AND ai.kind IN ('vector', 'raster') 
+      AND (ai.meta->>'library_type' = 'icon' OR ai.meta->>'library_type' IS NULL)
+    `, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Icon not found',
+        language: 'en',
+        direction: 'ltr'
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      data: result.rows[0],
+      language: 'en',
+      direction: 'ltr'
+    });
+  } catch (error) {
+    console.error('Error fetching icon:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch icon',
+      language: 'en',
+      direction: 'ltr'
+    });
+  }
+});
+
+// PATCH /api/logo/icons/:id - Update specific icon
+router.patch('/icons/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    // Build dynamic update query
+    const setClause = [];
+    const values = [];
+    let paramCount = 0;
+
+    Object.keys(updates).forEach(key => {
+      if (updates[key] !== undefined) {
+        paramCount++;
+        setClause.push(`${key} = $${paramCount}`);
+        values.push(updates[key]);
+      }
+    });
+
+    if (setClause.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No updates provided',
+        language: 'en',
+        direction: 'ltr'
+      });
+    }
+
+    paramCount++;
+    values.push(id);
+
+    const result = await query(`
+      UPDATE assets 
+      SET ${setClause.join(', ')}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $${paramCount} AND kind IN ('vector', 'raster') 
+      AND (meta->>'library_type' = 'icon' OR meta->>'library_type' IS NULL)
+      RETURNING *
+    `, values);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Icon not found',
+        language: 'en',
+        direction: 'ltr'
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      data: result.rows[0],
+      language: 'en',
+      direction: 'ltr'
+    });
+  } catch (error) {
+    console.error('Error updating icon:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to update icon',
+      language: 'en',
+      direction: 'ltr'
+    });
+  }
+});
+
+// DELETE /api/logo/icons/:id - Delete specific icon
+router.delete('/icons/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // First check if the icon is referenced in any layers
+    const layerCheck = await query(`
+      SELECT COUNT(*) as count FROM layer_icon WHERE asset_id = $1
+    `, [id]);
+    
+    if (parseInt(layerCheck.rows[0].count) > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete icon: it is being used in existing logos',
+        language: 'en',
+        direction: 'ltr'
+      });
+    }
+
+    const result = await query(`
+      DELETE FROM assets 
+      WHERE id = $1 AND kind IN ('vector', 'raster') 
+      AND (meta->>'library_type' = 'icon' OR meta->>'library_type' IS NULL)
+      RETURNING *
+    `, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Icon not found',
+        language: 'en',
+        direction: 'ltr'
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Icon deleted successfully',
+      data: result.rows[0],
+      language: 'en',
+      direction: 'ltr'
+    });
+  } catch (error) {
+    console.error('Error deleting icon:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to delete icon',
+      language: 'en',
+      direction: 'ltr'
+    });
+  }
+});
+
+// GET /api/logo/backgrounds/:id - Get specific background
+router.get('/backgrounds/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await query(`
+      SELECT 
+        ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
+        ai.has_alpha, ai.vector_svg, ai.meta,
+        ai.created_at, ai.updated_at
+      FROM assets ai
+      WHERE ai.id = $1 AND ai.kind IN ('raster', 'vector') 
+      AND ai.meta->>'library_type' = 'background'
+    `, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Background not found',
+        language: 'en',
+        direction: 'ltr'
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      data: result.rows[0],
+      language: 'en',
+      direction: 'ltr'
+    });
+  } catch (error) {
+    console.error('Error fetching background:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch background',
+      language: 'en',
+      direction: 'ltr'
+    });
+  }
+});
+
+// PATCH /api/logo/backgrounds/:id - Update specific background
+router.patch('/backgrounds/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    // Build dynamic update query
+    const setClause = [];
+    const values = [];
+    let paramCount = 0;
+
+    Object.keys(updates).forEach(key => {
+      if (updates[key] !== undefined) {
+        paramCount++;
+        setClause.push(`${key} = $${paramCount}`);
+        values.push(updates[key]);
+      }
+    });
+
+    if (setClause.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No updates provided',
+        language: 'en',
+        direction: 'ltr'
+      });
+    }
+
+    paramCount++;
+    values.push(id);
+
+    const result = await query(`
+      UPDATE assets 
+      SET ${setClause.join(', ')}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $${paramCount} AND kind IN ('raster', 'vector') 
+      AND meta->>'library_type' = 'background'
+      RETURNING *
+    `, values);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Background not found',
+        language: 'en',
+        direction: 'ltr'
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      data: result.rows[0],
+      language: 'en',
+      direction: 'ltr'
+    });
+  } catch (error) {
+    console.error('Error updating background:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to update background',
+      language: 'en',
+      direction: 'ltr'
+    });
+  }
+});
+
+// DELETE /api/logo/backgrounds/:id - Delete specific background
+router.delete('/backgrounds/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // First check if the background is referenced in any layers
+    const layerCheck = await query(`
+      SELECT COUNT(*) as count FROM layer_background WHERE asset_id = $1
+    `, [id]);
+    
+    if (parseInt(layerCheck.rows[0].count) > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete background: it is being used in existing logos',
+        language: 'en',
+        direction: 'ltr'
+      });
+    }
+
+    const result = await query(`
+      DELETE FROM assets 
+      WHERE id = $1 AND kind IN ('raster', 'vector') 
+      AND meta->>'library_type' = 'background'
+      RETURNING *
+    `, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Background not found',
+        language: 'en',
+        direction: 'ltr'
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Background deleted successfully',
+      data: result.rows[0],
+      language: 'en',
+      direction: 'ltr'
+    });
+  } catch (error) {
+    console.error('Error deleting background:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to delete background',
+      language: 'en',
+      direction: 'ltr'
+    });
+  }
+});
+
+// ==============================================
 // LOGO CRUD OPERATIONS
 // ==============================================
 
@@ -796,7 +1854,7 @@ router.get('/:id', async (req, res) => {
 
     if (logoRes.rows.length === 0) {
       const currentLang = res.locals.lang ?? "en";
-      return res.status(404).json(fail(currentLang, currentLang === "ar" ? "الشعار غير موجود" : "Logo not found"));
+      return res.status(404).json(fail(currentLang, currentLang === "ar" ? "Ø§Ù„Ø´Ø¹Ø§Ø± ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯" : "Logo not found"));
     }
 
     const logo = logoRes.rows[0];
@@ -1025,11 +2083,11 @@ router.get('/:id', async (req, res) => {
     return res.json(ok({ 
       ...localizedLogo, 
       layers 
-    }, currentLang, currentLang === "ar" ? "تم جلب الشعار بنجاح" : "Logo fetched successfully"));
+    }, currentLang, currentLang === "ar" ? "ØªÙ… Ø¬Ù„Ø¨ Ø§Ù„Ø´Ø¹Ø§Ø± Ø¨Ù†Ø¬Ø§Ø­" : "Logo fetched successfully"));
   } catch (error) {
     console.error('Error fetching logo with layers:', error);
     const lang = res.locals.lang ?? "en";
-    return res.status(500).json(fail(lang, lang === "ar" ? "خطأ في جلب الشعار" : "Failed to fetch logo"));
+    return res.status(500).json(fail(lang, lang === "ar" ? "Ø®Ø·Ø£ ÙÙŠ Ø¬Ù„Ø¨ Ø§Ù„Ø´Ø¹Ø§Ø±" : "Failed to fetch logo"));
   }
 });
 
@@ -1272,12 +2330,12 @@ router.post('/', async (req, res) => {
     return res.status(201).json(ok({
       ...logo,
       layers: createdLayers
-    }, lang, lang === "ar" ? "تم إنشاء الشعار بنجاح" : "Logo created successfully"));
+    }, lang, lang === "ar" ? "ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø´Ø¹Ø§Ø± Ø¨Ù†Ø¬Ø§Ø­" : "Logo created successfully"));
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error creating logo:', error);
     const lang = res.locals.lang ?? "en";
-    return res.status(500).json(fail(lang, lang === "ar" ? "خطأ في إنشاء الشعار" : "Failed to create logo"));
+    return res.status(500).json(fail(lang, lang === "ar" ? "Ø®Ø·Ø£ ÙÙŠ Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø´Ø¹Ø§Ø±" : "Failed to create logo"));
   } finally {
     client.release();
   }
@@ -1318,15 +2376,15 @@ router.patch('/:id', async (req, res) => {
 
     if (result.rows.length === 0) {
       const currentLang = res.locals.lang ?? "en";
-      return res.status(404).json(fail(currentLang, currentLang === "ar" ? "الشعار غير موجود" : "Logo not found"));
+      return res.status(404).json(fail(currentLang, currentLang === "ar" ? "Ø§Ù„Ø´Ø¹Ø§Ø± ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯" : "Logo not found"));
     }
 
     const lang = res.locals.lang ?? "en";
-    return res.json(ok(result.rows[0], lang, lang === "ar" ? "تم تحديث الشعار بنجاح" : "Logo updated successfully"));
+    return res.json(ok(result.rows[0], lang, lang === "ar" ? "ØªÙ… ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø´Ø¹Ø§Ø± Ø¨Ù†Ø¬Ø§Ø­" : "Logo updated successfully"));
   } catch (error) {
     console.error('Error updating logo:', error);
     const lang = res.locals.lang ?? "en";
-    return res.status(500).json(fail(lang, lang === "ar" ? "خطأ في تحديث الشعار" : "Failed to update logo"));
+    return res.status(500).json(fail(lang, lang === "ar" ? "Ø®Ø·Ø£ ÙÙŠ ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø´Ø¹Ø§Ø±" : "Failed to update logo"));
   }
 });
 
@@ -1338,15 +2396,15 @@ router.delete('/:id', async (req, res) => {
 
     if (result.rows.length === 0) {
       const currentLang = res.locals.lang ?? "en";
-      return res.status(404).json(fail(currentLang, currentLang === "ar" ? "الشعار غير موجود" : "Logo not found"));
+      return res.status(404).json(fail(currentLang, currentLang === "ar" ? "Ø§Ù„Ø´Ø¹Ø§Ø± ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯" : "Logo not found"));
     }
 
     const lang = res.locals.lang ?? "en";
-    return res.json(ok(result.rows[0], lang, lang === "ar" ? "تم حذف الشعار بنجاح" : "Logo deleted successfully"));
+    return res.json(ok(result.rows[0], lang, lang === "ar" ? "ØªÙ… Ø­Ø°Ù Ø§Ù„Ø´Ø¹Ø§Ø± Ø¨Ù†Ø¬Ø§Ø­" : "Logo deleted successfully"));
   } catch (error) {
     console.error('Error deleting logo:', error);
     const lang = res.locals.lang ?? "en";
-    return res.status(500).json(fail(lang, lang === "ar" ? "خطأ في حذف الشعار" : "Failed to delete logo"));
+    return res.status(500).json(fail(lang, lang === "ar" ? "Ø®Ø·Ø£ ÙÙŠ Ø­Ø°Ù Ø§Ù„Ø´Ø¹Ø§Ø±" : "Failed to delete logo"));
   }
 });
 
@@ -1361,7 +2419,7 @@ router.post('/:id/version', async (req, res) => {
     
     if (!logoResult.rows[0].snapshot) {
       const currentLang = res.locals.lang ?? "en";
-      return res.status(404).json(fail(currentLang, currentLang === "ar" ? "الشعار غير موجود" : "Logo not found"));
+      return res.status(404).json(fail(currentLang, currentLang === "ar" ? "Ø§Ù„Ø´Ø¹Ø§Ø± ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯" : "Logo not found"));
     }
 
     // Create version
@@ -1456,7 +2514,7 @@ router.get('/:id/mobile-structured', async (req, res) => {
 
     if (logoRes.rows.length === 0) {
       const currentLang = res.locals.lang ?? "en";
-      return res.status(404).json(fail(currentLang, currentLang === "ar" ? "الشعار غير موجود" : "Logo not found"));
+      return res.status(404).json(fail(currentLang, currentLang === "ar" ? "Ø§Ù„Ø´Ø¹Ø§Ø± ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯" : "Logo not found"));
     }
 
     const logo = logoRes.rows[0];
@@ -1657,801 +2715,4 @@ router.get('/:id/mobile-structured', async (req, res) => {
 // (removed older duplicate list route block; unified above)
 
 // ==============================================
-// ICON LIBRARY ENDPOINTS (Client-Side Focused)
-// ==============================================
-
-// GET /api/logo/icons/library - Get icons optimized for client-side library display
-router.get('/icons/library', async (req, res) => {
-  try {
-    const { 
-      page = 1, 
-      limit = 100, 
-      category, 
-      type, 
-      search, 
-      tags,
-      sort = 'popularity',
-      order = 'desc',
-      featured = false,
-      style
-    } = req.query;
-    
-    const offset = (page - 1) * limit;
-    const lang = req.query.lang || 'en';
-    
-    // Build WHERE clause with filters
-    let whereClause = "WHERE ai.kind IN ('vector', 'raster') AND (ai.meta->>'library_type' = 'icon' OR ai.meta->>'library_type' IS NULL)";
-    let queryParams = [limit, offset];
-    let paramCount = 2;
-    
-    // Featured filter
-    if (featured === 'true') {
-      whereClause += ` AND (ai.meta->>'is_featured' = 'true' OR ai.meta->>'is_popular' = 'true')`;
-    }
-    
-    // Category filter
-    if (category) {
-      paramCount++;
-      whereClause += ` AND ai.meta->>'category' = $${paramCount}`;
-      queryParams.push(category);
-    }
-    
-    // Type filter (vector/raster)
-    if (type) {
-      paramCount++;
-      whereClause += ` AND ai.kind = $${paramCount}`;
-      queryParams.push(type);
-    }
-    
-    // Style filter (outline, filled, etc.)
-    if (style) {
-      paramCount++;
-      whereClause += ` AND ai.meta->>'style' = $${paramCount}`;
-      queryParams.push(style);
-    }
-    
-    // Search filter (name, tags, description)
-    if (search) {
-      paramCount++;
-      whereClause += ` AND (
-        ai.name ILIKE $${paramCount} OR 
-        ai.meta->>'description' ILIKE $${paramCount} OR
-        ai.meta->>'tags' ILIKE $${paramCount} OR
-        ai.meta->>'keywords' ILIKE $${paramCount}
-      )`;
-      queryParams.push(`%${search}%`);
-    }
-    
-    // Tags filter
-    if (tags) {
-      const tagArray = Array.isArray(tags) ? tags : tags.split(',');
-      paramCount++;
-      whereClause += ` AND ai.meta->>'tags' ?| $${paramCount}`;
-      queryParams.push(tagArray);
-    }
-    
-    // Custom sorting for library display
-    let orderClause = '';
-    switch (sort) {
-      case 'popularity':
-        orderClause = 'ORDER BY (ai.meta->>\'download_count\')::int DESC, ai.created_at DESC';
-        break;
-      case 'newest':
-        orderClause = 'ORDER BY ai.created_at DESC';
-        break;
-      case 'oldest':
-        orderClause = 'ORDER BY ai.created_at ASC';
-        break;
-      case 'name':
-        orderClause = `ORDER BY ai.name ${order.toLowerCase() === 'asc' ? 'ASC' : 'DESC'}`;
-        break;
-      case 'category':
-        orderClause = 'ORDER BY ai.meta->>\'category\' ASC, ai.name ASC';
-        break;
-      default:
-        orderClause = 'ORDER BY (ai.meta->>\'download_count\')::int DESC, ai.created_at DESC';
-    }
-    
-    const iconsRes = await query(`
-      SELECT 
-        ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
-        ai.has_alpha, ai.vector_svg, ai.meta, ai.dominant_hex,
-        ai.created_at, ai.updated_at
-      FROM assets ai
-      ${whereClause}
-      ${orderClause}
-      LIMIT $1 OFFSET $2
-    `, queryParams);
-    
-    // Get total count for pagination
-    const totalRes = await query(`
-      SELECT COUNT(*)::int AS total 
-      FROM assets ai 
-      ${whereClause}
-    `, queryParams.slice(2));
-    
-    const total = totalRes.rows[0].total;
-    
-    // Get category statistics
-    const categoriesRes = await query(`
-      SELECT 
-        ai.meta->>'category' as category, 
-        COUNT(*) as count,
-        COUNT(CASE WHEN ai.meta->>'is_featured' = 'true' THEN 1 END) as featured_count
-      FROM assets ai
-      WHERE ai.kind IN ('vector', 'raster') AND (ai.meta->>'library_type' = 'icon' OR ai.meta->>'library_type' IS NULL)
-      AND ai.meta->>'category' IS NOT NULL
-      GROUP BY ai.meta->>'category'
-      ORDER BY count DESC
-    `);
-    
-    // Format icons for client-side display
-    const icons = iconsRes.rows.map(icon => ({
-      id: icon.id,
-      name: icon.name,
-      url: icon.url,
-      type: icon.kind,
-      width: icon.width,
-      height: icon.height,
-      hasAlpha: icon.has_alpha,
-      vectorSvg: icon.vector_svg,
-      dominantColor: icon.dominant_hex,
-      category: icon.meta?.category || 'general',
-      tags: Array.isArray(icon.meta?.tags) ? icon.meta.tags : (icon.meta?.tags ? icon.meta.tags.split(',') : []),
-      description: icon.meta?.description || '',
-      keywords: icon.meta?.keywords || [],
-      style: icon.meta?.style || 'outline',
-      isFeatured: icon.meta?.is_featured || false,
-      isPopular: icon.meta?.is_popular || false,
-      isNew: icon.meta?.is_new || false,
-      downloadCount: parseInt(icon.meta?.download_count) || 0,
-      rating: parseFloat(icon.meta?.rating) || 0,
-      createdAt: new Date(icon.created_at).toISOString(),
-      updatedAt: new Date(icon.updated_at).toISOString()
-    }));
-    
-    // Prepare response optimized for client-side library
-    const response = {
-      success: true,
-      data: {
-        icons: icons,
-        totalIcons: total,
-        categories: categoriesRes.rows.map(cat => ({
-          name: cat.category,
-          count: parseInt(cat.count),
-          featuredCount: parseInt(cat.featured_count)
-        }))
-      },
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit),
-        hasNext: page < Math.ceil(total / limit),
-        hasPrev: page > 1
-      },
-      filters: {
-        availableCategories: categoriesRes.rows.map(cat => cat.category),
-        availableTypes: ['vector', 'raster'],
-        availableStyles: ['outline', 'filled', 'duotone', 'solid'],
-        sortOptions: [
-          { value: 'popularity', label: 'Most Popular' },
-          { value: 'newest', label: 'Newest' },
-          { value: 'oldest', label: 'Oldest' },
-          { value: 'name', label: 'Name A-Z' },
-          { value: 'category', label: 'Category' }
-        ]
-      },
-      metadata: {
-        searchTerm: search || null,
-        appliedFilters: {
-          category: category || null,
-          type: type || null,
-          style: style || null,
-          featured: featured === 'true' || null,
-          tags: tags || null
-        },
-        sort: {
-          field: sort,
-          order: order
-        },
-        language: lang
-      }
-    };
-    
-    res.json(response);
-  } catch (error) {
-    console.error('Error fetching icon library:', error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch icon library",
-      language: "en",
-      direction: "ltr"
-    });
-  }
-});
-
-// GET /api/logo/icons/categories - Get all icon categories with counts
-router.get('/icons/categories', async (req, res) => {
-  try {
-    const { includeEmpty = false } = req.query;
-    
-    let whereClause = "WHERE ai.kind IN ('vector', 'raster') AND (ai.meta->>'library_type' = 'icon' OR ai.meta->>'library_type' IS NULL)";
-    if (includeEmpty !== 'true') {
-      whereClause += " AND ai.meta->>'category' IS NOT NULL";
-    }
-    
-    const categoriesRes = await query(`
-      SELECT 
-        COALESCE(ai.meta->>'category', 'uncategorized') as category,
-        COUNT(*) as total_count,
-        COUNT(CASE WHEN ai.meta->>'is_featured' = 'true' THEN 1 END) as featured_count,
-        COUNT(CASE WHEN ai.meta->>'is_new' = 'true' THEN 1 END) as new_count,
-        COUNT(CASE WHEN ai.kind = 'vector' THEN 1 END) as vector_count,
-        COUNT(CASE WHEN ai.kind = 'raster' THEN 1 END) as raster_count
-      FROM assets ai
-      ${whereClause}
-      GROUP BY COALESCE(ai.meta->>'category', 'uncategorized')
-      ORDER BY total_count DESC
-    `);
-    
-    const categories = categoriesRes.rows.map(cat => ({
-      name: cat.category,
-      totalCount: parseInt(cat.total_count),
-      featuredCount: parseInt(cat.featured_count),
-      newCount: parseInt(cat.new_count),
-      vectorCount: parseInt(cat.vector_count),
-      rasterCount: parseInt(cat.raster_count)
-    }));
-    
-    res.json({
-      success: true,
-      message: "Icon categories fetched successfully",
-      data: categories,
-      totalCategories: categories.length,
-      language: "en",
-      direction: "ltr"
-    });
-  } catch (error) {
-    console.error('Error fetching icon categories:', error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch icon categories",
-      language: "en",
-      direction: "ltr"
-    });
-  }
-});
-
-// GET /api/logo/icons/featured - Get featured icons
-router.get('/icons/featured', async (req, res) => {
-  try {
-    const { limit = 20 } = req.query;
-    
-    const iconsRes = await query(`
-      SELECT 
-        ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
-        ai.has_alpha, ai.vector_svg, ai.meta, ai.dominant_hex,
-        ai.created_at, ai.updated_at
-      FROM assets ai
-      WHERE ai.kind IN ('vector', 'raster') 
-      AND (ai.meta->>'library_type' = 'icon' OR ai.meta->>'library_type' IS NULL)
-      AND (ai.meta->>'is_featured' = 'true' OR ai.meta->>'is_popular' = 'true')
-      ORDER BY (ai.meta->>'download_count')::int DESC, ai.created_at DESC
-      LIMIT $1
-    `, [parseInt(limit)]);
-    
-    const icons = iconsRes.rows.map(icon => ({
-      id: icon.id,
-      name: icon.name,
-      url: icon.url,
-      type: icon.kind,
-      width: icon.width,
-      height: icon.height,
-      hasAlpha: icon.has_alpha,
-      vectorSvg: icon.vector_svg,
-      dominantColor: icon.dominant_hex,
-      category: icon.meta?.category || 'general',
-      tags: Array.isArray(icon.meta?.tags) ? icon.meta.tags : (icon.meta?.tags ? icon.meta.tags.split(',') : []),
-      description: icon.meta?.description || '',
-      style: icon.meta?.style || 'outline',
-      isFeatured: icon.meta?.is_featured || false,
-      isPopular: icon.meta?.is_popular || false,
-      downloadCount: parseInt(icon.meta?.download_count) || 0,
-      createdAt: new Date(icon.created_at).toISOString()
-    }));
-    
-    res.json({
-      success: true,
-      message: "Featured icons fetched successfully",
-      data: icons,
-      count: icons.length,
-      language: "en",
-      direction: "ltr"
-    });
-  } catch (error) {
-    console.error('Error fetching featured icons:', error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch featured icons",
-      language: "en",
-      direction: "ltr"
-    });
-  }
-});
-
-// ==============================================
-// ASSET LIBRARY ENDPOINTS
-// ==============================================
-
-// GET /api/logo/backgrounds - Get all background assets
-router.get('/backgrounds', async (req, res) => {
-  try {
-    const { page = 1, limit = 20, category, type } = req.query;
-    const offset = (page - 1) * limit;
-    
-    let whereClause = "WHERE ai.kind IN ('raster', 'vector') AND ai.meta->>'library_type' = 'background'";
-    let queryParams = [limit, offset];
-    let paramCount = 2;
-    
-    if (category) {
-      paramCount++;
-      whereClause += ` AND ai.meta->>'category' = $${paramCount}`;
-      queryParams.push(category);
-    }
-    
-    if (type) {
-      paramCount++;
-      whereClause += ` AND ai.kind = $${paramCount}`;
-      queryParams.push(type);
-    }
-    
-    const backgroundsRes = await query(`
-      SELECT 
-        ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
-        ai.has_alpha, ai.vector_svg, ai.meta,
-        ai.created_at, ai.updated_at
-      FROM assets ai
-      ${whereClause}
-      ORDER BY ai.created_at DESC
-      LIMIT $1 OFFSET $2
-    `, queryParams);
-    
-    const totalRes = await query(`
-      SELECT COUNT(*)::int AS total 
-      FROM assets ai 
-      ${whereClause}
-    `, queryParams.slice(2));
-    
-    const total = totalRes.rows[0].total;
-    
-    const backgrounds = backgroundsRes.rows.map(bg => ({
-      id: bg.id,
-      name: bg.name,
-      url: bg.url,
-      type: bg.kind,
-      width: bg.width,
-      height: bg.height,
-      hasAlpha: bg.has_alpha,
-      vectorSvg: bg.vector_svg,
-      category: bg.meta?.category || 'general',
-      tags: bg.meta?.tags || [],
-      description: bg.meta?.description || '',
-      createdAt: new Date(bg.created_at).toISOString(),
-      updatedAt: new Date(bg.updated_at).toISOString()
-    }));
-    
-    res.json({
-      success: true,
-      message: "Backgrounds fetched successfully",
-      data: backgrounds,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit)
-      },
-      language: "en",
-      direction: "ltr"
-    });
-  } catch (error) {
-    console.error('Error fetching backgrounds:', error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch backgrounds",
-      language: "en",
-      direction: "ltr"
-    });
-  }
-});
-
-// POST /api/logo/backgrounds - Add new background to library
-router.post('/backgrounds', async (req, res) => {
-  try {
-    const {
-      name,
-      url,
-      type = 'raster',
-      width = 1920,
-      height = 1080,
-      hasAlpha = false,
-      vectorSvg = null,
-      category = 'general',
-      tags = [],
-      description = ''
-    } = req.body;
-    
-    if (!name || !url) {
-      return req.sendError('validationError', 400);
-    }
-    
-    const meta = {
-      library_type: 'background',
-      category,
-      tags,
-      description
-    };
-    
-    const result = await query(`
-      INSERT INTO assets (kind, name, url, width, height, has_alpha, vector_svg, meta)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING *
-    `, [type, name, url, width, height, hasAlpha, vectorSvg, JSON.stringify(meta)]);
-    
-    const background = result.rows[0];
-    
-    req.sendSuccess('backgroundAdded', {
-      id: background.id,
-      name: background.name,
-      url: background.url,
-      type: background.kind,
-      width: background.width,
-      height: background.height,
-      hasAlpha: background.has_alpha,
-      vectorSvg: background.vector_svg,
-      category: background.meta?.category || 'general',
-      tags: background.meta?.tags || [],
-      description: background.meta?.description || '',
-      createdAt: new Date(background.created_at).toISOString(),
-      updatedAt: new Date(background.updated_at).toISOString()
-    }, 201);
-  } catch (error) {
-    console.error('Error creating background:', error);
-    req.sendError('serverError', 500);
-  }
-});
-
-// GET /api/logo/icons - Get all icon assets for client-side library display
-router.get('/icons', async (req, res) => {
-  try {
-    const { 
-      page = 1, 
-      limit = 50, 
-      category, 
-      type, 
-      search, 
-      tags,
-      sort = 'created_at',
-      order = 'desc',
-      groupBy = 'category'
-    } = req.query;
-    
-    const offset = (page - 1) * limit;
-    const lang = req.query.lang || 'en';
-    
-    // Build WHERE clause with filters
-    let whereClause = "WHERE ai.kind IN ('vector', 'raster') AND (ai.meta->>'library_type' = 'icon' OR ai.meta->>'library_type' IS NULL)";
-    let queryParams = [limit, offset];
-    let paramCount = 2;
-    
-    // Category filter
-    if (category) {
-      paramCount++;
-      whereClause += ` AND ai.meta->>'category' = $${paramCount}`;
-      queryParams.push(category);
-    }
-    
-    // Type filter (vector/raster)
-    if (type) {
-      paramCount++;
-      whereClause += ` AND ai.kind = $${paramCount}`;
-      queryParams.push(type);
-    }
-    
-    // Search filter (name, tags, description)
-    if (search) {
-      paramCount++;
-      whereClause += ` AND (
-        ai.name ILIKE $${paramCount} OR 
-        ai.meta->>'description' ILIKE $${paramCount} OR
-        ai.meta->>'tags' ILIKE $${paramCount}
-      )`;
-      queryParams.push(`%${search}%`);
-    }
-    
-    // Tags filter
-    if (tags) {
-      const tagArray = Array.isArray(tags) ? tags : tags.split(',');
-      paramCount++;
-      whereClause += ` AND ai.meta->>'tags' ?| $${paramCount}`;
-      queryParams.push(tagArray);
-    }
-    
-    // Validate sort field
-    const allowedSortFields = ['created_at', 'updated_at', 'name', 'category'];
-    const sortField = allowedSortFields.includes(sort) ? sort : 'created_at';
-    const sortOrder = order.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
-    
-    const iconsRes = await query(`
-      SELECT 
-        ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
-        ai.has_alpha, ai.vector_svg, ai.meta, ai.dominant_hex,
-        ai.created_at, ai.updated_at
-      FROM assets ai
-      ${whereClause}
-      ORDER BY ai.${sortField} ${sortOrder}
-      LIMIT $1 OFFSET $2
-    `, queryParams);
-    
-    // Get total count for pagination
-    const totalRes = await query(`
-      SELECT COUNT(*)::int AS total 
-      FROM assets ai 
-      ${whereClause}
-    `, queryParams.slice(2));
-    
-    const total = totalRes.rows[0].total;
-    
-    // Get all categories for filtering
-    const categoriesRes = await query(`
-      SELECT DISTINCT ai.meta->>'category' as category, COUNT(*) as count
-      FROM assets ai
-      WHERE ai.kind IN ('vector', 'raster') AND (ai.meta->>'library_type' = 'icon' OR ai.meta->>'library_type' IS NULL)
-      AND ai.meta->>'category' IS NOT NULL
-      GROUP BY ai.meta->>'category'
-      ORDER BY count DESC
-    `);
-    
-    // Format icons with enhanced metadata
-    const icons = iconsRes.rows.map(icon => ({
-      id: icon.id,
-      name: icon.name,
-      url: icon.url,
-      type: icon.kind,
-      width: icon.width,
-      height: icon.height,
-      hasAlpha: icon.has_alpha,
-      vectorSvg: icon.vector_svg,
-      dominantColor: icon.dominant_hex,
-      category: icon.meta?.category || 'general',
-      tags: Array.isArray(icon.meta?.tags) ? icon.meta.tags : (icon.meta?.tags ? icon.meta.tags.split(',') : []),
-      description: icon.meta?.description || '',
-      keywords: icon.meta?.keywords || [],
-      style: icon.meta?.style || 'outline',
-      isPopular: icon.meta?.is_popular || false,
-      isNew: icon.meta?.is_new || false,
-      downloadCount: icon.meta?.download_count || 0,
-      createdAt: new Date(icon.created_at).toISOString(),
-      updatedAt: new Date(icon.updated_at).toISOString()
-    }));
-    
-    // Group icons by category if requested
-    let groupedData = icons;
-    if (groupBy === 'category') {
-      const categoryGroups = {};
-      icons.forEach(icon => {
-        const categoryName = icon.category || 'uncategorized';
-        if (!categoryGroups[categoryName]) {
-          categoryGroups[categoryName] = {
-            category: categoryName,
-            count: 0,
-            icons: []
-          };
-        }
-        categoryGroups[categoryName].icons.push(icon);
-        categoryGroups[categoryName].count++;
-      });
-      
-      groupedData = Object.values(categoryGroups).sort((a, b) => b.count - a.count);
-    }
-    
-    // Prepare response
-    const response = {
-      success: true,
-      data: groupedData,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit)
-      },
-      filters: {
-        categories: categoriesRes.rows.map(cat => ({
-          name: cat.category,
-          count: parseInt(cat.count)
-        })),
-        types: [
-          { name: 'vector', count: icons.filter(i => i.type === 'vector').length },
-          { name: 'raster', count: icons.filter(i => i.type === 'raster').length }
-        ]
-      },
-      metadata: {
-        totalIcons: total,
-        searchTerm: search || null,
-        appliedFilters: {
-          category: category || null,
-          type: type || null,
-          tags: tags || null
-        },
-        sort: {
-          field: sortField,
-          order: order
-        }
-      }
-    };
-    
-    res.json(response);
-  } catch (error) {
-    console.error('Error fetching icons:', error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch icons",
-      language: "en",
-      direction: "ltr"
-    });
-  }
-});
-
-// POST /api/logo/icons - Add new icon to library
-router.post('/icons', async (req, res) => {
-  try {
-    const {
-      name,
-      url,
-      type = 'vector',
-      width = 100,
-      height = 100,
-      hasAlpha = true,
-      vectorSvg = null,
-      category = 'general',
-      tags = [],
-      description = ''
-    } = req.body;
-    
-    if (!name || !url) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'name and url are required' 
-      });
-    }
-    
-    const meta = {
-      library_type: 'icon',
-      category,
-      tags,
-      description
-    };
-    
-    const result = await query(`
-      INSERT INTO assets (kind, name, url, width, height, has_alpha, vector_svg, meta)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING *
-    `, [type, name, url, width, height, hasAlpha, vectorSvg, JSON.stringify(meta)]);
-    
-    const icon = result.rows[0];
-    
-    res.status(201).json({
-      success: true,
-      data: {
-        id: icon.id,
-        name: icon.name,
-        url: icon.url,
-        type: icon.kind,
-        width: icon.width,
-        height: icon.height,
-        hasAlpha: icon.has_alpha,
-        vectorSvg: icon.vector_svg,
-        category: icon.meta?.category || 'general',
-        tags: icon.meta?.tags || [],
-        description: icon.meta?.description || '',
-        createdAt: new Date(icon.created_at).toISOString(),
-        updatedAt: new Date(icon.updated_at).toISOString()
-      }
-    });
-  } catch (error) {
-    console.error('Error creating icon:', error);
-    res.status(500).json({ success: false, message: 'Failed to create icon' });
-  }
-});
-
-// GET /api/logo/backgrounds/:id - Get specific background
-router.get('/backgrounds/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const result = await query(`
-      SELECT 
-        ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
-        ai.has_alpha, ai.vector_svg, ai.meta,
-        ai.created_at, ai.updated_at
-      FROM assets ai
-      WHERE ai.id = $1 AND ai.meta->>'library_type' = 'background'
-    `, [id]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Background not found' });
-    }
-    
-    const background = result.rows[0];
-    
-    res.json({
-      success: true,
-      data: {
-        id: background.id,
-        name: background.name,
-        url: background.url,
-        type: background.kind,
-        width: background.width,
-        height: background.height,
-        hasAlpha: background.has_alpha,
-        vectorSvg: background.vector_svg,
-        category: background.meta?.category || 'general',
-        tags: background.meta?.tags || [],
-        description: background.meta?.description || '',
-        createdAt: new Date(background.created_at).toISOString(),
-        updatedAt: new Date(background.updated_at).toISOString()
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching background:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch background' });
-  }
-});
-
-// GET /api/logo/icons/:id - Get specific icon
-router.get('/icons/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const result = await query(`
-      SELECT 
-        ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
-        ai.has_alpha, ai.vector_svg, ai.meta,
-        ai.created_at, ai.updated_at
-      FROM assets ai
-      WHERE ai.id = $1 AND ai.meta->>'library_type' = 'icon'
-    `, [id]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Icon not found' });
-    }
-    
-    const icon = result.rows[0];
-    
-    res.json({
-      success: true,
-      data: {
-        id: icon.id,
-        name: icon.name,
-        url: icon.url,
-        type: icon.kind,
-        width: icon.width,
-        height: icon.height,
-        hasAlpha: icon.has_alpha,
-        vectorSvg: icon.vector_svg,
-        category: icon.meta?.category || 'general',
-        tags: icon.meta?.tags || [],
-        description: icon.meta?.description || '',
-        createdAt: new Date(icon.created_at).toISOString(),
-        updatedAt: new Date(icon.updated_at).toISOString()
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching icon:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch icon' });
-  }
-});
-
 module.exports = router;
-
-

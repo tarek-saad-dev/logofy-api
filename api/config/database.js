@@ -6,7 +6,27 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
-  }
+  },
+  // Connection pool settings for better stability
+  max: 10, // Maximum number of clients in the pool (reduced for stability)
+  min: 1,  // Minimum number of clients in the pool
+  idleTimeoutMillis: 10000, // Close idle clients after 10 seconds
+  connectionTimeoutMillis: 5000, // Return an error after 5 seconds if connection could not be established
+  maxUses: 1000, // Close (and replace) a connection after it has been used 1000 times
+  allowExitOnIdle: false // Don't allow the pool to close all connections when idle
+});
+
+// Handle pool errors gracefully
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
+});
+
+pool.on('connect', () => {
+  console.log('New client connected to database');
+});
+
+pool.on('remove', () => {
+  console.log('Client removed from pool');
 });
 
 // Test database connection
@@ -67,18 +87,34 @@ const initializeDatabase = async () => {
   }
 };
 
-// Query helper function
-const query = async (text, params) => {
+// Query helper function with retry logic
+const query = async (text, params, retries = 3) => {
   const start = Date.now();
-  try {
-    const res = await pool.query(text, params);
-    const duration = Date.now() - start;
-    console.log('Executed query', { text, duration, rows: res.rowCount });
-    return res;
-  } catch (err) {
-    console.error('Query error', { text, error: err.message });
-    throw err;
+  let lastError;
+  
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await pool.query(text, params);
+      const duration = Date.now() - start;
+      console.log('Executed query', { text, duration, rows: res.rowCount, attempt });
+      return res;
+    } catch (err) {
+      lastError = err;
+      console.error(`Query error (attempt ${attempt}/${retries})`, { text, error: err.message });
+      
+      // If it's a connection error and we have retries left, wait and try again
+      if (attempt < retries && (err.code === 'ECONNRESET' || err.code === 'ENOTFOUND' || err.message.includes('Connection terminated'))) {
+        console.log(`Retrying query in ${attempt * 1000}ms...`);
+        await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+        continue;
+      }
+      
+      // If it's not a connection error or we're out of retries, throw immediately
+      throw err;
+    }
   }
+  
+  throw lastError;
 };
 
 // Get client for transactions

@@ -1,0 +1,1070 @@
+{
+  "info": {
+    "name": "Logo Maker Library API - Icons & Backgrounds",
+    "description": "🎨 **Logo Maker Library API Documentation**\n\n## Overview\nThis collection contains all endpoints for the Logo Maker Library API, focusing on icon and background asset management for client-side library display.\n\n## Features\n- **Icon Library**: Vector and raster icons with advanced filtering and categorization\n- **Background Library**: High-quality backgrounds and patterns\n- **Advanced Filtering**: Category, type, style, tags, and search filters\n- **Pagination**: Efficient pagination for large libraries\n- **Sorting Options**: Multiple sorting methods (popularity, newest, name, etc.)\n- **Featured Content**: Special featured and popular items\n- **Multilingual Support**: English and Arabic language support\n- **Asset Management**: Upload, update, and delete library assets\n\n## Base URL\n`{{baseUrl}}` (default: http://localhost:3000/api/logo)\n\n## Authentication\nCurrently no authentication required. In production, add JWT or session-based auth.\n\n## Library Types\n- **Icons**: Vector (SVG) and raster (PNG, JPEG) icons\n- **Backgrounds**: High-resolution backgrounds and patterns\n\n## Asset Metadata\nEach asset includes:\n- Basic info: id, name, url, type, dimensions\n- Library metadata: category, tags, description, style\n- Usage stats: download count, rating, popularity\n- Timestamps: created_at, updated_at\n\n## Filtering & Search\n- **Category**: Filter by asset category\n- **Type**: Vector or raster assets\n- **Style**: Outline, filled, duotone, solid\n- **Tags**: Multiple tag filtering\n- **Search**: Name, description, and keyword search\n- **Featured**: Show only featured/popular items\n\n## Sorting Options\n- **Popularity**: By download count and usage\n- **Newest**: Most recently added\n- **Oldest**: First added\n- **Name**: Alphabetical order\n- **Category**: Grouped by category\n\n## Response Format\nAll responses follow a consistent format:\n```json\n{\n  \"success\": true,\n  \"data\": { ... },\n  \"pagination\": { ... },\n  \"filters\": { ... },\n  \"metadata\": { ... }\n}\n```",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0
+    }
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api/logo",
+      "type": "string"
+    },
+    {
+      "key": "iconId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "backgroundId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "timestamp",
+      "value": "{{$timestamp}}",
+      "type": "string"
+    },
+    {
+      "key": "category",
+      "value": "business",
+      "type": "string"
+    },
+    {
+      "key": "searchTerm",
+      "value": "arrow",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "API Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/../health",
+              "host": ["{{baseUrl}}", "..", "health"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('API is healthy', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.status).to.eql('healthy');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Icon Library",
+      "item": [
+        {
+          "name": "Get All Icons",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/icons?page=1&limit=20&sort=popularity&order=desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["icons"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "sort",
+                  "value": "popularity"
+                },
+                {
+                  "key": "order",
+                  "value": "desc"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Icons fetched successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data).to.be.an('array');",
+                  "    pm.expect(response.pagination).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Icons with Filters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/icons?page=1&limit=10&category={{category}}&type=vector&search={{searchTerm}}&tags=arrow,direction&sort=newest&order=desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["icons"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "category",
+                  "value": "{{category}}"
+                },
+                {
+                  "key": "type",
+                  "value": "vector"
+                },
+                {
+                  "key": "search",
+                  "value": "{{searchTerm}}"
+                },
+                {
+                  "key": "tags",
+                  "value": "arrow,direction"
+                },
+                {
+                  "key": "sort",
+                  "value": "newest"
+                },
+                {
+                  "key": "order",
+                  "value": "desc"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Filtered icons fetched successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data).to.be.an('array');",
+                  "    pm.expect(response.metadata.appliedFilters).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Icon Library (Optimized)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/icons/library?page=1&limit=50&featured=true&style=outline&sort=popularity&order=desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["icons", "library"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "featured",
+                  "value": "true"
+                },
+                {
+                  "key": "style",
+                  "value": "outline"
+                },
+                {
+                  "key": "sort",
+                  "value": "popularity"
+                },
+                {
+                  "key": "order",
+                  "value": "desc"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Icon library fetched successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data.icons).to.be.an('array');",
+                  "    pm.expect(response.data.categories).to.be.an('array');",
+                  "    pm.expect(response.filters).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Icon Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/icons/categories?includeEmpty=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["icons", "categories"],
+              "query": [
+                {
+                  "key": "includeEmpty",
+                  "value": "false"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Icon categories fetched successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data).to.be.an('array');",
+                  "    pm.expect(response.totalCategories).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Featured Icons",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/icons/featured?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["icons", "featured"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Featured icons fetched successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data).to.be.an('array');",
+                  "    pm.expect(response.count).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Icon by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/icons/{{iconId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["icons", "{{iconId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Icon by ID fetched successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data).to.be.an('object');",
+                  "    pm.expect(response.data.id).to.eql(pm.collectionVariables.get('iconId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create New Icon",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Arrow Right Icon {{timestamp}}\",\n  \"url\": \"https://res.cloudinary.com/example/image/upload/v{{timestamp}}/arrow-right.svg\",\n  \"type\": \"vector\",\n  \"width\": 100,\n  \"height\": 100,\n  \"hasAlpha\": true,\n  \"vectorSvg\": \"<svg width=\\\"100\\\" height=\\\"100\\\" xmlns=\\\"http://www.w3.org/2000/svg\\\"><path d=\\\"M10 50 L80 50 M60 30 L80 50 L60 70\\\" stroke=\\\"currentColor\\\" stroke-width=\\\"4\\\" fill=\\\"none\\\" stroke-linecap=\\\"round\\\" stroke-linejoin=\\\"round\\\"/></svg>\",\n  \"category\": \"navigation\",\n  \"tags\": [\"arrow\", \"right\", \"direction\", \"navigation\"],\n  \"description\": \"A clean arrow pointing to the right\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/icons",
+              "host": ["{{baseUrl}}"],
+              "path": ["icons"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Icon created successfully', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data).to.be.an('object');",
+                  "    pm.expect(response.data.id).to.be.a('string');",
+                  "    pm.collectionVariables.set('iconId', response.data.id);",
+                  "    console.log('Icon created with ID:', response.data.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Icon",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Arrow Right Icon\",\n  \"category\": \"business\",\n  \"tags\": [\"arrow\", \"right\", \"direction\", \"business\", \"professional\"],\n  \"description\": \"A professional arrow pointing to the right for business use\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/icons/{{iconId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["icons", "{{iconId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Icon updated successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Icon",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/icons/{{iconId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["icons", "{{iconId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Icon deleted successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Background Library",
+      "item": [
+        {
+          "name": "Get All Backgrounds",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/backgrounds?page=1&limit=20&sort=created_at&order=desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["backgrounds"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "sort",
+                  "value": "created_at"
+                },
+                {
+                  "key": "order",
+                  "value": "desc"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Backgrounds fetched successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data).to.be.an('array');",
+                  "    pm.expect(response.pagination).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Backgrounds with Filters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/backgrounds?page=1&limit=10&category=abstract&type=raster&search=gradient",
+              "host": ["{{baseUrl}}"],
+              "path": ["backgrounds"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "category",
+                  "value": "abstract"
+                },
+                {
+                  "key": "type",
+                  "value": "raster"
+                },
+                {
+                  "key": "search",
+                  "value": "gradient"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Filtered backgrounds fetched successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Background by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/backgrounds/{{backgroundId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["backgrounds", "{{backgroundId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Background by ID fetched successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data).to.be.an('object');",
+                  "    pm.expect(response.data.id).to.eql(pm.collectionVariables.get('backgroundId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create New Background",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Gradient Background {{timestamp}}\",\n  \"url\": \"https://res.cloudinary.com/example/image/upload/v{{timestamp}}/gradient-bg.jpg\",\n  \"type\": \"raster\",\n  \"width\": 1920,\n  \"height\": 1080,\n  \"hasAlpha\": false,\n  \"category\": \"abstract\",\n  \"tags\": [\"gradient\", \"abstract\", \"colorful\", \"modern\"],\n  \"description\": \"A beautiful gradient background perfect for modern designs\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/backgrounds",
+              "host": ["{{baseUrl}}"],
+              "path": ["backgrounds"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Background created successfully', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data).to.be.an('object');",
+                  "    pm.expect(response.data.id).to.be.a('string');",
+                  "    pm.collectionVariables.set('backgroundId', response.data.id);",
+                  "    console.log('Background created with ID:', response.data.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Background",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Gradient Background\",\n  \"category\": \"business\",\n  \"tags\": [\"gradient\", \"business\", \"professional\", \"modern\"],\n  \"description\": \"A professional gradient background suitable for business presentations\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/backgrounds/{{backgroundId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["backgrounds", "{{backgroundId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Background updated successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Background",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/backgrounds/{{backgroundId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["backgrounds", "{{backgroundId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Background deleted successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Asset Management",
+      "item": [
+        {
+          "name": "Get All Assets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/../assets?kind=vector&category=icons&search=arrow&page=1&limit=20",
+              "host": ["{{baseUrl}}", "..", "assets"],
+              "path": ["assets"],
+              "query": [
+                {
+                  "key": "kind",
+                  "value": "vector"
+                },
+                {
+                  "key": "category",
+                  "value": "icons"
+                },
+                {
+                  "key": "search",
+                  "value": "arrow"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Assets fetched successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data).to.be.an('array');",
+                  "    pm.expect(response.pagination).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload Asset",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "kind",
+                  "value": "vector",
+                  "type": "text"
+                },
+                {
+                  "key": "name",
+                  "value": "Test Icon",
+                  "type": "text"
+                },
+                {
+                  "key": "meta",
+                  "value": "{\"category\": \"test\", \"tags\": [\"test\", \"icon\"], \"library_type\": \"icon\"}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/../assets/upload",
+              "host": ["{{baseUrl}}", "..", "assets", "upload"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Asset uploaded successfully', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data).to.be.an('object');",
+                  "    pm.expect(response.data.id).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Asset Record",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"vector\",\n  \"name\": \"Test Library Icon\",\n  \"storage\": \"cloudinary\",\n  \"url\": \"https://res.cloudinary.com/example/image/upload/v1234567890/test-icon.svg\",\n  \"provider_id\": \"test-icon\",\n  \"mime_type\": \"image/svg+xml\",\n  \"width\": 100,\n  \"height\": 100,\n  \"has_alpha\": true,\n  \"vector_svg\": \"<svg width=\\\"100\\\" height=\\\"100\\\" xmlns=\\\"http://www.w3.org/2000/svg\\\"><circle cx=\\\"50\\\" cy=\\\"50\\\" r=\\\"40\\\" fill=\\\"currentColor\\\"/></svg>\",\n  \"meta\": {\n    \"category\": \"test\",\n    \"tags\": [\"test\", \"circle\", \"simple\"],\n    \"library_type\": \"icon\",\n    \"description\": \"A simple test icon\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/../assets",
+              "host": ["{{baseUrl}}", "..", "assets"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Asset record created successfully', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data).to.be.an('object');",
+                  "    pm.expect(response.data.id).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Error Handling Tests",
+      "item": [
+        {
+          "name": "Get Non-existent Icon",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/icons/00000000-0000-0000-0000-000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["icons", "00000000-0000-0000-0000-000000000000"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Non-existent icon returns 404', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.false;",
+                  "    pm.expect(response.message).to.include('not found');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Non-existent Background",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/backgrounds/00000000-0000-0000-0000-000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["backgrounds", "00000000-0000-0000-0000-000000000000"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Non-existent background returns 404', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.false;",
+                  "    pm.expect(response.message).to.include('not found');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Icon with Missing Required Fields",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"test\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/icons",
+              "host": ["{{baseUrl}}"],
+              "path": ["icons"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Missing required fields returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.false;",
+                  "    pm.expect(response.message).to.include('required');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Background with Missing Required Fields",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"test\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/backgrounds",
+              "host": ["{{baseUrl}}"],
+              "path": ["backgrounds"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Missing required fields returns 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.false;",
+                  "    pm.expect(response.message).to.include('required');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Performance Tests",
+      "item": [
+        {
+          "name": "Large Icon Library Request",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/icons/library?page=1&limit=100&sort=popularity&order=desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["icons", "library"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "100"
+                },
+                {
+                  "key": "sort",
+                  "value": "popularity"
+                },
+                {
+                  "key": "order",
+                  "value": "desc"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Large request completes within 5 seconds', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "pm.test('Large icon library fetched successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data.icons).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complex Filtering Performance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/icons/library?page=1&limit=50&category=business&type=vector&style=outline&featured=true&search=arrow&tags=navigation,direction&sort=popularity&order=desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["icons", "library"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "category",
+                  "value": "business"
+                },
+                {
+                  "key": "type",
+                  "value": "vector"
+                },
+                {
+                  "key": "style",
+                  "value": "outline"
+                },
+                {
+                  "key": "featured",
+                  "value": "true"
+                },
+                {
+                  "key": "search",
+                  "value": "arrow"
+                },
+                {
+                  "key": "tags",
+                  "value": "navigation,direction"
+                },
+                {
+                  "key": "sort",
+                  "value": "popularity"
+                },
+                {
+                  "key": "order",
+                  "value": "desc"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Complex filtering completes within 3 seconds', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+                  "});",
+                  "pm.test('Complex filtering returns valid results', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data.icons).to.be.an('array');",
+                  "    pm.expect(response.metadata.appliedFilters).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

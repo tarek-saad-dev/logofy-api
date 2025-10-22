@@ -1,0 +1,143 @@
+{
+  "timestamp": "2025-10-22T08:07:22.762Z",
+  "baseUrl": "http://localhost:3000/api/logo",
+  "results": {
+    "passed": 19,
+    "failed": 5,
+    "errors": [
+      {
+        "test": "Get Icon Library (Optimized)",
+        "error": {
+          "success": false,
+          "message": "Failed to fetch icon"
+        }
+      },
+      {
+        "test": "Get Icon Categories",
+        "error": {
+          "success": false,
+          "message": "Failed to fetch icon"
+        }
+      },
+      {
+        "test": "Get Featured Icons",
+        "error": {
+          "success": false,
+          "message": "Failed to fetch icon"
+        }
+      },
+      {
+        "test": "Large Icon Library Request",
+        "error": {
+          "success": false,
+          "message": "Failed to fetch icon"
+        }
+      },
+      {
+        "test": "Complex Filtering Performance",
+        "error": {
+          "success": false,
+          "message": "Failed to fetch icon"
+        }
+      }
+    ],
+    "performance": [
+      {
+        "test": "Health Check",
+        "duration": 56
+      },
+      {
+        "test": "Get All Icons",
+        "duration": 1585
+      },
+      {
+        "test": "Get Icon Library (Optimized)",
+        "duration": 170
+      },
+      {
+        "test": "Get Icon Categories",
+        "duration": 193
+      },
+      {
+        "test": "Get Featured Icons",
+        "duration": 1249
+      },
+      {
+        "test": "Get Filtered Icons",
+        "duration": 1304
+      },
+      {
+        "test": "Create Icon",
+        "duration": 216
+      },
+      {
+        "test": "Get Icon by ID",
+        "duration": 170
+      },
+      {
+        "test": "Update Icon",
+        "duration": 179
+      },
+      {
+        "test": "Delete Icon",
+        "duration": 182
+      },
+      {
+        "test": "Get All Backgrounds",
+        "duration": 184
+      },
+      {
+        "test": "Get Filtered Backgrounds",
+        "duration": 172
+      },
+      {
+        "test": "Create Background",
+        "duration": 178
+      },
+      {
+        "test": "Get Background by ID",
+        "duration": 166
+      },
+      {
+        "test": "Update Background",
+        "duration": 176
+      },
+      {
+        "test": "Delete Background",
+        "duration": 183
+      },
+      {
+        "test": "Non-existent Icon (404)",
+        "duration": 176
+      },
+      {
+        "test": "Non-existent Background (404)",
+        "duration": 163
+      },
+      {
+        "test": "Create Icon with Missing Fields (400)",
+        "duration": 1
+      },
+      {
+        "test": "Create Background with Missing Fields (400)",
+        "duration": 2
+      },
+      {
+        "test": "Large Icon Library Request",
+        "duration": 162
+      },
+      {
+        "test": "Complex Filtering Performance",
+        "duration": 165
+      },
+      {
+        "test": "Get All Assets",
+        "duration": 1333
+      },
+      {
+        "test": "Create Asset Record",
+        "duration": 195
+      }
+    ]
+  }
+}
