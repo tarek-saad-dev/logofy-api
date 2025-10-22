@@ -1,0 +1,336 @@
+{
+  "name": "Complete Logo with All Working Attributes",
+  "description": "A comprehensive logo demonstrating all possible working attributes",
+  "name_en": "Complete Logo with All Working Attributes",
+  "name_ar": "شعار كامل بجميع الخصائص العاملة",
+  "description_en": "A comprehensive logo demonstrating all possible working attributes",
+  "description_ar": "شعار شامل يعرض جميع الخصائص العاملة الممكنة",
+  "tags_en": ["complete", "working", "comprehensive", "demo", "all-attributes"],
+  "tags_ar": ["كامل", "عامل", "شامل", "عرض-تجريبي", "جميع-الخصائص"],
+  "canvas": {
+    "aspectRatio": 1.0,
+    "background": {
+      "type": "gradient",
+      "solidColor": "#ffffff",
+      "gradient": {
+        "angle": 135.0,
+        "stops": [
+          {
+            "color": "#667eea",
+            "position": 0.0
+          },
+          {
+            "color": "#764ba2",
+            "position": 0.5
+          },
+          {
+            "color": "#f093fb",
+            "position": 1.0
+          }
+        ]
+      }
+    }
+  },
+  "layers": [
+    {
+      "type": "background",
+      "visible": true,
+      "order": 0,
+      "position": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "scaleFactor": 1.0,
+      "rotation": 0,
+      "opacity": 1.0,
+      "flip": {
+        "horizontal": false,
+        "vertical": false
+      },
+      "background": {
+        "type": "solid",
+        "color": "#f8f9fa"
+      }
+    },
+    {
+      "type": "shape",
+      "visible": true,
+      "order": 1,
+      "position": {
+        "x": 0.2,
+        "y": 0.3
+      },
+      "scaleFactor": 1.2,
+      "rotation": 15,
+      "opacity": 0.8,
+      "flip": {
+        "horizontal": false,
+        "vertical": false
+      },
+      "shape": {
+        "type": "rect",
+        "color": "#e74c3c",
+        "strokeColor": "#c0392b",
+        "strokeWidth": 3
+      }
+    },
+    {
+      "type": "shape",
+      "visible": true,
+      "order": 2,
+      "position": {
+        "x": 0.8,
+        "y": 0.7
+      },
+      "scaleFactor": 0.8,
+      "rotation": -30,
+      "opacity": 0.9,
+      "flip": {
+        "horizontal": true,
+        "vertical": false
+      },
+      "shape": {
+        "type": "circle",
+        "color": "#3498db",
+        "strokeColor": "#2980b9",
+        "strokeWidth": 2
+      }
+    },
+    {
+      "type": "text",
+      "visible": true,
+      "order": 3,
+      "position": {
+        "x": 0.5,
+        "y": 0.4
+      },
+      "scaleFactor": 1.0,
+      "rotation": 0,
+      "opacity": 1.0,
+      "flip": {
+        "horizontal": false,
+        "vertical": false
+      },
+      "text": {
+        "value": "COMPREHENSIVE",
+        "font": "Arial",
+        "fontSize": 72,
+        "fontColor": "#2c3e50",
+        "fontWeight": "bold",
+        "fontStyle": "normal",
+        "alignment": "center",
+        "baseline": "alphabetic",
+        "lineHeight": 1.2,
+        "letterSpacing": 2,
+        "fillAlpha": 1.0,
+        "strokeHex": "#34495e",
+        "strokeAlpha": 0.8,
+        "strokeWidth": 2,
+        "strokeAlign": "outside",
+        "gradient": {
+          "angle": 90.0,
+          "stops": [
+            {
+              "color": "#f39c12",
+              "position": 0.0
+            },
+            {
+              "color": "#e67e22",
+              "position": 1.0
+            }
+          ]
+        },
+        "underline": true,
+        "underlineDirection": "horizontal",
+        "textCase": "uppercase",
+        "textDecoration": "underline",
+        "textTransform": "uppercase",
+        "fontVariant": "normal"
+      }
+    },
+    {
+      "type": "text",
+      "visible": true,
+      "order": 4,
+      "position": {
+        "x": 0.5,
+        "y": 0.6
+      },
+      "scaleFactor": 0.6,
+      "rotation": 0,
+      "opacity": 0.9,
+      "flip": {
+        "horizontal": false,
+        "vertical": false
+      },
+      "text": {
+        "value": "Logo Example",
+        "font": "Georgia",
+        "fontSize": 36,
+        "fontColor": "#7f8c8d",
+        "fontWeight": "normal",
+        "fontStyle": "italic",
+        "alignment": "center",
+        "baseline": "alphabetic",
+        "lineHeight": 1.0,
+        "letterSpacing": 1,
+        "fillAlpha": 0.9,
+        "strokeHex": null,
+        "strokeAlpha": null,
+        "strokeWidth": null,
+        "strokeAlign": null,
+        "gradient": null,
+        "underline": false,
+        "underlineDirection": "horizontal",
+        "textCase": "normal",
+        "textDecoration": "none",
+        "textTransform": "none",
+        "fontVariant": "normal"
+      }
+    },
+    {
+      "type": "icon",
+      "visible": true,
+      "order": 5,
+      "position": {
+        "x": 0.15,
+        "y": 0.15
+      },
+      "scaleFactor": 0.5,
+      "rotation": 45,
+      "opacity": 0.8,
+      "flip": {
+        "horizontal": false,
+        "vertical": false
+      },
+      "icon": {
+        "src": "star-icon",
+        "color": "#f1c40f"
+      }
+    },
+    {
+      "type": "icon",
+      "visible": true,
+      "order": 6,
+      "position": {
+        "x": 0.85,
+        "y": 0.15
+      },
+      "scaleFactor": 0.4,
+      "rotation": -45,
+      "opacity": 0.7,
+      "flip": {
+        "horizontal": true,
+        "vertical": true
+      },
+      "icon": {
+        "src": "heart-icon",
+        "color": "#e91e63"
+      }
+    },
+    {
+      "type": "image",
+      "visible": true,
+      "order": 7,
+      "position": {
+        "x": 0.3,
+        "y": 0.8
+      },
+      "scaleFactor": 0.6,
+      "rotation": 0,
+      "opacity": 0.9,
+      "flip": {
+        "horizontal": false,
+        "vertical": false
+      },
+      "image": {
+        "type": "imported",
+        "path": "https://example.com/images/decoration.png",
+        "src": "decoration.png"
+      }
+    },
+    {
+      "type": "image",
+      "visible": true,
+      "order": 8,
+      "position": {
+        "x": 0.7,
+        "y": 0.8
+      },
+      "scaleFactor": 0.5,
+      "rotation": 180,
+      "opacity": 0.8,
+      "flip": {
+        "horizontal": true,
+        "vertical": false
+      },
+      "image": {
+        "type": "imported",
+        "path": "https://example.com/images/pattern-overlay.jpg",
+        "src": "pattern-overlay.jpg"
+      }
+    }
+  ],
+  "colorsUsed": [
+    {
+      "role": "text",
+      "color": "#2c3e50"
+    },
+    {
+      "role": "text",
+      "color": "#7f8c8d"
+    },
+    {
+      "role": "icon",
+      "color": "#f1c40f"
+    },
+    {
+      "role": "icon",
+      "color": "#e91e63"
+    },
+    {
+      "role": "shape",
+      "color": "#e74c3c"
+    },
+    {
+      "role": "shape",
+      "color": "#3498db"
+    },
+    {
+      "role": "background",
+      "color": "#f8f9fa"
+    }
+  ],
+  "alignments": {
+    "verticalAlign": "center",
+    "horizontalAlign": "center"
+  },
+  "responsive": {
+    "version": "3.0",
+    "description": "Fully responsive logo data - no absolute sizes stored",
+    "scalingMethod": "scaleFactor",
+    "positionMethod": "relative",
+    "fullyResponsive": true
+  },
+  "metadata": {
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T10:30:00.000Z",
+    "tags": ["complete", "working", "comprehensive", "demo", "all-attributes"],
+    "version": 3,
+    "responsive": true,
+    "legacyFormat": true,
+    "legacyVersion": "1.0",
+    "mobileOptimized": true
+  },
+  "export": {
+    "format": "png",
+    "transparentBackground": true,
+    "quality": 100,
+    "responsive": {
+      "scalable": true,
+      "maintainAspectRatio": true
+    }
+  },
+  "language": "en",
+  "direction": "ltr"
+}

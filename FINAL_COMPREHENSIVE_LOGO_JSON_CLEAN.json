@@ -1,0 +1,241 @@
+{
+  "name": "Complete Logo Example",
+  "description": "A comprehensive logo demonstrating all possible attributes",
+  "logoId": "12345678-1234-1234-1234-123456789abc",
+  "templateId": "87654321-4321-4321-4321-cba987654321",
+  "userId": "user@example.com",
+  "categoryId": "11111111-1111-1111-1111-111111111111",
+  "name_en": "Complete Logo Example",
+  "name_ar": "مثال شامل للشعار",
+  "description_en": "A comprehensive logo demonstrating all possible attributes",
+  "description_ar": "شعار شامل يعرض جميع الخصائص الممكنة",
+  "tags_en": ["complete", "example", "comprehensive", "demo", "all-attributes"],
+  "tags_ar": ["كامل", "مثال", "شامل", "عرض-تجريبي", "جميع-الخصائص"],
+  "canvas": {
+    "aspectRatio": 1.0,
+    "background": {
+      "type": "gradient",
+      "solidColor": "#ffffff",
+      "gradient": {
+        "angle": 135.0,
+        "stops": [
+          {
+            "color": "#667eea",
+            "position": 0.0
+          },
+          {
+            "color": "#764ba2",
+            "position": 0.5
+          },
+          {
+            "color": "#f093fb",
+            "position": 1.0
+          }
+        ]
+      },
+      "image": {
+        "type": "imported",
+        "path": "https://example.com/backgrounds/pattern.jpg",
+        "src": "pattern.jpg"
+      }
+    }
+  },
+  "layers": [
+    {
+      "layerId": "layer-001-0001-0001-0001-000000000001",
+      "type": "background",
+      "visible": true,
+      "order": 0,
+      "position": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "scaleFactor": 1.0,
+      "rotation": 0,
+      "opacity": 1.0,
+      "flip": {
+        "horizontal": false,
+        "vertical": false
+      },
+      "background": {
+        "type": "solid",
+        "color": "#f8f9fa",
+        "image": null,
+        "repeat": "no-repeat",
+        "position": "center",
+        "size": "cover"
+      }
+    },
+    {
+      "layerId": "layer-002-0002-0002-0002-000000000002",
+      "type": "text",
+      "visible": true,
+      "order": 1,
+      "position": {
+        "x": 0.5,
+        "y": 0.4
+      },
+      "scaleFactor": 1.0,
+      "rotation": 0,
+      "opacity": 1.0,
+      "flip": {
+        "horizontal": false,
+        "vertical": false
+      },
+      "text": {
+        "value": "COMPREHENSIVE",
+        "font": "Arial",
+        "fontSize": 72,
+        "fontColor": "#2c3e50",
+        "fontWeight": "bold",
+        "fontStyle": "normal",
+        "alignment": "center",
+        "baseline": "alphabetic",
+        "lineHeight": 1.2,
+        "letterSpacing": 2,
+        "fillAlpha": 1.0,
+        "strokeHex": "#34495e",
+        "strokeAlpha": 0.8,
+        "strokeWidth": 2,
+        "strokeAlign": "outside",
+        "gradient": {
+          "angle": 90.0,
+          "stops": [
+            {
+              "color": "#f39c12",
+              "position": 0.0
+            },
+            {
+              "color": "#e67e22",
+              "position": 1.0
+            }
+          ]
+        },
+        "underline": true,
+        "underlineDirection": "horizontal",
+        "textCase": "uppercase",
+        "textDecoration": "underline",
+        "textTransform": "uppercase",
+        "fontVariant": "normal"
+      }
+    },
+    {
+      "layerId": "layer-003-0003-0003-0003-000000000003",
+      "type": "shape",
+      "visible": true,
+      "order": 2,
+      "position": {
+        "x": 0.2,
+        "y": 0.3
+      },
+      "scaleFactor": 1.2,
+      "rotation": 15,
+      "opacity": 0.8,
+      "flip": {
+        "horizontal": false,
+        "vertical": false
+      },
+      "shape": {
+        "src": null,
+        "type": "rect",
+        "color": "#e74c3c",
+        "strokeColor": "#c0392b",
+        "strokeWidth": 3
+      }
+    },
+    {
+      "layerId": "layer-004-0004-0004-0004-000000000004",
+      "type": "icon",
+      "visible": true,
+      "order": 3,
+      "position": {
+        "x": 0.15,
+        "y": 0.15
+      },
+      "scaleFactor": 0.5,
+      "rotation": 45,
+      "opacity": 0.8,
+      "flip": {
+        "horizontal": false,
+        "vertical": false
+      },
+      "icon": {
+        "src": "star-icon",
+        "color": "#f1c40f",
+        "url": "https://example.com/icons/star.svg"
+      }
+    },
+    {
+      "layerId": "layer-005-0005-0005-0005-000000000005",
+      "type": "image",
+      "visible": true,
+      "order": 4,
+      "position": {
+        "x": 0.3,
+        "y": 0.8
+      },
+      "scaleFactor": 0.6,
+      "rotation": 0,
+      "opacity": 0.9,
+      "flip": {
+        "horizontal": false,
+        "vertical": false
+      },
+      "image": {
+        "type": "imported",
+        "path": "https://example.com/images/decoration.png",
+        "src": "decoration.png"
+      }
+    }
+  ],
+  "colorsUsed": [
+    {
+      "role": "text",
+      "color": "#2c3e50"
+    },
+    {
+      "role": "icon",
+      "color": "#f1c40f"
+    },
+    {
+      "role": "shape",
+      "color": "#e74c3c"
+    },
+    {
+      "role": "background",
+      "color": "#f8f9fa"
+    }
+  ],
+  "alignments": {
+    "verticalAlign": "center",
+    "horizontalAlign": "center"
+  },
+  "responsive": {
+    "version": "3.0",
+    "description": "Fully responsive logo data - no absolute sizes stored",
+    "scalingMethod": "scaleFactor",
+    "positionMethod": "relative",
+    "fullyResponsive": true
+  },
+  "metadata": {
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T10:30:00.000Z",
+    "tags": ["comprehensive", "example", "all-attributes", "demo", "complete"],
+    "version": 3,
+    "responsive": true,
+    "legacyFormat": true,
+    "legacyVersion": "1.0",
+    "mobileOptimized": true
+  },
+  "export": {
+    "format": "png",
+    "transparentBackground": true,
+    "quality": 100,
+    "responsive": {
+      "scalable": true,
+      "maintainAspectRatio": true
+    }
+  },
+  "language": "en",
+  "direction": "ltr"
+}
