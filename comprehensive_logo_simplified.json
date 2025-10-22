@@ -1,7 +1,4 @@
 {
-  "logoId": "12345678-1234-1234-1234-123456789abc",
-  "templateId": "87654321-4321-4321-4321-cba987654321",
-  "userId": "user@example.com",
   "name": "Comprehensive Logo Example",
   "description": "A complete logo showcasing all possible layer types and properties",
   "name_en": "Comprehensive Logo Example",
@@ -10,7 +7,6 @@
   "description_ar": "شعار شامل يعرض جميع أنواع الطبقات والخصائص الممكنة",
   "tags_en": ["comprehensive", "example", "all-layers", "demo", "complete"],
   "tags_ar": ["شامل", "مثال", "جميع-الطبقات", "عرض-تجريبي", "كامل"],
-  "categoryId": "11111111-1111-1111-1111-111111111111",
   "canvas": {
     "aspectRatio": 1.0,
     "background": {
@@ -32,17 +28,11 @@
             "position": 1.0
           }
         ]
-      },
-      "image": {
-        "type": "imported",
-        "path": "https://example.com/backgrounds/pattern.jpg",
-        "src": "pattern.jpg"
       }
     }
   },
   "layers": [
     {
-      "layerId": "layer-001-0001-0001-0001-000000000001",
       "type": "background",
       "visible": true,
       "order": 0,
@@ -60,18 +50,13 @@
       "background": {
         "type": "solid",
         "color": "#f8f9fa",
-        "image": {
-          "type": "imported",
-          "path": "https://example.com/backgrounds/subtle-pattern.png",
-          "src": "subtle-pattern.png"
-        },
-        "repeat": "repeat",
-        "position": "top-left",
-        "size": "auto"
+        "image": null,
+        "repeat": "no-repeat",
+        "position": "center",
+        "size": "cover"
       }
     },
     {
-      "layerId": "layer-002-0002-0002-0002-000000000002",
       "type": "shape",
       "visible": true,
       "order": 1,
@@ -87,7 +72,7 @@
         "vertical": false
       },
       "shape": {
-        "src": "https://example.com/shapes/geometric-shape.svg",
+        "src": null,
         "type": "rect",
         "color": "#e74c3c",
         "strokeColor": "#c0392b",
@@ -95,7 +80,6 @@
       }
     },
     {
-      "layerId": "layer-003-0003-0003-0003-000000000003",
       "type": "shape",
       "visible": true,
       "order": 2,
@@ -119,7 +103,6 @@
       }
     },
     {
-      "layerId": "layer-004-0004-0004-0004-000000000004",
       "type": "text",
       "visible": true,
       "order": 3,
@@ -172,7 +155,6 @@
       }
     },
     {
-      "layerId": "layer-005-0005-0005-0005-000000000005",
       "type": "text",
       "visible": true,
       "order": 4,
@@ -213,7 +195,6 @@
       }
     },
     {
-      "layerId": "layer-006-0006-0006-0006-000000000006",
       "type": "icon",
       "visible": true,
       "order": 5,
@@ -230,12 +211,10 @@
       },
       "icon": {
         "src": "star-icon",
-        "color": "#f1c40f",
-        "url": "https://example.com/icons/star.svg"
+        "color": "#f1c40f"
       }
     },
     {
-      "layerId": "layer-007-0007-0007-0007-000000000007",
       "type": "icon",
       "visible": true,
       "order": 6,
@@ -252,12 +231,10 @@
       },
       "icon": {
         "src": "heart-icon",
-        "color": "#e91e63",
-        "url": "https://example.com/icons/heart.svg"
+        "color": "#e91e63"
       }
     },
     {
-      "layerId": "layer-008-0008-0008-0008-000000000008",
       "type": "image",
       "visible": true,
       "order": 7,
@@ -279,7 +256,6 @@
       }
     },
     {
-      "layerId": "layer-009-0009-0009-0009-000000000009",
       "type": "image",
       "visible": true,
       "order": 8,
@@ -299,71 +275,6 @@
         "path": "https://example.com/images/pattern-overlay.jpg",
         "src": "pattern-overlay.jpg"
       }
-    },
-    {
-      "layerId": "layer-010-0010-0010-0010-000000000010",
-      "type": "shape",
-      "visible": true,
-      "order": 9,
-      "position": {
-        "x": 0.5,
-        "y": 0.9
-      },
-      "scaleFactor": 2.0,
-      "rotation": 0,
-      "opacity": 0.3,
-      "flip": {
-        "horizontal": false,
-        "vertical": false
-      },
-      "shape": {
-        "src": "https://example.com/shapes/ellipse.svg",
-        "type": "ellipse",
-        "color": "#9b59b6",
-        "strokeColor": "#8e44ad",
-        "strokeWidth": 1
-      }
-    },
-    {
-      "layerId": "layer-011-0011-0011-0011-000000000011",
-      "type": "text",
-      "visible": true,
-      "order": 10,
-      "position": {
-        "x": 0.5,
-        "y": 0.1
-      },
-      "scaleFactor": 0.4,
-      "rotation": 0,
-      "opacity": 0.6,
-      "flip": {
-        "horizontal": false,
-        "vertical": false
-      },
-      "text": {
-        "value": "DEMO",
-        "font": "Courier New",
-        "fontSize": 24,
-        "fontColor": "#95a5a6",
-        "fontWeight": "normal",
-        "fontStyle": "normal",
-        "alignment": "center",
-        "baseline": "alphabetic",
-        "lineHeight": 1.0,
-        "letterSpacing": 3,
-        "fillAlpha": 0.6,
-        "strokeHex": "#bdc3c7",
-        "strokeAlpha": 0.4,
-        "strokeWidth": 1,
-        "strokeAlign": "center",
-        "gradient": null,
-        "underline": false,
-        "underlineDirection": "horizontal",
-        "textCase": "uppercase",
-        "textDecoration": "none",
-        "textTransform": "uppercase",
-        "fontVariant": "normal"
-      }
     }
   ],
   "colorsUsed": [
@@ -374,10 +285,6 @@
     {
       "role": "text",
       "color": "#7f8c8d"
-    },
-    {
-      "role": "text",
-      "color": "#95a5a6"
     },
     {
       "role": "icon",
@@ -394,10 +301,6 @@
     {
       "role": "shape",
       "color": "#3498db"
-    },
-    {
-      "role": "shape",
-      "color": "#9b59b6"
     },
     {
       "role": "background",
