@@ -2,6 +2,8 @@
 
 This is the backend for the Logo Maker app. It serves logos and their render layers, each linked to an asset. Use these endpoints from your frontend to render and manage logos.
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Tarek-Saad/logo-maker-endpoints)
+
 ## 🆕 What's New (Mobile-ready data + list endpoint)
 
 - New paginated list endpoint returning the same mobile shape as `GET /api/logo/:id/mobile`:
