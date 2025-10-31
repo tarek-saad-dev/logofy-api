@@ -1093,13 +1093,15 @@ router.get('/icons', async (req, res) => {
     const { 
       page = 1, 
       limit = 50, 
-      category, 
+      category,  // Legacy: meta->>'category'
+      icon_category_id,  // New: icon_categories.id
       type, 
       search, 
       tags,
       sort = 'created_at',
       order = 'desc',
-      groupBy = 'category'
+      groupBy = 'category',
+      include_categories = 'true'  // Include categories in icon response
     } = req.query;
     
     const offset = (page - 1) * limit;
@@ -1110,11 +1112,20 @@ router.get('/icons', async (req, res) => {
     let queryParams = [];
     let paramCount = 0;
     
-    // Category filter
+    // Legacy category filter (meta->>'category')
     if (category) {
       paramCount++;
       whereClause += ` AND ai.meta->>'category' = $${paramCount}`;
       queryParams.push(category);
+    }
+
+    // New icon category filter (icon_category_id)
+    if (icon_category_id) {
+      paramCount++;
+      whereClause += ` AND ai.id IN (
+        SELECT icon_id FROM icon_category_assignments WHERE category_id = $${paramCount}
+      )`;
+      queryParams.push(icon_category_id);
     }
     
     // Type filter (vector/raster)
@@ -1158,9 +1169,25 @@ router.get('/icons', async (req, res) => {
       SELECT 
         ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
         ai.has_alpha, ai.vector_svg, ai.meta, ai.dominant_hex,
-        ai.created_at, ai.updated_at
+        ai.created_at, ai.updated_at,
+        -- Get categories for each icon
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', ic.id,
+              'name', ic.name,
+              'name_en', ic.name_en,
+              'name_ar', ic.name_ar,
+              'slug', ic.slug
+            )
+          ) FILTER (WHERE ic.id IS NOT NULL),
+          '[]'::json
+        ) as categories
       FROM assets ai
+      LEFT JOIN icon_category_assignments ica ON ica.icon_id = ai.id
+      LEFT JOIN icon_categories ic ON ic.id = ica.category_id AND ic.is_active = TRUE
       ${whereClause}
+      GROUP BY ai.id
       ORDER BY ai.${sortField} ${sortOrder}
       LIMIT $${paramCount - 1} OFFSET $${paramCount}
     `, queryParams);
@@ -1185,28 +1212,40 @@ router.get('/icons', async (req, res) => {
       ORDER BY count DESC
     `);
     
-    // Format icons with enhanced metadata
-    const icons = iconsRes.rows.map(icon => ({
-      id: icon.id,
-      name: icon.name,
-      url: icon.url,
-      type: icon.kind,
-      width: icon.width,
-      height: icon.height,
-      hasAlpha: icon.has_alpha,
-      vectorSvg: icon.vector_svg,
-      dominantColor: icon.dominant_hex,
-      category: icon.meta?.category || 'general',
-      tags: Array.isArray(icon.meta?.tags) ? icon.meta.tags : (icon.meta?.tags ? icon.meta.tags.split(',') : []),
-      description: icon.meta?.description || '',
-      keywords: icon.meta?.keywords || [],
-      style: icon.meta?.style || 'outline',
-      isPopular: icon.meta?.is_popular || false,
-      isNew: icon.meta?.is_new || false,
-      downloadCount: icon.meta?.download_count || 0,
-      createdAt: new Date(icon.created_at).toISOString(),
-      updatedAt: new Date(icon.updated_at).toISOString()
-    }));
+    // Format icons with enhanced metadata and categories
+    const includeCategories = include_categories === 'true';
+    const icons = iconsRes.rows.map(icon => {
+      const iconData = {
+        id: icon.id,
+        name: icon.name,
+        url: icon.url,
+        type: icon.kind,
+        width: icon.width,
+        height: icon.height,
+        hasAlpha: icon.has_alpha,
+        vectorSvg: icon.vector_svg,
+        dominantColor: icon.dominant_hex,
+        category: icon.meta?.category || 'general',  // Legacy category
+        tags: Array.isArray(icon.meta?.tags) ? icon.meta.tags : (icon.meta?.tags ? icon.meta.tags.split(',') : []),
+        description: icon.meta?.description || '',
+        keywords: icon.meta?.keywords || [],
+        style: icon.meta?.style || 'outline',
+        isPopular: icon.meta?.is_popular || false,
+        isNew: icon.meta?.is_new || false,
+        downloadCount: icon.meta?.download_count || 0,
+        createdAt: new Date(icon.created_at).toISOString(),
+        updatedAt: new Date(icon.updated_at).toISOString()
+      };
+
+      // Add categories if requested
+      if (includeCategories && icon.categories) {
+        iconData.categories = Array.isArray(icon.categories) 
+          ? icon.categories 
+          : (typeof icon.categories === 'string' ? JSON.parse(icon.categories) : []);
+      }
+
+      return iconData;
+    });
     
     // Group icons by category if requested
     let groupedData = icons;
@@ -1496,20 +1535,38 @@ router.post('/backgrounds', async (req, res) => {
   }
 });
 
-// GET /api/logo/icons/:id - Get specific icon
+// GET /api/logo/icons/:id - Get specific icon with categories
 router.get('/icons/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const { include_categories = 'true', lang = 'en' } = req.query;
     
     const result = await query(`
       SELECT 
         ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
         ai.has_alpha, ai.vector_svg, ai.meta, ai.dominant_hex,
-        ai.created_at, ai.updated_at
+        ai.created_at, ai.updated_at,
+        -- Get categories for this icon
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', ic.id,
+              'name', CASE WHEN $2 = 'ar' THEN COALESCE(ic.name_ar, ic.name_en, ic.name) ELSE COALESCE(ic.name_en, ic.name) END,
+              'name_en', ic.name_en,
+              'name_ar', ic.name_ar,
+              'slug', ic.slug,
+              'description', CASE WHEN $2 = 'ar' THEN COALESCE(ic.description_ar, ic.description_en, ic.description) ELSE COALESCE(ic.description_en, ic.description) END
+            )
+          ) FILTER (WHERE ic.id IS NOT NULL),
+          '[]'::json
+        ) as categories
       FROM assets ai
+      LEFT JOIN icon_category_assignments ica ON ica.icon_id = ai.id
+      LEFT JOIN icon_categories ic ON ic.id = ica.category_id AND ic.is_active = TRUE
       WHERE ai.id = $1 AND ai.kind IN ('vector', 'raster') 
       AND (ai.meta->>'library_type' = 'icon' OR ai.meta->>'library_type' IS NULL)
-    `, [id]);
+      GROUP BY ai.id
+    `, [id, lang]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ 
@@ -1520,11 +1577,34 @@ router.get('/icons/:id', async (req, res) => {
       });
     }
 
+    const icon = result.rows[0];
+    const iconData = {
+      id: icon.id,
+      kind: icon.kind,
+      name: icon.name,
+      url: icon.url,
+      width: icon.width,
+      height: icon.height,
+      has_alpha: icon.has_alpha,
+      vector_svg: icon.vector_svg,
+      meta: icon.meta,
+      dominant_hex: icon.dominant_hex,
+      created_at: icon.created_at,
+      updated_at: icon.updated_at
+    };
+
+    // Add categories if requested
+    if (include_categories === 'true' && icon.categories) {
+      iconData.categories = Array.isArray(icon.categories) 
+        ? icon.categories 
+        : (typeof icon.categories === 'string' ? JSON.parse(icon.categories) : []);
+    }
+
     res.json({ 
       success: true, 
-      data: result.rows[0],
-      language: 'en',
-      direction: 'ltr'
+      data: iconData,
+      language: lang,
+      direction: lang === 'ar' ? 'rtl' : 'ltr'
     });
   } catch (error) {
     console.error('Error fetching icon:', error);

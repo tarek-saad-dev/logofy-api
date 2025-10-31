@@ -1,0 +1,365 @@
+{
+	"info": {
+		"_postman_id": "icon-categories-api",
+		"name": "Icon Categories API",
+		"description": "API endpoints for icon categorization system - CRUD operations for icon categories and icon-category assignments",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Icon Categories",
+			"item": [
+				{
+					"name": "Get All Icon Categories",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/icon-categories?include_inactive=false&include_counts=true&lang=en",
+							"host": ["{{base_url}}"],
+							"path": ["api", "icon-categories"],
+							"query": [
+								{
+									"key": "include_inactive",
+									"value": "false",
+									"description": "Include inactive categories"
+								},
+								{
+									"key": "include_counts",
+									"value": "true",
+									"description": "Include icon count per category"
+								},
+								{
+									"key": "lang",
+									"value": "en",
+									"description": "Language: en or ar"
+								}
+							]
+						},
+						"description": "Get all icon categories with optional filtering"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Icon Category by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/icon-categories/:id?lang=en",
+							"host": ["{{base_url}}"],
+							"path": ["api", "icon-categories", ":id"],
+							"query": [
+								{
+									"key": "lang",
+									"value": "en",
+									"description": "Language: en or ar"
+								}
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "category-uuid-here",
+									"description": "Category UUID"
+								}
+							]
+						},
+						"description": "Get a specific icon category by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Icon Category",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Technology\",\n  \"name_en\": \"Technology\",\n  \"name_ar\": \"تقنية\",\n  \"description\": \"Technology and IT icons\",\n  \"description_en\": \"Technology and IT icons\",\n  \"description_ar\": \"أيقونات التكنولوجيا وتقنية المعلومات\",\n  \"slug\": \"technology\",\n  \"sort_order\": 2,\n  \"is_active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/icon-categories",
+							"host": ["{{base_url}}"],
+							"path": ["api", "icon-categories"]
+						},
+						"description": "Create a new icon category"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Icon Category",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Technology\",\n  \"description\": \"Updated description\",\n  \"sort_order\": 1,\n  \"is_active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/icon-categories/:id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "icon-categories", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "category-uuid-here",
+									"description": "Category UUID"
+								}
+							]
+						},
+						"description": "Update an existing icon category"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Icon Category",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/icon-categories/:id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "icon-categories", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "category-uuid-here",
+									"description": "Category UUID"
+								}
+							]
+						},
+						"description": "Delete an icon category (only if no icons assigned)"
+					},
+					"response": []
+				}
+			],
+			"description": "CRUD operations for icon categories"
+		},
+		{
+			"name": "Icon-Category Assignments",
+			"item": [
+				{
+					"name": "Get Icons in Category",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/icon-categories/:id/icons?page=1&limit=20&lang=en",
+							"host": ["{{base_url}}"],
+							"path": ["api", "icon-categories", ":id", "icons"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number"
+								},
+								{
+									"key": "limit",
+									"value": "20",
+									"description": "Items per page"
+								},
+								{
+									"key": "lang",
+									"value": "en",
+									"description": "Language: en or ar"
+								}
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "category-uuid-here",
+									"description": "Category UUID"
+								}
+							]
+						},
+						"description": "Get all icons assigned to a specific category"
+					},
+					"response": []
+				},
+				{
+					"name": "Assign Icons to Category",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"icon_ids\": [\n    \"icon-uuid-1\",\n    \"icon-uuid-2\",\n    \"icon-uuid-3\"\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/icon-categories/:id/icons",
+							"host": ["{{base_url}}"],
+							"path": ["api", "icon-categories", ":id", "icons"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "category-uuid-here",
+									"description": "Category UUID"
+								}
+							]
+						},
+						"description": "Assign one or more icons to a category"
+					},
+					"response": []
+				},
+				{
+					"name": "Remove Icon from Category",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/icon-categories/:categoryId/icons/:iconId",
+							"host": ["{{base_url}}"],
+							"path": ["api", "icon-categories", ":categoryId", "icons", ":iconId"],
+							"variable": [
+								{
+									"key": "categoryId",
+									"value": "category-uuid-here",
+									"description": "Category UUID"
+								},
+								{
+									"key": "iconId",
+									"value": "icon-uuid-here",
+									"description": "Icon UUID"
+								}
+							]
+						},
+						"description": "Remove an icon from a category"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Categories for Icon",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/icon-categories/by-icon/:iconId?lang=en",
+							"host": ["{{base_url}}"],
+							"path": ["api", "icon-categories", "by-icon", ":iconId"],
+							"query": [
+								{
+									"key": "lang",
+									"value": "en",
+									"description": "Language: en or ar"
+								}
+							],
+							"variable": [
+								{
+									"key": "iconId",
+									"value": "icon-uuid-here",
+									"description": "Icon UUID"
+								}
+							]
+						},
+						"description": "Get all categories assigned to a specific icon"
+					},
+					"response": []
+				}
+			],
+			"description": "Operations for managing icon-category relationships"
+		},
+		{
+			"name": "Updated Icon Endpoints",
+			"item": [
+				{
+					"name": "Get Icons (Filter by Category)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/logo/icons?icon_category_id=category-uuid-here&include_categories=true&page=1&limit=50&lang=en",
+							"host": ["{{base_url}}"],
+							"path": ["api", "logo", "icons"],
+							"query": [
+								{
+									"key": "icon_category_id",
+									"value": "category-uuid-here",
+									"description": "Filter by category ID"
+								},
+								{
+									"key": "include_categories",
+									"value": "true",
+									"description": "Include categories in response"
+								},
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number"
+								},
+								{
+									"key": "limit",
+									"value": "50",
+									"description": "Items per page"
+								},
+								{
+									"key": "lang",
+									"value": "en",
+									"description": "Language: en or ar"
+								}
+							]
+						},
+						"description": "Get all icons with optional category filtering and category data in response"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Icon by ID (with Categories)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/logo/icons/:id?include_categories=true&lang=en",
+							"host": ["{{base_url}}"],
+							"path": ["api", "logo", "icons", ":id"],
+							"query": [
+								{
+									"key": "include_categories",
+									"value": "true",
+									"description": "Include categories in response"
+								},
+								{
+									"key": "lang",
+									"value": "en",
+									"description": "Language: en or ar"
+								}
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "icon-uuid-here",
+									"description": "Icon UUID"
+								}
+							]
+						},
+						"description": "Get a specific icon with its assigned categories"
+					},
+					"response": []
+				}
+			],
+			"description": "Updated icon endpoints that now support categories"
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3000",
+			"type": "string"
+		}
+	]
+}
+
