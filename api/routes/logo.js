@@ -1894,13 +1894,18 @@ router.get('/:id', async (req, res) => {
         lb.gradient as bg_gradient, lb.asset_id as bg_asset_id,
         lb.repeat, lb.position, lb.size,
         
-        -- Asset data for icons and images
+        -- Asset data for icons and images (separate joins for different asset types)
         ai.id as asset_id, ai.kind as asset_kind, ai.name as asset_name,
         ai.url as asset_url, ai.width as asset_width, ai.height as asset_height,
         ai.has_alpha as asset_has_alpha, ai.vector_svg, ai.meta as asset_meta,
         
-        -- Font data for text layers
-        f.family as font_family, f.style as font_style, f.weight as font_weight,
+        -- Background asset data (separate join to ensure background assets are retrieved)
+        ai_bg.id as bg_asset_joined_id, ai_bg.kind as bg_asset_kind, ai_bg.name as bg_asset_name,
+        ai_bg.url as bg_asset_url, ai_bg.width as bg_asset_width, ai_bg.height as bg_asset_height,
+        ai_bg.has_alpha as bg_asset_has_alpha, ai_bg.vector_svg as bg_asset_vector_svg, ai_bg.meta as bg_asset_meta,
+        
+        -- Font data for text layers (use different aliases to avoid conflict with layer_text fields)
+        f.family as font_family, f.style as default_font_style, f.weight as default_font_weight,
         f.url as font_url, f.fallbacks as font_fallbacks
       FROM layers lay
       LEFT JOIN layer_text lt ON lt.layer_id = lay.id
@@ -1908,7 +1913,8 @@ router.get('/:id', async (req, res) => {
       LEFT JOIN layer_icon li ON li.layer_id = lay.id
       LEFT JOIN layer_image lim ON lim.layer_id = lay.id
       LEFT JOIN layer_background lb ON lb.layer_id = lay.id
-      LEFT JOIN assets ai ON (ai.id = li.asset_id OR ai.id = lim.asset_id OR ai.id = lb.asset_id)
+      LEFT JOIN assets ai ON (ai.id = li.asset_id OR ai.id = lim.asset_id)
+      LEFT JOIN assets ai_bg ON ai_bg.id = lb.asset_id
       LEFT JOIN fonts f ON f.id = lt.font_id
       WHERE lay.logo_id = $1
       ORDER BY lay.z_index ASC, lay.created_at ASC
@@ -1957,10 +1963,15 @@ router.get('/:id', async (req, res) => {
               stroke_width: row.stroke_width,
               stroke_align: row.stroke_align,
               gradient: row.text_gradient,
-              font: row.font_family ? {
+              // Top-level font properties using actual DB values from layer_text (not hardcoded defaults)
+              font: row.font_family || null,
+              fontWeight: row.font_weight || null,
+              fontStyle: row.font_style || null,
+              // Nested font object with full details
+              fontDetails: row.font_family ? {
                 family: row.font_family,
-                style: row.font_style,
-                weight: row.font_weight,
+                style: row.font_style || row.default_font_style,
+                weight: row.font_weight || row.default_font_weight,
                 url: row.font_url,
                 fallbacks: row.font_fallbacks
               } : null
@@ -2036,6 +2047,8 @@ router.get('/:id', async (req, res) => {
           };
 
         case 'BACKGROUND':
+          // Use the dedicated background asset join (ai_bg) for background layers
+          const bgAssetId = row.bg_asset_id || row.bg_asset_joined_id;
           return {
             ...baseLayer,
             background: {
@@ -2047,16 +2060,23 @@ router.get('/:id', async (req, res) => {
               repeat: row.repeat,
               position: row.position,
               size: row.size,
-              asset: row.asset_id ? {
-                id: row.asset_id,
-                kind: row.asset_kind,
-                name: row.asset_name,
-                url: row.asset_url,
-                width: row.asset_width,
-                height: row.asset_height,
-                has_alpha: row.asset_has_alpha,
-                meta: row.asset_meta
-              } : null
+              // Use the dedicated background asset join data
+              asset: row.bg_asset_joined_id ? {
+                id: row.bg_asset_joined_id,
+                kind: row.bg_asset_kind,
+                name: row.bg_asset_name,
+                url: row.bg_asset_url,
+                width: row.bg_asset_width,
+                height: row.bg_asset_height,
+                has_alpha: row.bg_asset_has_alpha,
+                vector_svg: row.bg_asset_vector_svg,
+                meta: row.bg_asset_meta
+              } : (row.bg_asset_id ? {
+                // If bg_asset_id exists but join didn't return data, still include asset_id
+                id: row.bg_asset_id,
+                url: null,
+                note: 'Asset data not found - asset may not exist in assets table'
+              } : null)
             }
           };
 
@@ -2065,13 +2085,26 @@ router.get('/:id', async (req, res) => {
       }
     });
 
+    // Parse tags arrays from JSON if they are strings
+    const tags_en = logo.tags_en ? (typeof logo.tags_en === 'string' ? JSON.parse(logo.tags_en) : logo.tags_en) : [];
+    const tags_ar = logo.tags_ar ? (typeof logo.tags_ar === 'string' ? JSON.parse(logo.tags_ar) : logo.tags_ar) : [];
+    const tags = logo.tags ? (typeof logo.tags === 'string' ? JSON.parse(logo.tags) : logo.tags) : [];
+
     // Localize the logo data based on language preference
     const localizedLogo = {
       ...logo,
+      // Add all required top-level fields
+      categoryId: logo.category_id,
+      name_en: logo.title_en,
+      name_ar: logo.title_ar,
+      description_en: logo.description_en,
+      description_ar: logo.description_ar,
+      tags_en: tags_en,
+      tags_ar: tags_ar,
       // Use localized text based on language preference
       title: lang === 'ar' ? (logo.title_ar || logo.title_en || logo.title) : (logo.title_en || logo.title),
       description: lang === 'ar' ? (logo.description_ar || logo.description_en || logo.description) : (logo.description_en || logo.description),
-      tags: lang === 'ar' ? (logo.tags_ar || logo.tags_en || logo.tags) : (logo.tags_en || logo.tags),
+      tags: lang === 'ar' ? tags_ar : tags_en.length > 0 ? tags_en : tags,
       category_name: lang === 'ar' ? (logo.category_name_ar || logo.category_name_en || logo.category_name) : (logo.category_name_en || logo.category_name),
       category_description: lang === 'ar' ? (logo.category_description_ar || logo.category_description_en || logo.category_description) : (logo.category_description_en || logo.category_description),
       // Add language metadata
