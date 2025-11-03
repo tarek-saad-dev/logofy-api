@@ -1,0 +1,467 @@
+{
+    "info": {
+        "_postman_id": "gmail-otp-auth-collection",
+        "name": "Gmail OTP Authentication API",
+        "description": "Complete API documentation for Gmail-only OTP authentication system\n\n## Features\n- ✅ Gmail-only login via OTP verification\n- ✅ Password reset via Gmail OTP\n- ✅ Rate limiting (5 requests/hour)\n- ✅ OTP expiration (10 minutes)\n- ✅ Single-use codes\n- ✅ Beautiful HTML email templates\n\n## Authentication Flow\n\n### Login (2 Steps)\n1. Request OTP: `POST /api/auth/login/request-otp`\n2. Verify OTP: `POST /api/auth/login/verify-otp`\n\n### Password Reset (2 Steps)\n1. Request Reset OTP: `POST /api/auth/reset-password/request-otp`\n2. Verify & Reset: `POST /api/auth/reset-password/verify-otp`\n\n## Setup Required\n1. Configure Gmail credentials in .env:\n   - GMAIL_USER=your-email@gmail.com\n   - GMAIL_APP_PASSWORD=your-app-password\n2. Run migration: `npm run migrate:otp`\n3. Restart server",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+        "_exporter_id": "gmail-otp-auth"
+    },
+    "item": [{
+            "name": "Registration",
+            "item": [{
+                    "name": "Register User (Gmail Required)",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"user@gmail.com\",\n  \"password\": \"password123\",\n  \"name\": \"John Doe\",\n  \"display_name\": \"John\",\n  \"avatar_url\": \"https://example.com/avatar.jpg\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/register",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "register"
+                            ]
+                        },
+                        "description": "Register a new user. **Gmail email is required.**\n\n**Note**: After registration, users must use OTP to login (no password-based login)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Register - Reject Non-Gmail",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\",\n  \"name\": \"Test User\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/register",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "register"
+                            ]
+                        },
+                        "description": "Test that non-Gmail emails are rejected."
+                    },
+                    "response": []
+                }
+            ],
+            "description": "User registration endpoints"
+        },
+        {
+            "name": "Login (Gmail OTP)",
+            "item": [{
+                    "name": "Step 1: Request Login OTP",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "pm.test('Status code is 200', function () {",
+                                "    pm.response.to.have.status(200);",
+                                "});",
+                                "",
+                                "pm.test('Response has success message', function () {",
+                                "    const response = pm.response.json();",
+                                "    pm.expect(response.success).to.be.true;",
+                                "});",
+                                "",
+                                "console.log('✅ OTP sent! Check your Gmail inbox for the 6-digit code.');"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"{{testEmail}}\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/login/request-otp",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "login",
+                                "request-otp"
+                            ]
+                        },
+                        "description": "Request a verification code for login. The code will be sent to the user's Gmail.\n\n**Request Body:**\n- `email` (required) - Gmail address\n\n**Response:**\n- Success message indicating code was sent\n- Check Gmail inbox for 6-digit code\n\n**Note**: Code expires in 10 minutes. Max 5 requests per hour."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Step 2: Verify OTP and Login",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "pm.test('Status code is 200', function () {",
+                                "    pm.response.to.have.status(200);",
+                                "});",
+                                "",
+                                "pm.test('Login successful with token', function () {",
+                                "    const response = pm.response.json();",
+                                "    pm.expect(response.success).to.be.true;",
+                                "    pm.expect(response.data).to.have.property('token');",
+                                "    pm.expect(response.data).to.have.property('user');",
+                                "    ",
+                                "    // Save token for other requests",
+                                "    if (response.data.token) {",
+                                "        pm.collectionVariables.set('authToken', response.data.token);",
+                                "        pm.collectionVariables.set('userId', response.data.user.id);",
+                                "        console.log('✅ Token saved to collection variables');",
+                                "    }",
+                                "});"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"code\": \"123456\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/login/verify-otp",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "login",
+                                "verify-otp"
+                            ]
+                        },
+                        "description": "Verify the OTP code and complete login.\n\n**Request Body:**\n- `email` (required) - Gmail address\n- `code` (required) - 6-digit OTP code from email\n\n**Response:**\n- User data and JWT token\n- Token is saved to collection variable `authToken`\n\n**Note**: Replace `123456` with the actual code from your email."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Verify OTP - Invalid Code",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"code\": \"000000\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/login/verify-otp",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "login",
+                                "verify-otp"
+                            ]
+                        },
+                        "description": "Test that invalid OTP codes are rejected (should return 401)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Request OTP - Non-Gmail Rejected",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"user@example.com\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/login/request-otp",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "login",
+                                "request-otp"
+                            ]
+                        },
+                        "description": "Test that non-Gmail emails are rejected (should return 400)."
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Gmail OTP login flow (2 steps)"
+        },
+        {
+            "name": "Password Reset (Gmail OTP)",
+            "item": [{
+                    "name": "Step 1: Request Password Reset OTP",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "pm.test('Status code is 200', function () {",
+                                "    pm.response.to.have.status(200);",
+                                "});",
+                                "",
+                                "pm.test('Response indicates code was sent', function () {",
+                                "    const response = pm.response.json();",
+                                "    pm.expect(response.success).to.be.true;",
+                                "});",
+                                "",
+                                "console.log('✅ Reset code sent! Check your Gmail inbox for the 6-digit code.');"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"{{testEmail}}\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/reset-password/request-otp",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "reset-password",
+                                "request-otp"
+                            ]
+                        },
+                        "description": "Request a verification code for password reset. The code will be sent to the user's Gmail.\n\n**Request Body:**\n- `email` (required) - Gmail address\n\n**Response:**\n- Success message indicating reset code was sent\n- Check Gmail inbox for 6-digit code\n\n**Note**: Code expires in 10 minutes. Max 5 requests per hour."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Step 2: Verify OTP and Reset Password",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "pm.test('Status code is 200', function () {",
+                                "    pm.response.to.have.status(200);",
+                                "});",
+                                "",
+                                "pm.test('Password reset successful', function () {",
+                                "    const response = pm.response.json();",
+                                "    pm.expect(response.success).to.be.true;",
+                                "    pm.expect(response.message).to.include('reset successfully');",
+                                "});",
+                                "",
+                                "console.log('✅ Password reset successful! You can now login with the new password.');"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"code\": \"123456\",\n  \"newPassword\": \"newpassword123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/reset-password/verify-otp",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "reset-password",
+                                "verify-otp"
+                            ]
+                        },
+                        "description": "Verify the OTP code and reset password.\n\n**Request Body:**\n- `email` (required) - Gmail address\n- `code` (required) - 6-digit OTP code from email\n- `newPassword` (required) - New password (min 6 characters)\n\n**Response:**\n- Success message\n\n**Note**: Replace `123456` with the actual code from your email."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Reset Password - Invalid OTP",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"code\": \"000000\",\n  \"newPassword\": \"newpassword123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/reset-password/verify-otp",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "reset-password",
+                                "verify-otp"
+                            ]
+                        },
+                        "description": "Test that invalid OTP codes are rejected (should return 401)."
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Password reset flow using Gmail OTP (2 steps)"
+        },
+        {
+            "name": "Other Endpoints",
+            "item": [{
+                    "name": "Get Current User",
+                    "request": {
+                        "method": "GET",
+                        "header": [{
+                            "key": "Authorization",
+                            "value": "Bearer {{authToken}}"
+                        }],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/me",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "me"
+                            ]
+                        },
+                        "description": "Get current authenticated user. Requires JWT token in Authorization header."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Refresh Token",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/refresh",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "refresh"
+                            ]
+                        },
+                        "description": "Refresh JWT token. Requires valid JWT token."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Change Password (Authenticated)",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"currentPassword\": \"oldpassword123\",\n  \"newPassword\": \"newpassword123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/change-password",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "change-password"
+                            ]
+                        },
+                        "description": "Change password for authenticated user. Requires current password verification."
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Other authentication endpoints"
+        }
+    ],
+    "variable": [{
+            "key": "baseUrl",
+            "value": "http://localhost:3000",
+            "type": "string"
+        },
+        {
+            "key": "testEmail",
+            "value": "your-email@gmail.com",
+            "type": "string",
+            "description": "Your Gmail address for testing"
+        },
+        {
+            "key": "authToken",
+            "value": "",
+            "type": "string",
+            "description": "JWT token - Auto-populated after successful login"
+        },
+        {
+            "key": "userId",
+            "value": "",
+            "type": "string",
+            "description": "User ID - Auto-populated after successful login"
+        }
+    ]
+}

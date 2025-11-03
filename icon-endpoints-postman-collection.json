@@ -1,0 +1,636 @@
+{
+    "info": {
+        "_postman_id": "icon-endpoints-collection",
+        "name": "Icon & Icon Categories API",
+        "description": "Complete API documentation for Icon and Icon Categories endpoints in the Logo Maker API",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+        "_exporter_id": "icon-endpoints"
+    },
+    "item": [{
+            "name": "Icon Endpoints",
+            "item": [{
+                    "name": "Get All Icons",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/icons?page=1&limit=50&type=vector&search=icon&icon_category_id=&include_categories=true&sort=created_at&order=desc",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "icons"
+                            ],
+                            "query": [{
+                                    "key": "page",
+                                    "value": "1",
+                                    "description": "Page number for pagination"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "50",
+                                    "description": "Number of icons per page"
+                                },
+                                {
+                                    "key": "type",
+                                    "value": "vector",
+                                    "description": "Filter by type: 'vector' or 'raster'"
+                                },
+                                {
+                                    "key": "search",
+                                    "value": "icon",
+                                    "description": "Search in name, description, tags"
+                                },
+                                {
+                                    "key": "icon_category_id",
+                                    "value": "",
+                                    "description": "Filter by icon category ID (UUID)",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "include_categories",
+                                    "value": "true",
+                                    "description": "Include categories in response"
+                                },
+                                {
+                                    "key": "sort",
+                                    "value": "created_at",
+                                    "description": "Sort field: 'created_at', 'updated_at', 'name', 'category'"
+                                },
+                                {
+                                    "key": "order",
+                                    "value": "desc",
+                                    "description": "Sort order: 'asc' or 'desc'"
+                                }
+                            ]
+                        },
+                        "description": "Get all icons with optional filtering, pagination, and category support.\n\n**Query Parameters:**\n- `page` (default: 1) - Page number\n- `limit` (default: 50) - Items per page\n- `type` - Filter by 'vector' or 'raster'\n- `search` - Search in name, description, tags\n- `icon_category_id` - Filter by category UUID\n- `include_categories` (default: true) - Include categories in response\n- `sort` - Sort field\n- `order` - Sort order"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Icon Library",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/icons/library?page=1&limit=100&category=&type=vector&search=&tags=&sort=popularity&order=desc&featured=false&style=outline",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "icons",
+                                "library"
+                            ],
+                            "query": [{
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "100"
+                                },
+                                {
+                                    "key": "category",
+                                    "value": "",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "type",
+                                    "value": "vector",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "search",
+                                    "value": "",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "tags",
+                                    "value": "",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "sort",
+                                    "value": "popularity",
+                                    "description": "Sort by: 'popularity', 'newest', 'oldest', 'name', 'category'"
+                                },
+                                {
+                                    "key": "order",
+                                    "value": "desc"
+                                },
+                                {
+                                    "key": "featured",
+                                    "value": "false"
+                                },
+                                {
+                                    "key": "style",
+                                    "value": "outline",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "Get icons optimized for client-side library display with advanced filtering options."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Featured Icons",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/icons/featured?limit=20",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "icons",
+                                "featured"
+                            ],
+                            "query": [{
+                                "key": "limit",
+                                "value": "20",
+                                "description": "Number of featured icons to return"
+                            }]
+                        },
+                        "description": "Get featured/popular icons."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Icon Categories (Legacy)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/icons/categories?includeEmpty=false",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "icons",
+                                "categories"
+                            ],
+                            "query": [{
+                                "key": "includeEmpty",
+                                "value": "false",
+                                "description": "Include categories with no icons"
+                            }]
+                        },
+                        "description": "Get icon categories from legacy meta->>'category' field (not the new icon_categories table)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Icon by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/icons/:id?include_categories=true&lang=en",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "icons",
+                                ":id"
+                            ],
+                            "query": [{
+                                    "key": "include_categories",
+                                    "value": "true",
+                                    "description": "Include categories in response"
+                                },
+                                {
+                                    "key": "lang",
+                                    "value": "en",
+                                    "description": "Language: 'en' or 'ar'"
+                                }
+                            ],
+                            "variable": [{
+                                "key": "id",
+                                "value": "{{iconId}}",
+                                "description": "Icon UUID"
+                            }]
+                        },
+                        "description": "Get a specific icon by ID with optional category information."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Icon",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"My Icon\",\n  \"url\": \"https://example.com/icon.svg\",\n  \"type\": \"vector\",\n  \"width\": 100,\n  \"height\": 100,\n  \"hasAlpha\": true,\n  \"vectorSvg\": \"<svg>...</svg>\",\n  \"category\": \"business\",\n  \"tags\": [\"icon\", \"business\"],\n  \"description\": \"A business icon\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/icons",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "icons"
+                            ]
+                        },
+                        "description": "Create a new icon in the library.\n\n**Required Fields:**\n- `name` - Icon name\n- `url` - Icon URL\n\n**Optional Fields:**\n- `type` (default: 'vector') - 'vector' or 'raster'\n- `width` (default: 100) - Icon width\n- `height` (default: 100) - Icon height\n- `hasAlpha` (default: true) - Has transparency\n- `vectorSvg` - SVG content for vector icons\n- `category` - Legacy category name\n- `tags` - Array of tags\n- `description` - Icon description"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Icon",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Updated Icon Name\",\n  \"description\": \"Updated description\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/icons/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "icons",
+                                ":id"
+                            ],
+                            "variable": [{
+                                "key": "id",
+                                "value": "{{iconId}}",
+                                "description": "Icon UUID"
+                            }]
+                        },
+                        "description": "Update an existing icon. Only include fields you want to update."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Icon",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/icons/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "icons",
+                                ":id"
+                            ],
+                            "variable": [{
+                                "key": "id",
+                                "value": "{{iconId}}",
+                                "description": "Icon UUID"
+                            }]
+                        },
+                        "description": "Delete an icon. Cannot delete if icon is used in existing logos."
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Endpoints for managing icons in the library"
+        },
+        {
+            "name": "Icon Categories",
+            "item": [{
+                    "name": "Get All Categories",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/icon-categories?include_inactive=false&include_counts=true&parent_id=&lang=en",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "icon-categories"
+                            ],
+                            "query": [{
+                                    "key": "include_inactive",
+                                    "value": "false",
+                                    "description": "Include inactive categories"
+                                },
+                                {
+                                    "key": "include_counts",
+                                    "value": "true",
+                                    "description": "Include icon count per category"
+                                },
+                                {
+                                    "key": "parent_id",
+                                    "value": "",
+                                    "description": "Filter by parent category ID",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "lang",
+                                    "value": "en",
+                                    "description": "Language: 'en' or 'ar'"
+                                }
+                            ]
+                        },
+                        "description": "Get all icon categories with optional filtering.\n\n**Query Parameters:**\n- `include_inactive` (default: false) - Include inactive categories\n- `include_counts` (default: true) - Include icon count\n- `parent_id` - Filter by parent category\n- `lang` (default: 'en') - Language preference"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Category by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/icon-categories/:id?lang=en",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "icon-categories",
+                                ":id"
+                            ],
+                            "query": [{
+                                "key": "lang",
+                                "value": "en",
+                                "description": "Language: 'en' or 'ar'"
+                            }],
+                            "variable": [{
+                                "key": "id",
+                                "value": "{{categoryId}}",
+                                "description": "Category UUID"
+                            }]
+                        },
+                        "description": "Get a specific icon category by ID."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Category",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Business\",\n  \"name_en\": \"Business\",\n  \"name_ar\": \"أعمال\",\n  \"description\": \"Business and professional icons\",\n  \"description_en\": \"Business and professional icons\",\n  \"description_ar\": \"أيقونات الأعمال والمهنية\",\n  \"slug\": \"business\",\n  \"icon_asset_id\": null,\n  \"parent_id\": null,\n  \"sort_order\": 1,\n  \"is_active\": true,\n  \"meta\": {}\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/icon-categories",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "icon-categories"
+                            ]
+                        },
+                        "description": "Create a new icon category.\n\n**Required Fields:**\n- `name` - Category name\n\n**Optional Fields:**\n- `name_en` - English name\n- `name_ar` - Arabic name\n- `description` - Category description\n- `description_en` - English description\n- `description_ar` - Arabic description\n- `slug` - URL-friendly identifier (auto-generated from name if not provided)\n- `icon_asset_id` - UUID of icon to represent this category\n- `parent_id` - UUID of parent category (for nested categories)\n- `sort_order` (default: 0) - Sort order\n- `is_active` (default: true) - Category active status\n- `meta` - Additional metadata (JSON object)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Category",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Updated Category Name\",\n  \"description\": \"Updated description\",\n  \"is_active\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/icon-categories/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "icon-categories",
+                                ":id"
+                            ],
+                            "variable": [{
+                                "key": "id",
+                                "value": "{{categoryId}}",
+                                "description": "Category UUID"
+                            }]
+                        },
+                        "description": "Update an existing icon category. Only include fields you want to update."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Category",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/icon-categories/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "icon-categories",
+                                ":id"
+                            ],
+                            "variable": [{
+                                "key": "id",
+                                "value": "{{categoryId}}",
+                                "description": "Category UUID"
+                            }]
+                        },
+                        "description": "Delete an icon category. Cannot delete if category has assigned icons."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Icons in Category",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/icon-categories/:id/icons?page=1&limit=20&lang=en",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "icon-categories",
+                                ":id",
+                                "icons"
+                            ],
+                            "query": [{
+                                    "key": "page",
+                                    "value": "1",
+                                    "description": "Page number"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20",
+                                    "description": "Items per page"
+                                },
+                                {
+                                    "key": "lang",
+                                    "value": "en",
+                                    "description": "Language: 'en' or 'ar'"
+                                }
+                            ],
+                            "variable": [{
+                                "key": "id",
+                                "value": "{{categoryId}}",
+                                "description": "Category UUID"
+                            }]
+                        },
+                        "description": "Get all icons assigned to a specific category with pagination."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Assign Icons to Category",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"icon_ids\": [\n    \"{{iconId}}\",\n    \"icon-uuid-2\",\n    \"icon-uuid-3\"\n  ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/icon-categories/:id/icons",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "icon-categories",
+                                ":id",
+                                "icons"
+                            ],
+                            "variable": [{
+                                "key": "id",
+                                "value": "{{categoryId}}",
+                                "description": "Category UUID"
+                            }]
+                        },
+                        "description": "Assign one or more icons to a category.\n\n**Request Body:**\n- `icon_ids` (required) - Array of icon UUIDs to assign\n\n**Note:** Icons can belong to multiple categories. Duplicate assignments are ignored."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Remove Icon from Category",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/icon-categories/:categoryId/icons/:iconId",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "icon-categories",
+                                ":categoryId",
+                                "icons",
+                                ":iconId"
+                            ],
+                            "variable": [{
+                                    "key": "categoryId",
+                                    "value": "{{categoryId}}",
+                                    "description": "Category UUID"
+                                },
+                                {
+                                    "key": "iconId",
+                                    "value": "{{iconId}}",
+                                    "description": "Icon UUID"
+                                }
+                            ]
+                        },
+                        "description": "Remove an icon from a category. This does not delete the icon, only removes the category assignment."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Categories for Icon",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/icon-categories/by-icon/:iconId?lang=en",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "icon-categories",
+                                "by-icon",
+                                ":iconId"
+                            ],
+                            "query": [{
+                                "key": "lang",
+                                "value": "en",
+                                "description": "Language: 'en' or 'ar'"
+                            }],
+                            "variable": [{
+                                "key": "iconId",
+                                "value": "{{iconId}}",
+                                "description": "Icon UUID"
+                            }]
+                        },
+                        "description": "Get all categories that a specific icon belongs to."
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Endpoints for managing icon categories and icon-category relationships"
+        }
+    ],
+    "variable": [{
+            "key": "baseUrl",
+            "value": "http://localhost:3000",
+            "type": "string"
+        },
+        {
+            "key": "iconId",
+            "value": "",
+            "type": "string",
+            "description": "Icon UUID - Set this after creating an icon"
+        },
+        {
+            "key": "categoryId",
+            "value": "",
+            "type": "string",
+            "description": "Category UUID - Set this after creating a category"
+        }
+    ]
+}

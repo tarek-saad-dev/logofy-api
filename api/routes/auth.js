@@ -3,6 +3,8 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { authenticate } = require('../middleware/auth');
+const { generateOTP, storeOTP, verifyOTP, getOTPAttempts } = require('../services/otpService');
+const { sendLoginOTP, sendPasswordResetOTP, isValidGmail } = require('../services/emailService');
 
 /**
  * Generate JWT token for user
@@ -32,12 +34,11 @@ router.post('/register', async(req, res) => {
             });
         }
 
-        // Email validation (basic)
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
+        // Validate Gmail email
+        if (!isValidGmail(email)) {
             return res.status(400).json({
                 success: false,
-                message: 'Invalid email format'
+                message: 'Only Gmail addresses are allowed. Please use a Gmail account.'
             });
         }
 
@@ -90,45 +91,133 @@ router.post('/register', async(req, res) => {
 });
 
 /**
- * POST /api/auth/login
- * Login user
+ * POST /api/auth/login/request-otp
+ * Request OTP code for login (Gmail only)
  */
-router.post('/login', async(req, res) => {
+router.post('/login/request-otp', async(req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email } = req.body;
 
         // Validation
-        if (!email || !password) {
+        if (!email) {
             return res.status(400).json({
                 success: false,
-                message: 'Email and password are required'
+                message: 'Email is required'
             });
         }
 
-        // Find user by email (with password)
-        const user = await User.findByEmail(email, true);
+        // Validate Gmail email
+        if (!isValidGmail(email)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Only Gmail addresses are allowed. Please use a Gmail account.'
+            });
+        }
 
+        // Check rate limiting (max 5 OTP requests per hour)
+        const attempts = await getOTPAttempts(email, 'login');
+        if (attempts >= 5) {
+            return res.status(429).json({
+                success: false,
+                message: 'Too many OTP requests. Please try again later.'
+            });
+        }
+
+        // Check if user exists
+        const user = await User.findByEmail(email);
         if (!user) {
-            return res.status(401).json({
-                success: false,
-                message: 'Invalid email or password'
+            // For security, don't reveal if user exists, but still send success message
+            // This prevents email enumeration attacks
+            return res.json({
+                success: true,
+                message: 'If this email exists, a verification code will be sent to your Gmail.'
             });
         }
 
-        // Verify password
-        const isPasswordValid = await user.verifyPassword(password);
+        // Generate and store OTP
+        const otpCode = generateOTP();
+        await storeOTP(email, otpCode, 'login');
 
-        if (!isPasswordValid) {
+        // Send OTP email
+        try {
+            await sendLoginOTP(email, otpCode);
+        } catch (emailError) {
+            console.error('Error sending OTP email:', emailError);
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to send verification code. Please try again later.'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Verification code sent to your Gmail. Please check your inbox.'
+        });
+    } catch (error) {
+        console.error('Error requesting login OTP:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to send verification code',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+/**
+ * POST /api/auth/login/verify-otp
+ * Verify OTP code and login (Gmail only)
+ */
+router.post('/login/verify-otp', async(req, res) => {
+    try {
+        const { email, code } = req.body;
+
+        // Validation
+        if (!email || !code) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email and verification code are required'
+            });
+        }
+
+        // Validate Gmail email
+        if (!isValidGmail(email)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Only Gmail addresses are allowed'
+            });
+        }
+
+        // Validate OTP format
+        if (!/^\d{6}$/.test(code)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid verification code format. Code must be 6 digits.'
+            });
+        }
+
+        // Verify OTP
+        const isValid = await verifyOTP(email, code, 'login');
+
+        if (!isValid) {
             return res.status(401).json({
                 success: false,
-                message: 'Invalid email or password'
+                message: 'Invalid or expired verification code'
+            });
+        }
+
+        // Find user
+        const user = await User.findByEmail(email);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
             });
         }
 
         // Generate token
         const token = generateToken(user.id);
 
-        // Return user data (without password) and token
+        // Return user data and token
         res.json({
             success: true,
             data: {
@@ -138,10 +227,10 @@ router.post('/login', async(req, res) => {
             message: 'Login successful'
         });
     } catch (error) {
-        console.error('Error logging in user:', error);
+        console.error('Error verifying login OTP:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to login',
+            message: 'Failed to verify code',
             error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
@@ -190,6 +279,154 @@ router.post('/refresh', authenticate, async(req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to refresh token'
+        });
+    }
+});
+
+/**
+ * POST /api/auth/reset-password/request-otp
+ * Request OTP code for password reset (Gmail only)
+ */
+router.post('/reset-password/request-otp', async(req, res) => {
+    try {
+        const { email } = req.body;
+
+        // Validation
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email is required'
+            });
+        }
+
+        // Validate Gmail email
+        if (!isValidGmail(email)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Only Gmail addresses are allowed. Please use a Gmail account.'
+            });
+        }
+
+        // Check rate limiting (max 5 OTP requests per hour)
+        const attempts = await getOTPAttempts(email, 'reset_password');
+        if (attempts >= 5) {
+            return res.status(429).json({
+                success: false,
+                message: 'Too many password reset requests. Please try again later.'
+            });
+        }
+
+        // Check if user exists
+        const user = await User.findByEmail(email);
+        if (!user) {
+            // Don't reveal if user exists for security
+            return res.json({
+                success: true,
+                message: 'If this email exists, a password reset code will be sent to your Gmail.'
+            });
+        }
+
+        // Generate and store OTP
+        const otpCode = generateOTP();
+        await storeOTP(email, otpCode, 'reset_password');
+
+        // Send OTP email
+        try {
+            await sendPasswordResetOTP(email, otpCode);
+        } catch (emailError) {
+            console.error('Error sending password reset OTP email:', emailError);
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to send verification code. Please try again later.'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Password reset code sent to your Gmail. Please check your inbox.'
+        });
+    } catch (error) {
+        console.error('Error requesting password reset OTP:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to send password reset code',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+/**
+ * POST /api/auth/reset-password/verify-otp
+ * Verify OTP code and reset password (Gmail only)
+ */
+router.post('/reset-password/verify-otp', async(req, res) => {
+    try {
+        const { email, code, newPassword } = req.body;
+
+        // Validation
+        if (!email || !code || !newPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email, verification code, and new password are required'
+            });
+        }
+
+        // Validate Gmail email
+        if (!isValidGmail(email)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Only Gmail addresses are allowed'
+            });
+        }
+
+        // Validate OTP format
+        if (!/^\d{6}$/.test(code)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid verification code format. Code must be 6 digits.'
+            });
+        }
+
+        // Validate password
+        if (newPassword.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password must be at least 6 characters long'
+            });
+        }
+
+        // Verify OTP
+        const isValid = await verifyOTP(email, code, 'reset_password');
+
+        if (!isValid) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid or expired verification code'
+            });
+        }
+
+        // Find user
+        const user = await User.findByEmail(email);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        // Update password
+        await user.update({ password: newPassword });
+
+        res.json({
+            success: true,
+            message: 'Password reset successfully. You can now login with your new password.'
+        });
+    } catch (error) {
+        console.error('Error resetting password:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to reset password',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });

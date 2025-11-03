@@ -9,9 +9,10 @@
         "init-db": "node scripts/init-db.js",
         "migrate": "node api/config/migrate-to-logo-maker.js",
         "migrate:auth": "node api/config/migrate-auth.js",
-    "migrate:recreate-users": "node api/config/recreate-users-table.js",
+        "migrate:recreate-users": "node api/config/recreate-users-table.js",
         "migrate:simple": "node api/config/simple-migrate.js",
         "migrate:multilingual": "node api/config/migrate-multilingual.js",
+        "migrate:otp": "node run_otp_migration.js",
         "migrate:win": "node api/config/migrate-to-logo-maker.js",
         "migrate:unix": "node api/config/migrate-to-logo-maker.js",
         "db:migrate": "node api/config/migrate-to-logo-maker.js",
@@ -72,6 +73,7 @@
         "morgan": "^1.10.0",
         "multer": "^1.4.5-lts.1",
         "multer-storage-cloudinary": "^4.0.0",
+        "nodemailer": "^7.0.10",
         "pg": "^8.11.3"
     },
     "devDependencies": {
