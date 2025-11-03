@@ -13,6 +13,7 @@
         "migrate:simple": "node api/config/simple-migrate.js",
         "migrate:multilingual": "node api/config/migrate-multilingual.js",
         "migrate:otp": "node run_otp_migration.js",
+        "migrate:projects": "node run_projects_migration.js",
         "migrate:win": "node api/config/migrate-to-logo-maker.js",
         "migrate:unix": "node api/config/migrate-to-logo-maker.js",
         "db:migrate": "node api/config/migrate-to-logo-maker.js",

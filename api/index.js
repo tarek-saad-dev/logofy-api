@@ -52,6 +52,7 @@ app.use('/api/assets', require('./routes/assets'));
 app.use('/api/layers', require('./routes/layers'));
 app.use('/api/templates', require('./routes/templates'));
 app.use('/api/icon-categories', require('./routes/iconCategories'));
+app.use('/api/projects', require('./routes/projects'));
 app.use('/api', require('./routes/export'));
 app.use('/api/migration', require('./routes/migration'));
 

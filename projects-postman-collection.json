@@ -1,0 +1,831 @@
+{
+	"info": {
+		"_postman_id": "projects-feature-collection",
+		"name": "Projects Feature - Logo Maker API",
+		"description": "Complete Postman collection for the Projects feature. This collection includes all CRUD operations for managing user projects (copies of logos with modifications).\n\n## Features:\n- Create, read, update, and delete projects\n- Pagination and search support\n- Soft delete functionality\n- User authentication required for all endpoints\n\n## Setup Instructions:\n1. Set the `baseUrl` variable to your API base URL (default: http://localhost:3000)\n2. Register a user or login to get an authentication token\n3. Set the `authToken` variable with your JWT token\n4. All endpoints require authentication via Bearer token",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Register User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200 || pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data && jsonData.data.token) {",
+									"        pm.collectionVariables.set('authToken', jsonData.data.token);",
+									"        pm.collectionVariables.set('userId', jsonData.data.user.id);",
+									"        console.log('✅ Token saved to collection variables');",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"testuser@gmail.com\",\n    \"password\": \"password123\",\n    \"name\": \"Test User\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"register"
+							]
+						},
+						"description": "Register a new user to get an authentication token. Only Gmail addresses are allowed.\n\n**Note**: After successful registration, the token is automatically saved to the `authToken` collection variable."
+					},
+					"response": []
+				},
+				{
+					"name": "Request Login OTP",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"testuser@gmail.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login/request-otp",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login",
+								"request-otp"
+							]
+						},
+						"description": "Request a login OTP code. The code will be sent to the user's Gmail."
+					},
+					"response": []
+				},
+				{
+					"name": "Verify Login OTP",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data && jsonData.data.token) {",
+									"        pm.collectionVariables.set('authToken', jsonData.data.token);",
+									"        pm.collectionVariables.set('userId', jsonData.data.user.id);",
+									"        console.log('✅ Token saved to collection variables');",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"testuser@gmail.com\",\n    \"otp\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login/verify-otp",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login",
+								"verify-otp"
+							]
+						},
+						"description": "Verify the OTP code and get an authentication token.\n\n**Note**: After successful verification, the token is automatically saved to the `authToken` collection variable."
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication endpoints to get a JWT token. You need to authenticate before using the Projects endpoints."
+		},
+		{
+			"name": "Projects",
+			"item": [
+				{
+					"name": "Get All Projects",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data.projects.length > 0) {",
+									"        // Save first project ID for use in other requests",
+									"        pm.collectionVariables.set('projectId', jsonData.data.projects[0].id);",
+									"        console.log('✅ Project ID saved:', jsonData.data.projects[0].id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/projects?page=1&limit=20&search=",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"projects"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number (default: 1)"
+								},
+								{
+									"key": "limit",
+									"value": "20",
+									"description": "Items per page (default: 20, max: 100)"
+								},
+								{
+									"key": "search",
+									"value": "",
+									"description": "Search term for title (optional)",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Get all projects for the authenticated user.\n\n**Query Parameters:**\n- `page` (optional): Page number (default: 1)\n- `limit` (optional): Items per page (default: 20, max: 100)\n- `search` (optional): Search term to filter projects by title\n\n**Response:**\nReturns a list of projects with pagination information. Only non-deleted projects are returned.\n\n**Note**: If projects are found, the first project ID is automatically saved to the `projectId` collection variable."
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Projects with Search",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data.projects.length > 0) {",
+									"        pm.collectionVariables.set('projectId', jsonData.data.projects[0].id);",
+									"        console.log('✅ Project ID saved:', jsonData.data.projects[0].id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/projects?page=1&limit=20&search=Test",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"projects"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								},
+								{
+									"key": "search",
+									"value": "Test",
+									"description": "Search term for title"
+								}
+							]
+						},
+						"description": "Get all projects with a search filter. This example searches for projects with \"Test\" in the title."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Project by ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/projects/{{projectId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"projects",
+								"{{projectId}}"
+							]
+						},
+						"description": "Get a specific project by its ID.\n\n**Path Parameters:**\n- `id` (required): Project UUID\n\n**Response:**\nReturns the project object with all details including the `json_doc` (design document).\n\n**Security:**\nOnly returns the project if it belongs to the authenticated user.\n\n**Note**: Use the `projectId` variable that is automatically set when you get all projects, or replace it with a specific project ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Project",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data && jsonData.data.project) {",
+									"        pm.collectionVariables.set('projectId', jsonData.data.project.id);",
+									"        pm.collectionVariables.set('createdProjectId', jsonData.data.project.id);",
+									"        console.log('✅ Project created with ID:', jsonData.data.project.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"My Logo Project\",\n    \"json_doc\": {\n        \"canvas\": {\n            \"width\": 800,\n            \"height\": 600,\n            \"backgroundColor\": \"#ffffff\"\n        },\n        \"layers\": [\n            {\n                \"id\": \"layer1\",\n                \"type\": \"text\",\n                \"content\": \"My Logo\",\n                \"x\": 100,\n                \"y\": 100,\n                \"fontSize\": 48,\n                \"color\": \"#000000\",\n                \"fontFamily\": \"Arial\"\n            },\n            {\n                \"id\": \"layer2\",\n                \"type\": \"shape\",\n                \"shape\": \"circle\",\n                \"x\": 200,\n                \"y\": 200,\n                \"radius\": 50,\n                \"fill\": \"#ff0000\"\n            }\n        ],\n        \"version\": \"1.0.0\",\n        \"metadata\": {\n            \"created\": \"2024-01-01T00:00:00Z\",\n            \"modified\": \"2024-01-01T00:00:00Z\"\n        }\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/projects",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"projects"
+							]
+						},
+						"description": "Create a new project (copy of a logo with modifications).\n\n**Request Body:**\n- `title` (required): Project title (max 200 characters)\n- `json_doc` (required): Complete design document as JSON object\n\n**json_doc Structure:**\nThe `json_doc` can contain any structure, but typically includes:\n- `canvas`: Canvas dimensions and background\n- `layers`: Array of design layers (text, shapes, images, etc.)\n- `version`: Version number\n- `metadata`: Additional metadata\n\n**Validations:**\n- Title is required and cannot be empty\n- Title must be 200 characters or less\n- json_doc must be a valid JSON object\n\n**Response:**\nReturns the created project object with all fields including auto-generated `id`, `created_at`, and `updated_at`.\n\n**Note**: After successful creation, the project ID is automatically saved to the `projectId` and `createdProjectId` collection variables."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Project - Minimal Example",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data && jsonData.data.project) {",
+									"        pm.collectionVariables.set('projectId', jsonData.data.project.id);",
+									"        console.log('✅ Project created with ID:', jsonData.data.project.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Simple Project\",\n    \"json_doc\": {\n        \"canvas\": {\n            \"width\": 800,\n            \"height\": 600\n        },\n        \"layers\": []\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/projects",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"projects"
+							]
+						},
+						"description": "Minimal example of creating a project with just the required fields."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Project - Full Update",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    console.log('✅ Project updated successfully');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Updated Project Title\",\n    \"json_doc\": {\n        \"canvas\": {\n            \"width\": 1000,\n            \"height\": 800,\n            \"backgroundColor\": \"#f0f0f0\"\n        },\n        \"layers\": [\n            {\n                \"id\": \"layer1\",\n                \"type\": \"text\",\n                \"content\": \"Updated Logo\",\n                \"x\": 150,\n                \"y\": 150,\n                \"fontSize\": 56,\n                \"color\": \"#ff0000\",\n                \"fontFamily\": \"Helvetica\"\n            }\n        ],\n        \"version\": \"1.1.0\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/projects/{{projectId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"projects",
+								"{{projectId}}"
+							]
+						},
+						"description": "Update a project with both title and json_doc.\n\n**Request Body:**\nBoth fields are optional, but at least one must be provided:\n- `title` (optional): Updated project title (max 200 characters)\n- `json_doc` (optional): Updated design document\n\n**Validations:**\n- If title is provided, it cannot be empty\n- If title is provided, it must be 200 characters or less\n- If json_doc is provided, it must be a valid JSON object\n\n**Response:**\nReturns the updated project object. The `updated_at` field is automatically updated by the database trigger.\n\n**Security:**\nOnly updates the project if it belongs to the authenticated user.\n\n**Note**: Use the `projectId` variable or replace it with a specific project ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Project - Title Only",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    console.log('✅ Project title updated successfully');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"New Project Title\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/projects/{{projectId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"projects",
+								"{{projectId}}"
+							]
+						},
+						"description": "Update only the project title, keeping the json_doc unchanged."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Project - JSON Doc Only",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    console.log('✅ Project json_doc updated successfully');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"json_doc\": {\n        \"canvas\": {\n            \"width\": 1200,\n            \"height\": 900\n        },\n        \"layers\": [\n            {\n                \"id\": \"layer1\",\n                \"type\": \"text\",\n                \"content\": \"Modified Content\",\n                \"x\": 200,\n                \"y\": 200,\n                \"fontSize\": 60\n            }\n        ],\n        \"version\": \"1.2.0\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/projects/{{projectId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"projects",
+								"{{projectId}}"
+							]
+						},
+						"description": "Update only the json_doc (design document), keeping the title unchanged."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Project (Soft Delete)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    console.log('✅ Project soft deleted successfully');",
+									"    console.log('Note: Project is marked as deleted but not permanently removed');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/projects/{{projectId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"projects",
+								"{{projectId}}"
+							]
+						},
+						"description": "Soft delete a project by setting the `deleted_at` timestamp.\n\n**Important:**\n- This is a **soft delete** - the project is not permanently removed from the database\n- The project is marked with a `deleted_at` timestamp\n- Soft-deleted projects are excluded from GET requests\n- The project can be recovered if needed (by clearing `deleted_at` in the database)\n\n**Response:**\nReturns the deleted project's ID and title.\n\n**Security:**\nOnly deletes the project if it belongs to the authenticated user.\n\n**Note**: After deletion, the project will not appear in \"Get All Projects\" requests. Use the `projectId` variable or replace it with a specific project ID."
+					},
+					"response": []
+				}
+			],
+			"description": "All CRUD operations for managing user projects. Projects represent copies of logos with modifications made in the editor."
+		},
+		{
+			"name": "Error Examples",
+			"item": [
+				{
+					"name": "Create Project - Missing Title",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"json_doc\": {\n        \"canvas\": {\n            \"width\": 800,\n            \"height\": 600\n        }\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/projects",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"projects"
+							]
+						},
+						"description": "Example of an error response when title is missing. Should return 400 Bad Request."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Project - Missing JSON Doc",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"My Project\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/projects",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"projects"
+							]
+						},
+						"description": "Example of an error response when json_doc is missing. Should return 400 Bad Request."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Project - Invalid UUID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/projects/invalid-uuid",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"projects",
+								"invalid-uuid"
+							]
+						},
+						"description": "Example of an error response when project ID is not a valid UUID. Should return 400 Bad Request."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Project - Not Found",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/projects/00000000-0000-0000-0000-000000000000",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"projects",
+								"00000000-0000-0000-0000-000000000000"
+							]
+						},
+						"description": "Example of an error response when project doesn't exist or doesn't belong to the user. Should return 404 Not Found."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Projects - Unauthorized",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/projects",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"projects"
+							]
+						},
+						"description": "Example of an error response when no authentication token is provided. Should return 401 Unauthorized."
+					},
+					"response": []
+				}
+			],
+			"description": "Examples of error responses for validation and authorization failures."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Set baseUrl if not already set",
+					"if (!pm.collectionVariables.get('baseUrl')) {",
+					"    pm.collectionVariables.set('baseUrl', 'http://localhost:3000');",
+					"}"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global test to log response status",
+					"if (pm.response.code >= 400) {",
+					"    console.log('❌ Error:', pm.response.code, pm.response.status);",
+					"} else {",
+					"    console.log('✅ Success:', pm.response.code, pm.response.status);",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "authToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "projectId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "createdProjectId",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
+
