@@ -1148,57 +1148,107 @@ router.get('/icons', async (req, res) => {
     
     // Tags filter
     if (tags) {
-      const tagArray = Array.isArray(tags) ? tags : tags.split(',');
-      paramCount++;
-      whereClause += ` AND ai.meta->'tags' @> $${paramCount}`;
-      queryParams.push(JSON.stringify(tagArray));
+      const tagArray = Array.isArray(tags) ? tags : tags.split(',').map(t => t.trim()).filter(Boolean);
+      if (tagArray.length > 0) {
+        paramCount++;
+        whereClause += ` AND ai.meta->'tags' @> $${paramCount}::jsonb`;
+        queryParams.push(JSON.stringify(tagArray));
+      }
     }
     
-    // Validate sort field
+    // Validate sort field and build ORDER BY clause safely
     const allowedSortFields = ['created_at', 'updated_at', 'name', 'category'];
     const sortField = allowedSortFields.includes(sort) ? sort : 'created_at';
     const sortOrder = order.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
     
+    // Build ORDER BY clause safely
+    let orderByClause = '';
+    if (sortField === 'category') {
+      orderByClause = `ORDER BY ai.meta->>'category' ${sortOrder}, ai.created_at DESC`;
+    } else {
+      // Safe to use sortField directly since it's validated from allowedSortFields
+      orderByClause = `ORDER BY ai.${sortField} ${sortOrder}`;
+    }
+    
     // Add limit and offset parameters at the end
     paramCount++;
-    queryParams.push(limit);
+    const limitParamIndex = paramCount;
+    queryParams.push(parseInt(limit));
     paramCount++;
-    queryParams.push(offset);
+    const offsetParamIndex = paramCount;
+    queryParams.push(parseInt(offset));
     
-    const iconsRes = await query(`
-      SELECT 
-        ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
-        ai.has_alpha, ai.vector_svg, ai.meta, ai.dominant_hex,
-        ai.created_at, ai.updated_at,
-        -- Get categories for each icon
-        COALESCE(
-          json_agg(
-            json_build_object(
-              'id', ic.id,
-              'name', ic.name,
-              'name_en', ic.name_en,
-              'name_ar', ic.name_ar,
-              'slug', ic.slug
-            )
-          ) FILTER (WHERE ic.id IS NOT NULL),
-          '[]'::json
-        ) as categories
-      FROM assets ai
-      LEFT JOIN icon_category_assignments ica ON ica.icon_id = ai.id
-      LEFT JOIN icon_categories ic ON ic.id = ica.category_id AND ic.is_active = TRUE
-      ${whereClause}
-      GROUP BY ai.id
-      ORDER BY ai.${sortField} ${sortOrder}
-      LIMIT $${paramCount - 1} OFFSET $${paramCount}
-    `, queryParams);
+    // Try to include categories, but handle gracefully if tables don't exist
+    let iconsRes;
+    try {
+      iconsRes = await query(`
+        SELECT 
+          ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
+          ai.has_alpha, ai.vector_svg, ai.meta, ai.dominant_hex,
+          ai.created_at, ai.updated_at,
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'id', ic.id,
+                'name', ic.name,
+                'name_en', ic.name_en,
+                'name_ar', ic.name_ar,
+                'slug', ic.slug
+              )
+            ) FILTER (WHERE ic.id IS NOT NULL),
+            '[]'::json
+          ) as categories
+        FROM assets ai
+        LEFT JOIN icon_category_assignments ica ON ica.icon_id = ai.id
+        LEFT JOIN icon_categories ic ON ic.id = ica.category_id AND ic.is_active = TRUE
+        ${whereClause}
+        GROUP BY ai.id
+        ${orderByClause}
+        LIMIT $${limitParamIndex} OFFSET $${offsetParamIndex}
+      `, queryParams);
+    } catch (joinError) {
+      // If join fails (tables don't exist), use simpler query without categories
+      if (joinError.message && joinError.message.includes('does not exist')) {
+        iconsRes = await query(`
+          SELECT 
+            ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
+            ai.has_alpha, ai.vector_svg, ai.meta, ai.dominant_hex,
+            ai.created_at, ai.updated_at,
+            '[]'::json as categories
+          FROM assets ai
+          ${whereClause}
+          ${orderByClause}
+          LIMIT $${limitParamIndex} OFFSET $${offsetParamIndex}
+        `, queryParams);
+      } else {
+        throw joinError;
+      }
+    }
     
     // Get total count for pagination (without limit and offset)
     const countParams = queryParams.slice(0, -2); // Remove limit and offset from end
-    const totalRes = await query(`
-      SELECT COUNT(*)::int AS total 
-      FROM assets ai 
-      ${whereClause}
-    `, countParams);
+    // Use DISTINCT to count unique icons when using GROUP BY in main query
+    let totalRes;
+    try {
+      totalRes = await query(`
+        SELECT COUNT(DISTINCT ai.id)::int AS total 
+        FROM assets ai
+        LEFT JOIN icon_category_assignments ica ON ica.icon_id = ai.id
+        LEFT JOIN icon_categories ic ON ic.id = ica.category_id AND ic.is_active = TRUE
+        ${whereClause}
+      `, countParams);
+    } catch (joinError) {
+      // If join fails, use simpler count query
+      if (joinError.message && joinError.message.includes('does not exist')) {
+        totalRes = await query(`
+          SELECT COUNT(*)::int AS total 
+          FROM assets ai
+          ${whereClause}
+        `, countParams);
+      } else {
+        throw joinError;
+      }
+    }
     
     const total = totalRes.rows[0].total;
     
@@ -1305,9 +1355,13 @@ router.get('/icons', async (req, res) => {
     res.json(response);
   } catch (error) {
     console.error('Error fetching icons:', error);
+    console.error('Error details:', error.message);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
       message: "Failed to fetch icons",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       language: "en",
       direction: "ltr"
     });
@@ -1541,32 +1595,51 @@ router.get('/icons/:id', async (req, res) => {
     const { id } = req.params;
     const { include_categories = 'true', lang = 'en' } = req.query;
     
-    const result = await query(`
-      SELECT 
-        ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
-        ai.has_alpha, ai.vector_svg, ai.meta, ai.dominant_hex,
-        ai.created_at, ai.updated_at,
-        -- Get categories for this icon
-        COALESCE(
-          json_agg(
-            json_build_object(
-              'id', ic.id,
-              'name', CASE WHEN $2 = 'ar' THEN COALESCE(ic.name_ar, ic.name_en, ic.name) ELSE COALESCE(ic.name_en, ic.name) END,
-              'name_en', ic.name_en,
-              'name_ar', ic.name_ar,
-              'slug', ic.slug,
-              'description', CASE WHEN $2 = 'ar' THEN COALESCE(ic.description_ar, ic.description_en, ic.description) ELSE COALESCE(ic.description_en, ic.description) END
-            )
-          ) FILTER (WHERE ic.id IS NOT NULL),
-          '[]'::json
-        ) as categories
-      FROM assets ai
-      LEFT JOIN icon_category_assignments ica ON ica.icon_id = ai.id
-      LEFT JOIN icon_categories ic ON ic.id = ica.category_id AND ic.is_active = TRUE
-      WHERE ai.id = $1 AND ai.kind IN ('vector', 'raster') 
-      AND (ai.meta->>'library_type' = 'icon' OR ai.meta->>'library_type' IS NULL)
-      GROUP BY ai.id
-    `, [id, lang]);
+    // Try to include categories, but handle gracefully if tables don't exist
+    let result;
+    try {
+      result = await query(`
+        SELECT 
+          ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
+          ai.has_alpha, ai.vector_svg, ai.meta, ai.dominant_hex,
+          ai.created_at, ai.updated_at,
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'id', ic.id,
+                'name', CASE WHEN $2 = 'ar' THEN COALESCE(ic.name_ar, ic.name_en, ic.name) ELSE COALESCE(ic.name_en, ic.name) END,
+                'name_en', ic.name_en,
+                'name_ar', ic.name_ar,
+                'slug', ic.slug,
+                'description', CASE WHEN $2 = 'ar' THEN COALESCE(ic.description_ar, ic.description_en, ic.description) ELSE COALESCE(ic.description_en, ic.description) END
+              )
+            ) FILTER (WHERE ic.id IS NOT NULL),
+            '[]'::json
+          ) as categories
+        FROM assets ai
+        LEFT JOIN icon_category_assignments ica ON ica.icon_id = ai.id
+        LEFT JOIN icon_categories ic ON ic.id = ica.category_id AND ic.is_active = TRUE
+        WHERE ai.id = $1 AND ai.kind IN ('vector', 'raster') 
+        AND (ai.meta->>'library_type' = 'icon' OR ai.meta->>'library_type' IS NULL)
+        GROUP BY ai.id
+      `, [id, lang]);
+    } catch (joinError) {
+      // If join fails (tables don't exist), use simpler query without categories
+      if (joinError.message && joinError.message.includes('does not exist')) {
+        result = await query(`
+          SELECT 
+            ai.id, ai.kind, ai.name, ai.url, ai.width, ai.height, 
+            ai.has_alpha, ai.vector_svg, ai.meta, ai.dominant_hex,
+            ai.created_at, ai.updated_at,
+            '[]'::json as categories
+          FROM assets ai
+          WHERE ai.id = $1 AND ai.kind IN ('vector', 'raster') 
+          AND (ai.meta->>'library_type' = 'icon' OR ai.meta->>'library_type' IS NULL)
+        `, [id]);
+      } else {
+        throw joinError;
+      }
+    }
 
     if (result.rows.length === 0) {
       return res.status(404).json({ 

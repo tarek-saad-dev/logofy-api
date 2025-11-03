@@ -61,7 +61,17 @@ CREATE INDEX IF NOT EXISTS idx_icon_category_assignments_composite ON icon_categ
 -- TRIGGERS FOR UPDATED_AT
 -- ==============================================
 
+-- Create or replace the update_updated_at_column function (in case it doesn't exist)
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = CURRENT_TIMESTAMP;
+  RETURN NEW;
+END;
+$$ language 'plpgsql';
+
 -- Create trigger for icon_categories updated_at
+DROP TRIGGER IF EXISTS update_icon_categories_updated_at ON icon_categories;
 CREATE TRIGGER update_icon_categories_updated_at
   BEFORE UPDATE ON icon_categories
   FOR EACH ROW

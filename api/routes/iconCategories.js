@@ -28,10 +28,35 @@ router.get('/', async (req, res) => {
     let queryParams = [];
 
     if (parent_id) {
-      whereClause += includeInactive ? 'WHERE ic.parent_id = $1' : ' AND ic.parent_id = $1';
+      const prefix = whereClause ? ' AND ' : 'WHERE ';
+      whereClause += `${prefix}ic.parent_id = $${queryParams.length + 1}`;
       queryParams.push(parent_id);
     }
 
+    // Check if icon_categories table exists
+    let tableExists = false;
+    try {
+      const tableCheck = await query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'icon_categories'
+        ) as exists
+      `);
+      tableExists = tableCheck.rows[0]?.exists || false;
+    } catch (e) {
+      tableExists = false;
+    }
+    
+    if (!tableExists) {
+      // Return empty result if table doesn't exist
+      const currentLang = res.locals.lang ?? "en";
+      return res.json(ok({ 
+        categories: [],
+        total: 0 
+      }, currentLang, currentLang === "ar" ? "تم جلب فئات الأيقونات بنجاح (لا توجد فئات)" : "Icon categories fetched successfully (no categories)"));
+    }
+    
     let querySQL;
     if (includeCounts) {
       querySQL = `
@@ -98,6 +123,7 @@ router.get('/', async (req, res) => {
     }, currentLang, currentLang === "ar" ? "تم جلب فئات الأيقونات بنجاح" : "Icon categories fetched successfully"));
   } catch (error) {
     console.error('Error fetching icon categories:', error);
+    console.error('Error details:', error.message, error.stack);
     const lang = res.locals.lang ?? "en";
     return res.status(500).json(fail(lang, lang === "ar" ? "خطأ في جلب فئات الأيقونات" : "Failed to fetch icon categories"));
   }
@@ -245,11 +271,18 @@ router.post('/', async (req, res) => {
     return res.status(201).json(ok(category, currentLang, currentLang === "ar" ? "تم إنشاء فئة الأيقونات بنجاح" : "Icon category created successfully"));
   } catch (error) {
     console.error('Error creating icon category:', error);
+    console.error('Error details:', error.message, error.stack);
     
     // Handle unique constraint violations
     if (error.code === '23505') {
       const currentLang = res.locals.lang ?? "en";
       return res.status(409).json(fail(currentLang, currentLang === "ar" ? "فئة الأيقونات موجودة بالفعل" : "Icon category already exists"));
+    }
+
+    // Handle missing table error
+    if (error.message && error.message.includes('does not exist')) {
+      const lang = res.locals.lang ?? "en";
+      return res.status(500).json(fail(lang, lang === "ar" ? "جداول فئات الأيقونات غير موجودة. يرجى تشغيل الترحيل أولاً" : "Icon category tables do not exist. Please run migration first"));
     }
 
     const lang = res.locals.lang ?? "en";
