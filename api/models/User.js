@@ -67,11 +67,49 @@ class User {
 
         // Use display_name if provided, otherwise use name
         const display_name = userData.display_name || name;
+        const final_name = name || display_name; // Ensure we have a name value
 
-        const result = await query(
-            'INSERT INTO users (email, display_name, avatar_url, password_hash) VALUES ($1, $2, $3, $4) RETURNING *', [email, display_name, avatar_url, password_hash]
-        );
-        return new User(result.rows[0]);
+        // Check which columns exist in the database
+        const checkColumns = await query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'users' 
+            AND column_name IN ('name', 'display_name');
+        `);
+        
+        const hasNameColumn = checkColumns.rows.some(r => r.column_name === 'name');
+        const hasDisplayNameColumn = checkColumns.rows.some(r => r.column_name === 'display_name');
+
+        // Build INSERT query based on what columns exist
+        if (hasNameColumn && hasDisplayNameColumn) {
+            // Both columns exist - insert into both
+            const result = await query(
+                'INSERT INTO users (email, name, display_name, avatar_url, password_hash) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+                [email, final_name, display_name, avatar_url, password_hash]
+            );
+            return new User(result.rows[0]);
+        } else if (hasNameColumn) {
+            // Only name column exists
+            const result = await query(
+                'INSERT INTO users (email, name, avatar_url, password_hash) VALUES ($1, $2, $3, $4) RETURNING *',
+                [email, final_name, avatar_url, password_hash]
+            );
+            return new User(result.rows[0]);
+        } else if (hasDisplayNameColumn) {
+            // Only display_name column exists
+            const result = await query(
+                'INSERT INTO users (email, display_name, avatar_url, password_hash) VALUES ($1, $2, $3, $4) RETURNING *',
+                [email, display_name, avatar_url, password_hash]
+            );
+            return new User(result.rows[0]);
+        } else {
+            // Fallback: try with name (most common)
+            const result = await query(
+                'INSERT INTO users (email, name, avatar_url, password_hash) VALUES ($1, $2, $3, $4) RETURNING *',
+                [email, final_name, avatar_url, password_hash]
+            );
+            return new User(result.rows[0]);
+        }
     }
 
     // Update user
@@ -86,12 +124,50 @@ class User {
 
         // Use display_name if provided, otherwise use name
         const final_display_name = display_name || name || this.display_name;
+        const final_name = name || final_display_name || this.name;
 
-        const result = await query(
-            'UPDATE users SET display_name = $1, email = $2, avatar_url = $3, password_hash = $4 WHERE id = $5 RETURNING *', [final_display_name, email || this.email, avatar_url || this.avatar_url, password_hash, this.id]
-        );
-        if (result.rows.length === 0) return null;
-        return new User(result.rows[0]);
+        // Check which columns exist
+        const checkColumns = await query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'users' 
+            AND column_name IN ('name', 'display_name');
+        `);
+        
+        const hasNameColumn = checkColumns.rows.some(r => r.column_name === 'name');
+        const hasDisplayNameColumn = checkColumns.rows.some(r => r.column_name === 'display_name');
+
+        // Build UPDATE query based on what columns exist
+        if (hasNameColumn && hasDisplayNameColumn) {
+            const result = await query(
+                'UPDATE users SET name = $1, display_name = $2, email = $3, avatar_url = $4, password_hash = $5 WHERE id = $6 RETURNING *',
+                [final_name, final_display_name, email || this.email, avatar_url || this.avatar_url, password_hash, this.id]
+            );
+            if (result.rows.length === 0) return null;
+            return new User(result.rows[0]);
+        } else if (hasNameColumn) {
+            const result = await query(
+                'UPDATE users SET name = $1, email = $2, avatar_url = $3, password_hash = $4 WHERE id = $5 RETURNING *',
+                [final_name, email || this.email, avatar_url || this.avatar_url, password_hash, this.id]
+            );
+            if (result.rows.length === 0) return null;
+            return new User(result.rows[0]);
+        } else if (hasDisplayNameColumn) {
+            const result = await query(
+                'UPDATE users SET display_name = $1, email = $2, avatar_url = $3, password_hash = $4 WHERE id = $5 RETURNING *',
+                [final_display_name, email || this.email, avatar_url || this.avatar_url, password_hash, this.id]
+            );
+            if (result.rows.length === 0) return null;
+            return new User(result.rows[0]);
+        } else {
+            // Fallback
+            const result = await query(
+                'UPDATE users SET name = $1, email = $2, avatar_url = $3, password_hash = $4 WHERE id = $5 RETURNING *',
+                [final_name, email || this.email, avatar_url || this.avatar_url, password_hash, this.id]
+            );
+            if (result.rows.length === 0) return null;
+            return new User(result.rows[0]);
+        }
     }
 
     // Delete user
@@ -118,10 +194,45 @@ class User {
     // Search users by name or email
     static async search(searchTerm, page = 1, limit = 10) {
         const offset = (page - 1) * limit;
-        const result = await query(
-            'SELECT * FROM users WHERE display_name ILIKE $1 OR email ILIKE $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3', [`%${searchTerm}%`, limit, offset]
-        );
-        return result.rows.map(row => new User(row));
+        
+        // Check which columns exist
+        const checkColumns = await query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'users' 
+            AND column_name IN ('name', 'display_name');
+        `);
+        
+        const hasNameColumn = checkColumns.rows.some(r => r.column_name === 'name');
+        const hasDisplayNameColumn = checkColumns.rows.some(r => r.column_name === 'display_name');
+
+        // Build search query based on what columns exist
+        if (hasNameColumn && hasDisplayNameColumn) {
+            const result = await query(
+                'SELECT * FROM users WHERE name ILIKE $1 OR display_name ILIKE $1 OR email ILIKE $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3',
+                [`%${searchTerm}%`, limit, offset]
+            );
+            return result.rows.map(row => new User(row));
+        } else if (hasNameColumn) {
+            const result = await query(
+                'SELECT * FROM users WHERE name ILIKE $1 OR email ILIKE $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3',
+                [`%${searchTerm}%`, limit, offset]
+            );
+            return result.rows.map(row => new User(row));
+        } else if (hasDisplayNameColumn) {
+            const result = await query(
+                'SELECT * FROM users WHERE display_name ILIKE $1 OR email ILIKE $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3',
+                [`%${searchTerm}%`, limit, offset]
+            );
+            return result.rows.map(row => new User(row));
+        } else {
+            // Fallback to email only
+            const result = await query(
+                'SELECT * FROM users WHERE email ILIKE $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3',
+                [`%${searchTerm}%`, limit, offset]
+            );
+            return result.rows.map(row => new User(row));
+        }
     }
 }
 

@@ -7,24 +7,43 @@ async function migrateAuth() {
     try {
         console.log('🔐 Starting authentication migration...');
 
-        // Check if password column already exists
-        const checkColumn = await query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'users' AND column_name = 'password_hash';
-    `);
+        // Check if password_hash column already exists
+        const checkPasswordColumn = await query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'users' AND column_name = 'password_hash';
+        `);
 
-        if (checkColumn.rows.length > 0) {
-            console.log('✅ Password column already exists. Skipping migration.');
-            return;
+        // Check if display_name column exists
+        const checkDisplayNameColumn = await query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'users' AND column_name = 'display_name';
+        `);
+
+        // Add password_hash column if it doesn't exist
+        if (checkPasswordColumn.rows.length === 0) {
+            console.log('📝 Adding password_hash column to users table...');
+            await query(`
+                ALTER TABLE users 
+                ADD COLUMN IF NOT EXISTS password_hash TEXT;
+            `);
+            console.log('✅ password_hash column added');
+        } else {
+            console.log('✅ password_hash column already exists');
         }
 
-        // Add password_hash column to users table
-        console.log('📝 Adding password_hash column to users table...');
-        await query(`
-      ALTER TABLE users 
-      ADD COLUMN password_hash TEXT;
-    `);
+        // Add display_name column if it doesn't exist
+        if (checkDisplayNameColumn.rows.length === 0) {
+            console.log('📝 Adding display_name column to users table...');
+            await query(`
+                ALTER TABLE users 
+                ADD COLUMN IF NOT EXISTS display_name TEXT;
+            `);
+            console.log('✅ display_name column added');
+        } else {
+            console.log('✅ display_name column already exists');
+        }
 
         console.log('✅ Authentication migration completed successfully!');
     } catch (error) {

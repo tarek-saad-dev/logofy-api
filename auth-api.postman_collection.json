@@ -1,0 +1,343 @@
+{
+    "info": {
+        "name": "Logo Maker - Authentication API",
+        "description": "Complete authentication API collection for Logo Maker",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [{
+            "key": "baseUrl",
+            "value": "https://logofy-api.vercel.app",
+            "type": "string"
+        },
+        {
+            "key": "token",
+            "value": "",
+            "type": "string"
+        }
+    ],
+    "item": [{
+            "name": "Authentication",
+            "item": [{
+                    "name": "Register User",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 201) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success && jsonData.data && jsonData.data.token) {",
+                                "        pm.collectionVariables.set(\"token\", jsonData.data.token);",
+                                "        console.log(\"Token saved:\", jsonData.data.token);",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\",\n    \"name\": \"Test User\",\n    \"display_name\": \"Test\",\n    \"avatar_url\": null\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/register",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "register"
+                            ]
+                        },
+                        "description": "Register a new user account with email and password"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Login",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success && jsonData.data && jsonData.data.token) {",
+                                "        pm.collectionVariables.set(\"token\", jsonData.data.token);",
+                                "        console.log(\"Token saved:\", jsonData.data.token);",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/login",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "login"
+                            ]
+                        },
+                        "description": "Login with email and password to get JWT token"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Current User",
+                    "request": {
+                        "method": "GET",
+                        "header": [{
+                            "key": "Authorization",
+                            "value": "Bearer {{token}}"
+                        }],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/me",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "me"
+                            ]
+                        },
+                        "description": "Get the currently authenticated user's information"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Refresh Token",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Authorization",
+                            "value": "Bearer {{token}}"
+                        }],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/refresh",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "refresh"
+                            ]
+                        },
+                        "description": "Refresh the JWT token"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Change Password",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"currentPassword\": \"password123\",\n    \"newPassword\": \"newpassword123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/change-password",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "change-password"
+                            ]
+                        },
+                        "description": "Change user password (requires authentication)"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Examples - Register",
+            "item": [{
+                    "name": "Register - Minimal (email + password)",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"user1@example.com\",\n    \"password\": \"securepass123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/register",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "register"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Register - With Name",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"user2@example.com\",\n    \"password\": \"securepass123\",\n    \"name\": \"John Doe\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/register",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "register"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Register - Complete Profile",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"user3@example.com\",\n    \"password\": \"securepass123\",\n    \"name\": \"Jane Smith\",\n    \"display_name\": \"Jane\",\n    \"avatar_url\": \"https://example.com/avatar.jpg\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/register",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "register"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Examples - Login",
+            "item": [{
+                    "name": "Login - Valid Credentials",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/login",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "login"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Login - Invalid Email",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"wrong@example.com\",\n    \"password\": \"password123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/login",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "login"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Login - Invalid Password",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"wrongpassword\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/login",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "login"
+                            ]
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}
