@@ -1,0 +1,83 @@
+{
+  "name": "express-starter-db-storage",
+  "version": "1.0.0",
+  "description": "🚀 Complete Express.js starter with PostgreSQL database and Cloudinary storage - Ready for production deployment",
+  "main": "api/index.js",
+  "scripts": {
+    "start": "node api/index.js",
+    "dev": "nodemon api/index.js",
+    "init-db": "node scripts/init-db.js",
+    "migrate": "node api/config/migrate-to-logo-maker.js",
+    "migrate:auth": "node api/config/migrate-auth.js",
+    "migrate:simple": "node api/config/simple-migrate.js",
+    "migrate:multilingual": "node api/config/migrate-multilingual.js",
+    "migrate:win": "node api/config/migrate-to-logo-maker.js",
+    "migrate:unix": "node api/config/migrate-to-logo-maker.js",
+    "db:migrate": "node api/config/migrate-to-logo-maker.js",
+    "db:migrate:simple": "node api/config/simple-migrate.js",
+    "db:migrate:multilingual": "node api/config/migrate-multilingual.js",
+    "db:init": "node scripts/init-db.js",
+    "db:reset": "node scripts/reset-db.js",
+    "build": "echo 'No build step required'",
+    "vercel-build": "echo 'No build step required'",
+    "test": "echo 'No tests specified'",
+    "test:mobile": "node test_mobile_endpoints.js",
+    "test:multilingual": "node test_multilingual.js",
+    "test:categories-multilingual": "node test_categories_multilingual.js",
+    "lint": "echo 'No linter configured'",
+    "deploy": "vercel --prod",
+    "deploy:preview": "vercel",
+    "logs": "vercel logs",
+    "env:add": "vercel env add",
+    "env:ls": "vercel env ls"
+  },
+  "keywords": [
+    "express",
+    "postgresql",
+    "cloudinary",
+    "api",
+    "nodejs",
+    "starter",
+    "template",
+    "database",
+    "storage",
+    "vercel",
+    "production-ready",
+    "backend",
+    "rest-api",
+    "crud",
+    "file-upload"
+  ],
+  "author": "Your Name <your.email@example.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/express-starter-db-storage.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/express-starter-db-storage/issues"
+  },
+  "homepage": "https://github.com/yourusername/express-starter-db-storage#readme",
+  "dependencies": {
+    "accept-language-parser": "^1.5.0",
+    "bcrypt": "^6.0.0",
+    "cloudinary": "^1.41.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "luxon": "^3.4.4",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "multer-storage-cloudinary": "^4.0.0",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "axios": "^1.6.0",
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -40,7 +40,7 @@ router.get('/', async (req, res) => {
 // GET /api/users/:id - Get user by ID
 router.get('/:id', async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = req.params.id;
     const user = await User.findById(id);
     
     if (!user) {
@@ -66,12 +66,12 @@ router.get('/:id', async (req, res) => {
 // POST /api/users - Create new user
 router.post('/', async (req, res) => {
   try {
-    const { name, email, avatar_url } = req.body;
+    const { name, display_name, email, avatar_url } = req.body;
     
-    if (!name || !email) {
+    if ((!name && !display_name) || !email) {
       return res.status(400).json({
         success: false,
-        message: 'Name and email are required'
+        message: 'Name/display_name and email are required'
       });
     }
 
@@ -84,7 +84,7 @@ router.post('/', async (req, res) => {
       });
     }
     
-    const newUser = await User.create({ name, email, avatar_url });
+    const newUser = await User.create({ name: name || display_name, display_name: display_name || name, email, avatar_url });
     
     res.status(201).json({
       success: true,
@@ -103,7 +103,7 @@ router.post('/', async (req, res) => {
 // PUT /api/users/:id - Update user
 router.put('/:id', async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = req.params.id;
     const user = await User.findById(id);
     
     if (!user) {
@@ -113,7 +113,7 @@ router.put('/:id', async (req, res) => {
       });
     }
     
-    const { name, email, avatar_url } = req.body;
+    const { name, display_name, email, avatar_url } = req.body;
     
     // Check if email is being changed and if it already exists
     if (email && email !== user.email) {
@@ -126,7 +126,7 @@ router.put('/:id', async (req, res) => {
       }
     }
     
-    const updatedUser = await user.update({ name, email, avatar_url });
+    const updatedUser = await user.update({ name: name || display_name, display_name: display_name || name, email, avatar_url });
     
     res.json({
       success: true,
@@ -145,7 +145,7 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/users/:id - Delete user
 router.delete('/:id', async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = req.params.id;
     const user = await User.findById(id);
     
     if (!user) {

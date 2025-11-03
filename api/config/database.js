@@ -79,6 +79,14 @@ const initializeDatabase = async () => {
 
     // Logo Maker schema is already set up, no legacy initialization needed
 
+    // Run auth migration
+    try {
+      const { migrateAuth } = require('./migrate-auth');
+      await migrateAuth();
+    } catch (error) {
+      console.warn('⚠️  Warning running auth migration:', error.message);
+    }
+
     client.release();
     console.log('✅ Database tables initialized successfully');
   } catch (err) {
