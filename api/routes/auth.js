@@ -143,9 +143,20 @@ router.post('/login/request-otp', async(req, res) => {
             await sendLoginOTP(email, otpCode);
         } catch (emailError) {
             console.error('Error sending OTP email:', emailError);
+
+            // Check if it's a configuration error
+            if (emailError.message && emailError.message.includes('not configured')) {
+                return res.status(500).json({
+                    success: false,
+                    message: 'Email service not configured. Please contact administrator.',
+                    error: process.env.NODE_ENV === 'development' ? emailError.message : undefined
+                });
+            }
+
             return res.status(500).json({
                 success: false,
-                message: 'Failed to send verification code. Please try again later.'
+                message: 'Failed to send verification code. Please try again later.',
+                error: process.env.NODE_ENV === 'development' ? emailError.message : undefined
             });
         }
 
@@ -335,9 +346,20 @@ router.post('/reset-password/request-otp', async(req, res) => {
             await sendPasswordResetOTP(email, otpCode);
         } catch (emailError) {
             console.error('Error sending password reset OTP email:', emailError);
+
+            // Check if it's a configuration error
+            if (emailError.message && emailError.message.includes('not configured')) {
+                return res.status(500).json({
+                    success: false,
+                    message: 'Email service not configured. Please contact administrator.',
+                    error: process.env.NODE_ENV === 'development' ? emailError.message : undefined
+                });
+            }
+
             return res.status(500).json({
                 success: false,
-                message: 'Failed to send verification code. Please try again later.'
+                message: 'Failed to send verification code. Please try again later.',
+                error: process.env.NODE_ENV === 'development' ? emailError.message : undefined
             });
         }
 

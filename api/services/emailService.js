@@ -16,6 +16,8 @@ function initializeEmailService() {
     if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
         console.warn('⚠️  Gmail credentials not configured. Email service will not work.');
         console.warn('   Please set GMAIL_USER and GMAIL_APP_PASSWORD in .env file');
+        console.warn('   Get App Password: https://myaccount.google.com/apppasswords');
+        transporter = null;
         return false;
     }
 
@@ -28,10 +30,21 @@ function initializeEmailService() {
             }
         });
 
-        console.log('✅ Email service initialized');
+        // Test connection
+        transporter.verify((error, success) => {
+            if (error) {
+                console.error('❌ Gmail SMTP connection failed:', error.message);
+                console.error('   Please verify GMAIL_USER and GMAIL_APP_PASSWORD are correct');
+                transporter = null;
+            } else {
+                console.log('✅ Email service initialized and verified');
+            }
+        });
+
         return true;
     } catch (error) {
         console.error('❌ Failed to initialize email service:', error.message);
+        transporter = null;
         return false;
     }
 }
@@ -43,9 +56,12 @@ function initializeEmailService() {
  * @returns {Promise<boolean>}
  */
 async function sendLoginOTP(to, otpCode) {
+    // Check if transporter is initialized
     if (!transporter) {
-        if (!initializeEmailService()) {
-            throw new Error('Email service not configured');
+        // Try to initialize
+        const initialized = initializeEmailService();
+        if (!initialized || !transporter) {
+            throw new Error('Email service not configured. Please set GMAIL_USER and GMAIL_APP_PASSWORD in .env file. Get App Password: https://myaccount.google.com/apppasswords');
         }
     }
 
@@ -126,9 +142,12 @@ async function sendLoginOTP(to, otpCode) {
  * @returns {Promise<boolean>}
  */
 async function sendPasswordResetOTP(to, otpCode) {
+    // Check if transporter is initialized
     if (!transporter) {
-        if (!initializeEmailService()) {
-            throw new Error('Email service not configured');
+        // Try to initialize
+        const initialized = initializeEmailService();
+        if (!initialized || !transporter) {
+            throw new Error('Email service not configured. Please set GMAIL_USER and GMAIL_APP_PASSWORD in .env file. Get App Password: https://myaccount.google.com/apppasswords');
         }
     }
 
@@ -219,8 +238,17 @@ function isValidGmail(email) {
     return gmailRegex.test(email);
 }
 
-// Initialize on module load
-initializeEmailService();
+// Initialize on module load (but don't fail if credentials not set)
+// This allows the server to start even without email config
+// The service will initialize when first used
+if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+    initializeEmailService();
+} else {
+    console.warn('⚠️  Gmail credentials not found in environment variables.');
+    console.warn('   Email service will be initialized when first used.');
+    console.warn('   Set GMAIL_USER and GMAIL_APP_PASSWORD to enable email sending.');
+    console.warn('   Get App Password: https://myaccount.google.com/apppasswords');
+}
 
 module.exports = {
     sendLoginOTP,
