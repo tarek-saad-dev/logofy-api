@@ -2,14 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../config/database');
 const { authenticate } = require('../middleware/auth');
-const { v4: uuidv4 } = require('uuid');
 
 /**
  * GET /api/projects
  * Get all projects for the authenticated user
  * Query params: page, limit, search (optional)
  */
-router.get('/', authenticate, async (req, res) => {
+router.get('/', authenticate, async(req, res) => {
     try {
         const userId = req.userId;
         const page = parseInt(req.query.page) || 1;
@@ -85,7 +84,7 @@ router.get('/', authenticate, async (req, res) => {
  * GET /api/projects/:id
  * Get a specific project by ID (only if owned by user)
  */
-router.get('/:id', authenticate, async (req, res) => {
+router.get('/:id', authenticate, async(req, res) => {
     try {
         const userId = req.userId;
         const projectId = req.params.id;
@@ -100,8 +99,7 @@ router.get('/:id', authenticate, async (req, res) => {
         }
 
         const result = await query(
-            'SELECT id, user_id, title, json_doc, created_at, updated_at, deleted_at FROM projects WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL',
-            [projectId, userId]
+            'SELECT id, user_id, title, json_doc, created_at, updated_at, deleted_at FROM projects WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL', [projectId, userId]
         );
 
         if (result.rows.length === 0) {
@@ -134,7 +132,7 @@ router.get('/:id', authenticate, async (req, res) => {
  * POST /api/projects
  * Create a new project
  */
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticate, async(req, res) => {
     try {
         const userId = req.userId;
         const { title, json_doc } = req.body;
@@ -175,11 +173,9 @@ router.post('/', authenticate, async (req, res) => {
             });
         }
 
-        // Create project
-        const projectId = uuidv4();
+        // Create project (let PostgreSQL generate the UUID using gen_random_uuid())
         const result = await query(
-            'INSERT INTO projects (id, user_id, title, json_doc) VALUES ($1, $2, $3, $4) RETURNING id, user_id, title, json_doc, created_at, updated_at, deleted_at',
-            [projectId, userId, title.trim(), JSON.stringify(jsonDocValue)]
+            'INSERT INTO projects (user_id, title, json_doc) VALUES ($1, $2, $3) RETURNING id, user_id, title, json_doc, created_at, updated_at, deleted_at', [userId, title.trim(), JSON.stringify(jsonDocValue)]
         );
 
         // pg driver automatically parses JSONB, return the project as-is
@@ -206,7 +202,7 @@ router.post('/', authenticate, async (req, res) => {
  * PUT /api/projects/:id
  * Update an existing project
  */
-router.put('/:id', authenticate, async (req, res) => {
+router.put('/:id', authenticate, async(req, res) => {
     try {
         const userId = req.userId;
         const projectId = req.params.id;
@@ -223,8 +219,7 @@ router.put('/:id', authenticate, async (req, res) => {
 
         // Check if project exists and belongs to user
         const checkResult = await query(
-            'SELECT id FROM projects WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL',
-            [projectId, userId]
+            'SELECT id FROM projects WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL', [projectId, userId]
         );
 
         if (checkResult.rows.length === 0) {
@@ -318,7 +313,7 @@ router.put('/:id', authenticate, async (req, res) => {
  * DELETE /api/projects/:id
  * Soft delete a project (set deleted_at timestamp)
  */
-router.delete('/:id', authenticate, async (req, res) => {
+router.delete('/:id', authenticate, async(req, res) => {
     try {
         const userId = req.userId;
         const projectId = req.params.id;
@@ -334,8 +329,7 @@ router.delete('/:id', authenticate, async (req, res) => {
 
         // Check if project exists and belongs to user
         const checkResult = await query(
-            'SELECT id FROM projects WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL',
-            [projectId, userId]
+            'SELECT id FROM projects WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL', [projectId, userId]
         );
 
         if (checkResult.rows.length === 0) {
@@ -347,8 +341,7 @@ router.delete('/:id', authenticate, async (req, res) => {
 
         // Soft delete (set deleted_at)
         const result = await query(
-            'UPDATE projects SET deleted_at = NOW() WHERE id = $1 AND user_id = $2 RETURNING id, title',
-            [projectId, userId]
+            'UPDATE projects SET deleted_at = NOW() WHERE id = $1 AND user_id = $2 RETURNING id, title', [projectId, userId]
         );
 
         res.json({
@@ -372,4 +365,3 @@ router.delete('/:id', authenticate, async (req, res) => {
 });
 
 module.exports = router;
-
