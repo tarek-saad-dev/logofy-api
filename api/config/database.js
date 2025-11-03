@@ -79,12 +79,37 @@ const initializeDatabase = async () => {
 
     // Logo Maker schema is already set up, no legacy initialization needed
 
-    // Run auth migration
-    try {
-      const { migrateAuth } = require('./migrate-auth');
-      await migrateAuth();
-    } catch (error) {
-      console.warn('⚠️  Warning running auth migration:', error.message);
+    // Check if users table exists and has correct schema
+    const checkUsersTable = await client.query(`
+      SELECT column_name, is_nullable
+      FROM information_schema.columns 
+      WHERE table_name = 'users'
+      ORDER BY ordinal_position;
+    `);
+    
+    if (checkUsersTable.rows.length > 0) {
+      // Check if password_hash column exists
+      const hasPasswordHash = checkUsersTable.rows.some(r => r.column_name === 'password_hash');
+      const hasId = checkUsersTable.rows.some(r => r.column_name === 'id');
+      const idType = checkUsersTable.rows.find(r => r.column_name === 'id');
+      
+      // If users table exists but doesn't have password_hash, run auth migration
+      if (!hasPasswordHash) {
+        try {
+          const { migrateAuth } = require('./migrate-auth');
+          await migrateAuth();
+        } catch (error) {
+          console.warn('⚠️  Warning running auth migration:', error.message);
+        }
+      }
+    } else {
+      // Users table doesn't exist, run auth migration to create it
+      try {
+        const { migrateAuth } = require('./migrate-auth');
+        await migrateAuth();
+      } catch (error) {
+        console.warn('⚠️  Warning running auth migration:', error.message);
+      }
     }
 
     client.release();
