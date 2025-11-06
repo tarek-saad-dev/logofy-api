@@ -3,7 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { authenticate } = require('../middleware/auth');
-const { generateOTP, storeOTP, verifyOTP, getOTPAttempts } = require('../services/otpService');
+const { generateOTP, storeOTP, verifyOTP, getOTPWithMetadata, getOTPAttempts } = require('../services/otpService');
 const { sendLoginOTP, sendPasswordResetOTP, sendRegistrationOTP, isValidEmail, isValidGmail } = require('../services/emailService');
 
 /**
@@ -68,15 +68,14 @@ router.post('/register', async(req, res) => {
             });
         }
 
-        // Generate and store OTP
+        // Generate and store OTP with registration data in metadata
         const otpCode = generateOTP();
-        await storeOTP(email, otpCode, 'register');
-
-        // Store registration data temporarily (we'll need to pass it to verify endpoint)
-        // For now, we'll store it in the OTP record or use a different approach
-        // Actually, we'll need to store name, email, password temporarily
-        // Let's use a simple approach: store in OTP metadata or create a temp registration table
-        // For simplicity, we'll pass it in the verify endpoint
+        const registrationData = {
+            name,
+            email,
+            password
+        };
+        await storeOTP(email, otpCode, 'register', registrationData);
 
         // Send OTP email
         try {
@@ -117,16 +116,17 @@ router.post('/register', async(req, res) => {
 /**
  * POST /api/auth/register/verify-otp
  * Register a new user - Step 2: Verify OTP and create account
+ * Only requires email and code - registration data is retrieved from stored metadata
  */
 router.post('/register/verify-otp', async(req, res) => {
     try {
-        const { email, code, password, name } = req.body;
+        const { email, code } = req.body;
 
         // Validation
-        if (!email || !code || !password || !name) {
+        if (!email || !code) {
             return res.status(400).json({
                 success: false,
-                message: 'Email, verification code, password, and name are required'
+                message: 'Email and verification code are required'
             });
         }
 
@@ -146,17 +146,29 @@ router.post('/register/verify-otp', async(req, res) => {
             });
         }
 
-        // Password validation
-        if (password.length < 6) {
-            return res.status(400).json({
+        // Get OTP with metadata (before deletion)
+        const otpRecord = await getOTPWithMetadata(email, code, 'register');
+
+        if (!otpRecord) {
+            return res.status(401).json({
                 success: false,
-                message: 'Password must be at least 6 characters long'
+                message: 'Invalid or expired verification code'
             });
         }
 
-        // Verify OTP
-        const isValid = await verifyOTP(email, code, 'register');
+        // Extract registration data from metadata
+        const registrationData = otpRecord.metadata;
+        if (!registrationData || !registrationData.name || !registrationData.email || !registrationData.password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Registration data not found. Please start the registration process again.'
+            });
+        }
 
+        const { name, password } = registrationData;
+
+        // Verify OTP (this will delete it)
+        const isValid = await verifyOTP(email, code, 'register');
         if (!isValid) {
             return res.status(401).json({
                 success: false,

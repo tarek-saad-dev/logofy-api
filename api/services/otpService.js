@@ -21,10 +21,11 @@ function generateOTP() {
  * Store OTP in database
  * @param {string} email - User email
  * @param {string} code - OTP code
- * @param {string} type - 'login' or 'reset_password'
+ * @param {string} type - 'login', 'reset_password', or 'register'
+ * @param {object} metadata - Optional metadata to store with OTP (e.g., registration data)
  * @returns {Promise<void>}
  */
-async function storeOTP(email, code, type = 'login') {
+async function storeOTP(email, code, type = 'login', metadata = null) {
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + OTP_EXPIRY_MINUTES);
 
@@ -33,18 +34,25 @@ async function storeOTP(email, code, type = 'login') {
         'DELETE FROM otp_codes WHERE email = $1 AND type = $2', [email, type]
     );
 
-    // Insert new OTP
-    await query(
-        `INSERT INTO otp_codes (email, code, type, expires_at, created_at)
-         VALUES ($1, $2, $3, $4, NOW())`, [email, code, type, expiresAt]
-    );
+    // Insert new OTP with optional metadata
+    if (metadata) {
+        await query(
+            `INSERT INTO otp_codes (email, code, type, expires_at, created_at, metadata)
+             VALUES ($1, $2, $3, $4, NOW(), $5)`, [email, code, type, expiresAt, JSON.stringify(metadata)]
+        );
+    } else {
+        await query(
+            `INSERT INTO otp_codes (email, code, type, expires_at, created_at)
+             VALUES ($1, $2, $3, $4, NOW())`, [email, code, type, expiresAt]
+        );
+    }
 }
 
 /**
  * Verify OTP code
  * @param {string} email - User email
  * @param {string} code - OTP code to verify
- * @param {string} type - 'login' or 'reset_password'
+ * @param {string} type - 'login', 'reset_password', or 'register'
  * @returns {Promise<boolean>}
  */
 async function verifyOTP(email, code, type = 'login') {
@@ -65,6 +73,32 @@ async function verifyOTP(email, code, type = 'login') {
     );
 
     return true;
+}
+
+/**
+ * Get OTP with metadata (before deletion)
+ * @param {string} email - User email
+ * @param {string} code - OTP code
+ * @param {string} type - 'login', 'reset_password', or 'register'
+ * @returns {Promise<object|null>} - OTP record with metadata or null
+ */
+async function getOTPWithMetadata(email, code, type = 'login') {
+    const result = await query(
+        `SELECT * FROM otp_codes 
+         WHERE email = $1 AND code = $2 AND type = $3 AND expires_at > NOW()
+         ORDER BY created_at DESC
+         LIMIT 1`, [email, code, type]
+    );
+
+    if (result.rows.length === 0) {
+        return null;
+    }
+
+    const otpRecord = result.rows[0];
+    return {
+        ...otpRecord,
+        metadata: otpRecord.metadata ? (typeof otpRecord.metadata === 'string' ? JSON.parse(otpRecord.metadata) : otpRecord.metadata) : null
+    };
 }
 
 /**
@@ -116,6 +150,7 @@ module.exports = {
     generateOTP,
     storeOTP,
     verifyOTP,
+    getOTPWithMetadata,
     checkOTP,
     cleanupExpiredOTPs,
     getOTPAttempts,

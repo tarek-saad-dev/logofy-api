@@ -5,8 +5,7 @@
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
         "version": "2.0.0"
     },
-    "variable": [
-        {
+    "variable": [{
             "key": "baseUrl",
             "value": "http://localhost:3000",
             "type": "string"
@@ -17,39 +16,33 @@
             "type": "string"
         }
     ],
-    "item": [
-        {
+    "item": [{
             "name": "Registration",
-            "item": [
-                {
+            "item": [{
                     "name": "Register - Step 1: Request OTP",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "pm.test(\"Status code is 200\", function () {",
-                                    "    pm.response.to.have.status(200);",
-                                    "});",
-                                    "",
-                                    "pm.test(\"Response has success field\", function () {",
-                                    "    const jsonData = pm.response.json();",
-                                    "    pm.expect(jsonData).to.have.property('success');",
-                                    "    pm.expect(jsonData.success).to.be.true;",
-                                    "});"
-                                ],
-                                "type": "text/javascript"
-                            }
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "pm.test(\"Status code is 200\", function () {",
+                                "    pm.response.to.have.status(200);",
+                                "});",
+                                "",
+                                "pm.test(\"Response has success field\", function () {",
+                                "    const jsonData = pm.response.json();",
+                                "    pm.expect(jsonData).to.have.property('success');",
+                                "    pm.expect(jsonData.success).to.be.true;",
+                                "});"
+                            ],
+                            "type": "text/javascript"
                         }
-                    ],
+                    }],
                     "request": {
                         "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
                         "body": {
                             "mode": "raw",
                             "raw": "{\n    \"name\": \"John Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"password\": \"password123\"\n}"
@@ -71,46 +64,42 @@
                 },
                 {
                     "name": "Register - Step 2: Verify OTP",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "if (pm.response.code === 201) {",
-                                    "    const jsonData = pm.response.json();",
-                                    "    if (jsonData.success && jsonData.data && jsonData.data.token) {",
-                                    "        pm.collectionVariables.set(\"token\", jsonData.data.token);",
-                                    "        console.log(\"Token saved:\", jsonData.data.token);",
-                                    "    }",
-                                    "}",
-                                    "",
-                                    "pm.test(\"Status code is 201\", function () {",
-                                    "    pm.response.to.have.status(201);",
-                                    "});",
-                                    "",
-                                    "pm.test(\"Response includes user and token\", function () {",
-                                    "    const jsonData = pm.response.json();",
-                                    "    pm.expect(jsonData).to.have.property('success');",
-                                    "    pm.expect(jsonData.success).to.be.true;",
-                                    "    pm.expect(jsonData.data).to.have.property('user');",
-                                    "    pm.expect(jsonData.data).to.have.property('token');",
-                                    "});"
-                                ],
-                                "type": "text/javascript"
-                            }
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 201) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success && jsonData.data && jsonData.data.token) {",
+                                "        pm.collectionVariables.set(\"token\", jsonData.data.token);",
+                                "        console.log(\"Token saved:\", jsonData.data.token);",
+                                "    }",
+                                "}",
+                                "",
+                                "pm.test(\"Status code is 201\", function () {",
+                                "    pm.response.to.have.status(201);",
+                                "});",
+                                "",
+                                "pm.test(\"Response includes user and token\", function () {",
+                                "    const jsonData = pm.response.json();",
+                                "    pm.expect(jsonData).to.have.property('success');",
+                                "    pm.expect(jsonData.success).to.be.true;",
+                                "    pm.expect(jsonData.data).to.have.property('user');",
+                                "    pm.expect(jsonData.data).to.have.property('token');",
+                                "});"
+                            ],
+                            "type": "text/javascript"
                         }
-                    ],
+                    }],
                     "request": {
                         "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"name\": \"John Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"password\": \"password123\",\n    \"code\": \"123456\"\n}"
+                            "raw": "{\n    \"email\": \"john.doe@example.com\",\n    \"code\": \"123456\"\n}"
                         },
                         "url": {
                             "raw": "{{baseUrl}}/api/auth/register/verify-otp",
@@ -124,7 +113,7 @@
                                 "verify-otp"
                             ]
                         },
-                        "description": "Step 2: Verify OTP code and complete registration. Requires: name, email, password, code (OTP from email). Returns user data and JWT token."
+                        "description": "Step 2: Verify OTP code and complete registration. Only requires: email and code (OTP from email). Registration data (name, password) is retrieved from stored metadata. Returns user data and JWT token."
                     },
                     "response": []
                 }
@@ -133,100 +122,89 @@
         },
         {
             "name": "Login",
-            "item": [
-                {
-                    "name": "Login with Email and Password",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "if (pm.response.code === 200) {",
-                                    "    const jsonData = pm.response.json();",
-                                    "    if (jsonData.success && jsonData.data && jsonData.data.token) {",
-                                    "        pm.collectionVariables.set(\"token\", jsonData.data.token);",
-                                    "        console.log(\"Token saved:\", jsonData.data.token);",
-                                    "    }",
-                                    "}",
-                                    "",
-                                    "pm.test(\"Status code is 200\", function () {",
-                                    "    pm.response.to.have.status(200);",
-                                    "});",
-                                    "",
-                                    "pm.test(\"Response includes user and token\", function () {",
-                                    "    const jsonData = pm.response.json();",
-                                    "    pm.expect(jsonData).to.have.property('success');",
-                                    "    pm.expect(jsonData.success).to.be.true;",
-                                    "    pm.expect(jsonData.data).to.have.property('user');",
-                                    "    pm.expect(jsonData.data).to.have.property('token');",
-                                    "});"
-                                ],
-                                "type": "text/javascript"
-                            }
-                        }
-                    ],
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
+            "item": [{
+                "name": "Login with Email and Password",
+                "event": [{
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "if (pm.response.code === 200) {",
+                            "    const jsonData = pm.response.json();",
+                            "    if (jsonData.success && jsonData.data && jsonData.data.token) {",
+                            "        pm.collectionVariables.set(\"token\", jsonData.data.token);",
+                            "        console.log(\"Token saved:\", jsonData.data.token);",
+                            "    }",
+                            "}",
+                            "",
+                            "pm.test(\"Status code is 200\", function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "pm.test(\"Response includes user and token\", function () {",
+                            "    const jsonData = pm.response.json();",
+                            "    pm.expect(jsonData).to.have.property('success');",
+                            "    pm.expect(jsonData.success).to.be.true;",
+                            "    pm.expect(jsonData.data).to.have.property('user');",
+                            "    pm.expect(jsonData.data).to.have.property('token');",
+                            "});"
                         ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"email\": \"john.doe@example.com\",\n    \"password\": \"password123\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/auth/login",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "auth",
-                                "login"
-                            ]
-                        },
-                        "description": "Login with email and password. Returns user data and JWT token."
+                        "type": "text/javascript"
+                    }
+                }],
+                "request": {
+                    "method": "POST",
+                    "header": [{
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n    \"email\": \"john.doe@example.com\",\n    \"password\": \"password123\"\n}"
                     },
-                    "response": []
-                }
-            ],
+                    "url": {
+                        "raw": "{{baseUrl}}/api/auth/login",
+                        "host": [
+                            "{{baseUrl}}"
+                        ],
+                        "path": [
+                            "api",
+                            "auth",
+                            "login"
+                        ]
+                    },
+                    "description": "Login with email and password. Returns user data and JWT token."
+                },
+                "response": []
+            }],
             "description": "Simple email/password login"
         },
         {
             "name": "Password Reset",
-            "item": [
-                {
+            "item": [{
                     "name": "Reset Password - Step 1: Request OTP",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "pm.test(\"Status code is 200\", function () {",
-                                    "    pm.response.to.have.status(200);",
-                                    "});",
-                                    "",
-                                    "pm.test(\"Response has success field\", function () {",
-                                    "    const jsonData = pm.response.json();",
-                                    "    pm.expect(jsonData).to.have.property('success');",
-                                    "    pm.expect(jsonData.success).to.be.true;",
-                                    "});"
-                                ],
-                                "type": "text/javascript"
-                            }
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "pm.test(\"Status code is 200\", function () {",
+                                "    pm.response.to.have.status(200);",
+                                "});",
+                                "",
+                                "pm.test(\"Response has success field\", function () {",
+                                "    const jsonData = pm.response.json();",
+                                "    pm.expect(jsonData).to.have.property('success');",
+                                "    pm.expect(jsonData.success).to.be.true;",
+                                "});"
+                            ],
+                            "type": "text/javascript"
                         }
-                    ],
+                    }],
                     "request": {
                         "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
                         "body": {
                             "mode": "raw",
                             "raw": "{\n    \"email\": \"john.doe@example.com\"\n}"
@@ -249,33 +227,29 @@
                 },
                 {
                     "name": "Reset Password - Step 2: Verify OTP and Set Password",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "pm.test(\"Status code is 200\", function () {",
-                                    "    pm.response.to.have.status(200);",
-                                    "});",
-                                    "",
-                                    "pm.test(\"Response indicates success\", function () {",
-                                    "    const jsonData = pm.response.json();",
-                                    "    pm.expect(jsonData).to.have.property('success');",
-                                    "    pm.expect(jsonData.success).to.be.true;",
-                                    "});"
-                                ],
-                                "type": "text/javascript"
-                            }
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "pm.test(\"Status code is 200\", function () {",
+                                "    pm.response.to.have.status(200);",
+                                "});",
+                                "",
+                                "pm.test(\"Response indicates success\", function () {",
+                                "    const jsonData = pm.response.json();",
+                                "    pm.expect(jsonData).to.have.property('success');",
+                                "    pm.expect(jsonData.success).to.be.true;",
+                                "});"
+                            ],
+                            "type": "text/javascript"
                         }
-                    ],
+                    }],
                     "request": {
                         "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
                         "body": {
                             "mode": "raw",
                             "raw": "{\n    \"email\": \"john.doe@example.com\",\n    \"code\": \"123456\",\n    \"newPassword\": \"newpassword123\"\n}"
@@ -301,38 +275,33 @@
         },
         {
             "name": "User Profile",
-            "item": [
-                {
+            "item": [{
                     "name": "Get Current User",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "pm.test(\"Status code is 200\", function () {",
-                                    "    pm.response.to.have.status(200);",
-                                    "});",
-                                    "",
-                                    "pm.test(\"Response includes user data\", function () {",
-                                    "    const jsonData = pm.response.json();",
-                                    "    pm.expect(jsonData).to.have.property('success');",
-                                    "    pm.expect(jsonData.success).to.be.true;",
-                                    "    pm.expect(jsonData.data).to.have.property('user');",
-                                    "});"
-                                ],
-                                "type": "text/javascript"
-                            }
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "pm.test(\"Status code is 200\", function () {",
+                                "    pm.response.to.have.status(200);",
+                                "});",
+                                "",
+                                "pm.test(\"Response includes user data\", function () {",
+                                "    const jsonData = pm.response.json();",
+                                "    pm.expect(jsonData).to.have.property('success');",
+                                "    pm.expect(jsonData.success).to.be.true;",
+                                "    pm.expect(jsonData.data).to.have.property('user');",
+                                "});"
+                            ],
+                            "type": "text/javascript"
                         }
-                    ],
+                    }],
                     "request": {
                         "method": "GET",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer {{token}}",
-                                "type": "text"
-                            }
-                        ],
+                        "header": [{
+                            "key": "Authorization",
+                            "value": "Bearer {{token}}",
+                            "type": "text"
+                        }],
                         "url": {
                             "raw": "{{baseUrl}}/api/auth/me",
                             "host": [
@@ -350,38 +319,35 @@
                 },
                 {
                     "name": "Refresh Token",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "if (pm.response.code === 200) {",
-                                    "    const jsonData = pm.response.json();",
-                                    "    if (jsonData.success && jsonData.data && jsonData.data.token) {",
-                                    "        pm.collectionVariables.set(\"token\", jsonData.data.token);",
-                                    "        console.log(\"New token saved:\", jsonData.data.token);",
-                                    "    }",
-                                    "}",
-                                    "",
-                                    "pm.test(\"Status code is 200\", function () {",
-                                    "    pm.response.to.have.status(200);",
-                                    "});",
-                                    "",
-                                    "pm.test(\"Response includes new token\", function () {",
-                                    "    const jsonData = pm.response.json();",
-                                    "    pm.expect(jsonData).to.have.property('success');",
-                                    "    pm.expect(jsonData.success).to.be.true;",
-                                    "    pm.expect(jsonData.data).to.have.property('token');",
-                                    "});"
-                                ],
-                                "type": "text/javascript"
-                            }
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success && jsonData.data && jsonData.data.token) {",
+                                "        pm.collectionVariables.set(\"token\", jsonData.data.token);",
+                                "        console.log(\"New token saved:\", jsonData.data.token);",
+                                "    }",
+                                "}",
+                                "",
+                                "pm.test(\"Status code is 200\", function () {",
+                                "    pm.response.to.have.status(200);",
+                                "});",
+                                "",
+                                "pm.test(\"Response includes new token\", function () {",
+                                "    const jsonData = pm.response.json();",
+                                "    pm.expect(jsonData).to.have.property('success');",
+                                "    pm.expect(jsonData.success).to.be.true;",
+                                "    pm.expect(jsonData.data).to.have.property('token');",
+                                "});"
+                            ],
+                            "type": "text/javascript"
                         }
-                    ],
+                    }],
                     "request": {
                         "method": "POST",
-                        "header": [
-                            {
+                        "header": [{
                                 "key": "Authorization",
                                 "value": "Bearer {{token}}",
                                 "type": "text"
@@ -408,29 +374,26 @@
                 },
                 {
                     "name": "Change Password",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "pm.test(\"Status code is 200\", function () {",
-                                    "    pm.response.to.have.status(200);",
-                                    "});",
-                                    "",
-                                    "pm.test(\"Response indicates success\", function () {",
-                                    "    const jsonData = pm.response.json();",
-                                    "    pm.expect(jsonData).to.have.property('success');",
-                                    "    pm.expect(jsonData.success).to.be.true;",
-                                    "});"
-                                ],
-                                "type": "text/javascript"
-                            }
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "pm.test(\"Status code is 200\", function () {",
+                                "    pm.response.to.have.status(200);",
+                                "});",
+                                "",
+                                "pm.test(\"Response indicates success\", function () {",
+                                "    const jsonData = pm.response.json();",
+                                "    pm.expect(jsonData).to.have.property('success');",
+                                "    pm.expect(jsonData.success).to.be.true;",
+                                "});"
+                            ],
+                            "type": "text/javascript"
                         }
-                    ],
+                    }],
                     "request": {
                         "method": "POST",
-                        "header": [
-                            {
+                        "header": [{
                                 "key": "Authorization",
                                 "value": "Bearer {{token}}",
                                 "type": "text"
@@ -464,4 +427,3 @@
         }
     ]
 }
-
