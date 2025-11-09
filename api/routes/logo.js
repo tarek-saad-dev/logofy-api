@@ -581,6 +581,19 @@ router.post('/mobile', async (req, res) => {
       switch (dbType) {
         case 'TEXT':
           if (text) {
+            // Look up font by name if provided
+            let fontId = null;
+            if (text.font) {
+              try {
+                const fontRes = await client.query(`SELECT id FROM fonts WHERE family = $1 LIMIT 1`, [text.font]);
+                if (fontRes.rows.length > 0) {
+                  fontId = fontRes.rows[0].id;
+                }
+              } catch (fontError) {
+                console.log('Could not look up font:', fontError.message);
+                // Continue with null font_id if lookup fails
+              }
+            }
             await client.query(`
               INSERT INTO layer_text (
                 layer_id, content, font_id, font_size, line_height, letter_spacing,
@@ -591,7 +604,7 @@ router.post('/mobile', async (req, res) => {
             `, [
               layer.id,
               text.value || '', 
-              null, // font_id - can be null for now
+              fontId, // font_id - looked up by font name
               text.fontSize || 48, 
               text.lineHeight || 1.0, 
               text.letterSpacing || 0, 

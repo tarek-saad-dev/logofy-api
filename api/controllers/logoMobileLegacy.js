@@ -193,7 +193,7 @@ async function getLogoMobileLegacy(req, res, next) {
                         ...baseLayer,
                         text: {
                             value: row.content || '',
-                            font: (row.font_family != null && row.font_family !== '') ? row.font_family : 'Arial',
+                            font: row.font_family || 'Arial',
                             fontSize: num(row.font_size) != null ? num(row.font_size) : 48,
                             fontColor: row.fill_hex || '#000000',
                             fontWeight: row.font_weight || 'normal',
@@ -235,20 +235,33 @@ async function getLogoMobileLegacy(req, res, next) {
                     };
 
                 case 'SHAPE':
-                    // Extract src from shape_meta if it exists (handle both string JSON and object)
-                    let shapeMeta = null;
+                    // Extract src from shape_meta if it exists
+                    // PostgreSQL JSONB can be returned as object or string depending on driver version
+                    let shapeSrc = null;
                     if (row.shape_meta != null) {
-                        if (typeof row.shape_meta === 'string') {
-                            try {
-                                shapeMeta = JSON.parse(row.shape_meta);
-                            } catch (e) {
-                                shapeMeta = null;
+                        try {
+                            let shapeMeta = row.shape_meta;
+                            // If it's a string, parse it
+                            if (typeof shapeMeta === 'string') {
+                                shapeMeta = JSON.parse(shapeMeta);
                             }
-                        } else {
-                            shapeMeta = row.shape_meta;
+                            // If it's an object/array, check for src property
+                            if (shapeMeta && typeof shapeMeta === 'object') {
+                                // Handle both direct object and nested structures
+                                if (shapeMeta.src != null) {
+                                    shapeSrc = shapeMeta.src;
+                                } else if (shapeMeta.constructor === Object && Object.keys(shapeMeta).length > 0) {
+                                    // Try to find src in the object
+                                    shapeSrc = shapeMeta.src || null;
+                                }
+                            }
+                        } catch (e) {
+                            // If parsing fails, try to access directly as object property
+                            if (row.shape_meta && typeof row.shape_meta === 'object' && row.shape_meta.src != null) {
+                                shapeSrc = row.shape_meta.src;
+                            }
                         }
                     }
-                    const shapeSrc = shapeMeta != null && shapeMeta.src != null ? shapeMeta.src : null;
                     return {
                         ...baseLayer,
                         shape: {
@@ -473,7 +486,7 @@ async function getAllLogosMobileLegacy(req, res, next) {
                         ...baseLayer,
                         text: {
                             value: row.content || '',
-                            font: (row.font_family != null && row.font_family !== '') ? row.font_family : 'Arial',
+                            font: row.font_family || 'Arial',
                             fontSize: num(row.font_size) != null ? num(row.font_size) : 48,
                             fontColor: row.fill_hex || '#000000',
                             fontWeight: row.font_weight || 'normal',
