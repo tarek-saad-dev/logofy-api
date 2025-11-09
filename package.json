@@ -21,6 +21,7 @@
         "db:migrate:multilingual": "node api/config/migrate-multilingual.js",
         "db:init": "node scripts/init-db.js",
         "db:reset": "node scripts/reset-db.js",
+        "fonts:add-common": "node scripts/add_common_fonts.js",
         "build": "echo 'No build step required'",
         "vercel-build": "echo 'No build step required'",
         "test": "echo 'No tests specified'",

@@ -581,16 +581,41 @@ router.post('/mobile', async (req, res) => {
       switch (dbType) {
         case 'TEXT':
           if (text) {
-            // Look up font by name if provided
+            // Look up font by name if provided, create if doesn't exist
             let fontId = null;
             if (text.font) {
               try {
-                const fontRes = await client.query(`SELECT id FROM fonts WHERE family = $1 LIMIT 1`, [text.font]);
+                // First try to find existing font
+                let fontRes = await client.query(`SELECT id FROM fonts WHERE family = $1 AND weight = $2 LIMIT 1`, [text.font, text.fontWeight === 'bold' ? 700 : 400]);
                 if (fontRes.rows.length > 0) {
                   fontId = fontRes.rows[0].id;
+                } else {
+                  // If not found, try to find any weight/style of this font family
+                  fontRes = await client.query(`SELECT id FROM fonts WHERE family = $1 LIMIT 1`, [text.font]);
+                  if (fontRes.rows.length > 0) {
+                    fontId = fontRes.rows[0].id;
+                  } else {
+                    // Create font if it doesn't exist (using system font or Google Fonts)
+                    const fontUrl = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(text.font)}:wght@400&display=swap`;
+                    const newFontRes = await client.query(`
+                      INSERT INTO fonts (family, style, weight, url, fallbacks, meta)
+                      VALUES ($1, $2, $3, $4, $5, $6)
+                      ON CONFLICT (family, weight, style) DO UPDATE SET family = EXCLUDED.family
+                      RETURNING id
+                    `, [
+                      text.font,
+                      'Regular',
+                      400,
+                      fontUrl,
+                      ['sans-serif'],
+                      { source: 'auto_created', created_at: new Date().toISOString() }
+                    ]);
+                    fontId = newFontRes.rows[0].id;
+                    console.log(`Created new font: ${text.font}`);
+                  }
                 }
               } catch (fontError) {
-                console.log('Could not look up font:', fontError.message);
+                console.log('Could not look up or create font:', fontError.message);
                 // Continue with null font_id if lookup fails
               }
             }
