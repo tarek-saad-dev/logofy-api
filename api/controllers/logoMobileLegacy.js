@@ -193,7 +193,7 @@ async function getLogoMobileLegacy(req, res, next) {
                         ...baseLayer,
                         text: {
                             value: row.content || '',
-                            font: row.font_family || 'Arial',
+                            font: (row.font_family != null && row.font_family !== '') ? row.font_family : 'Arial',
                             fontSize: num(row.font_size) != null ? num(row.font_size) : 48,
                             fontColor: row.fill_hex || '#000000',
                             fontWeight: row.font_weight || 'normal',
@@ -235,10 +235,24 @@ async function getLogoMobileLegacy(req, res, next) {
                     };
 
                 case 'SHAPE':
+                    // Extract src from shape_meta if it exists (handle both string JSON and object)
+                    let shapeMeta = null;
+                    if (row.shape_meta != null) {
+                        if (typeof row.shape_meta === 'string') {
+                            try {
+                                shapeMeta = JSON.parse(row.shape_meta);
+                            } catch (e) {
+                                shapeMeta = null;
+                            }
+                        } else {
+                            shapeMeta = row.shape_meta;
+                        }
+                    }
+                    const shapeSrc = shapeMeta != null && shapeMeta.src != null ? shapeMeta.src : null;
                     return {
                         ...baseLayer,
                         shape: {
-                            src: (row.shape_meta != null && row.shape_meta.src != null) ? row.shape_meta.src : null,
+                            src: shapeSrc,
                             type: row.shape_kind || 'rect',
                             color: row.shape_fill_hex || '#000000',
                             strokeColor: row.shape_stroke_hex || null,
@@ -247,15 +261,19 @@ async function getLogoMobileLegacy(req, res, next) {
                     };
 
                 case 'BACKGROUND':
+                    // Get background asset URL - check if asset_url exists and matches bg_asset_id
+                    // The SQL join matches assets for icon, image, or background, so we need to verify it's for background
+                    const bgAssetUrl = (row.bg_asset_id != null && (row.asset_id === row.bg_asset_id || row.type === 'BACKGROUND')) ? row.asset_url : null;
                     return {
                         ...baseLayer,
                         background: {
                             type: row.mode || 'solid',
                             color: row.bg_fill_hex || '#ffffff',
-                            image: row.asset_url ? {
+                            image: bgAssetUrl ? {
                                 type: 'imported',
-                                path: row.asset_url,
-                                src: row.asset_name || row.asset_url
+                                path: bgAssetUrl,
+                                url: bgAssetUrl,
+                                src: row.asset_name || bgAssetUrl
                             } : null
                         }
                     };
@@ -455,7 +473,7 @@ async function getAllLogosMobileLegacy(req, res, next) {
                         ...baseLayer,
                         text: {
                             value: row.content || '',
-                            font: row.font_family || 'Arial',
+                            font: (row.font_family != null && row.font_family !== '') ? row.font_family : 'Arial',
                             fontSize: num(row.font_size) != null ? num(row.font_size) : 48,
                             fontColor: row.fill_hex || '#000000',
                             fontWeight: row.font_weight || 'normal',
