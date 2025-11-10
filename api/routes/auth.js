@@ -3,8 +3,9 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { authenticate } = require('../middleware/auth');
-const { generateOTP, storeOTP, verifyOTP, getOTPWithMetadata, getOTPAttempts } = require('../services/otpService');
+const { generateOTP, storeOTP, verifyOTP, getOTPWithMetadata, getOTPAttempts, checkOTP } = require('../services/otpService');
 const { sendLoginOTP, sendPasswordResetOTP, sendRegistrationOTP, isValidEmail, isValidGmail } = require('../services/emailService');
+const { query } = require('../config/database');
 
 /**
  * Generate JWT token for user
@@ -15,6 +16,19 @@ const generateToken = (userId) => {
     }
     return jwt.sign({ userId },
         process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
+};
+
+/**
+ * Generate short-lived JWT token for password reset
+ * Valid for 15 minutes
+ */
+const generateResetToken = (email) => {
+    if (!process.env.JWT_SECRET) {
+        throw new Error('JWT_SECRET is not set in environment variables');
+    }
+    return jwt.sign({ email, type: 'password_reset' },
+        process.env.JWT_SECRET, { expiresIn: '15m' }
     );
 };
 
@@ -567,8 +581,184 @@ router.post('/reset-password/request-otp', async(req, res) => {
 });
 
 /**
+ * POST /api/auth/verify-reset-code
+ * Verify reset code and return temporary token - Step 1: Verify OTP code
+ */
+router.post('/verify-reset-code', async(req, res) => {
+    try {
+        const { email, code } = req.body;
+
+        // Validation
+        if (!email || !code) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email and verification code are required'
+            });
+        }
+
+        // Validate email format
+        if (!isValidEmail(email)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid email format'
+            });
+        }
+
+        // Validate OTP format
+        if (!/^\d{6}$/.test(code)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid verification code format. Code must be 6 digits.'
+            });
+        }
+
+        // Check if OTP is valid (without deleting it)
+        const isValid = await checkOTP(email, code, 'reset_password');
+
+        if (!isValid) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid or expired verification code. Please request a new code.'
+            });
+        }
+
+        // Check if user exists
+        const user = await User.findByEmail(email);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        // Generate short-lived reset token (15 minutes)
+        const resetToken = generateResetToken(email);
+
+        res.json({
+            success: true,
+            message: 'Code verified successfully.',
+            data: {
+                token: resetToken
+            }
+        });
+    } catch (error) {
+        console.error('Error verifying reset code:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to verify reset code',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+/**
+ * POST /api/auth/reset-password
+ * Reset password using temporary token - Step 2: Reset password with token
+ */
+router.post('/reset-password', async(req, res) => {
+    try {
+        const { token, newPassword } = req.body;
+
+        // Validation
+        if (!token || !newPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'Token and new password are required'
+            });
+        }
+
+        // Validate password
+        if (newPassword.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password must be at least 6 characters long'
+            });
+        }
+
+        // Verify and decode reset token
+        let decoded;
+        try {
+            if (!process.env.JWT_SECRET) {
+                throw new Error('JWT_SECRET is not set in environment variables');
+            }
+            decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (tokenError) {
+            if (tokenError.name === 'TokenExpiredError') {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Reset token has expired. Please verify your code again.'
+                });
+            }
+            if (tokenError.name === 'JsonWebTokenError') {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Invalid reset token'
+                });
+            }
+            throw tokenError;
+        }
+
+        // Verify token type
+        if (decoded.type !== 'password_reset') {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid token type'
+            });
+        }
+
+        const email = decoded.email;
+
+        // Find user
+        const user = await User.findByEmail(email);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        // Verify that a valid OTP still exists for this email (to ensure it wasn't already used)
+        // This prevents token reuse and ensures the OTP can only be used once
+        const otpCheck = await query(
+            `SELECT * FROM otp_codes 
+             WHERE email = $1 AND type = $2 AND expires_at > NOW()
+             ORDER BY created_at DESC
+             LIMIT 1`, [email, 'reset_password']
+        );
+
+        if (otpCheck.rows.length === 0) {
+            return res.status(401).json({
+                success: false,
+                message: 'Reset code has already been used or expired. Please request a new code.'
+            });
+        }
+
+        // Delete all OTPs for this email and type (consume the OTP)
+        await query(
+            'DELETE FROM otp_codes WHERE email = $1 AND type = $2', [email, 'reset_password']
+        );
+
+        // Update password
+        await user.update({ password: newPassword });
+
+        res.json({
+            success: true,
+            message: 'Password reset successfully. You can now login with your new password.'
+        });
+    } catch (error) {
+        console.error('Error resetting password:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to reset password',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+/**
  * POST /api/auth/reset-password/verify-otp
- * Verify OTP code and set new password - Step 2: Verify OTP and set password
+ * @deprecated This endpoint is deprecated. Use /api/auth/verify-reset-code and /api/auth/reset-password instead.
+ * Verify OTP code and set new password in a single request
  */
 router.post('/reset-password/verify-otp', async(req, res) => {
     try {

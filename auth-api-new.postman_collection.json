@@ -14,6 +14,11 @@
             "key": "token",
             "value": "",
             "type": "string"
+        },
+        {
+            "key": "resetToken",
+            "value": "",
+            "type": "string"
         }
     ],
     "item": [{
@@ -226,7 +231,104 @@
                     "response": []
                 },
                 {
-                    "name": "Reset Password - Step 2: Verify OTP and Set Password",
+                    "name": "Reset Password - Step 2: Verify Reset Code",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success && jsonData.data && jsonData.data.token) {",
+                                "        pm.collectionVariables.set(\"resetToken\", jsonData.data.token);",
+                                "        console.log(\"Reset token saved:\", jsonData.data.token);",
+                                "    }",
+                                "}",
+                                "",
+                                "pm.test(\"Status code is 200\", function () {",
+                                "    pm.response.to.have.status(200);",
+                                "});",
+                                "",
+                                "pm.test(\"Response includes reset token\", function () {",
+                                "    const jsonData = pm.response.json();",
+                                "    pm.expect(jsonData).to.have.property('success');",
+                                "    pm.expect(jsonData.success).to.be.true;",
+                                "    pm.expect(jsonData.data).to.have.property('token');",
+                                "});"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"john.doe@example.com\",\n    \"code\": \"123456\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/verify-reset-code",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "verify-reset-code"
+                            ]
+                        },
+                        "description": "Step 2: Verify reset code and get temporary token. Requires: email, code (OTP from email). Returns a short-lived token (15 minutes) that must be used in Step 3 to reset the password."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Reset Password - Step 3: Reset Password with Token",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "pm.test(\"Status code is 200\", function () {",
+                                "    pm.response.to.have.status(200);",
+                                "});",
+                                "",
+                                "pm.test(\"Response indicates success\", function () {",
+                                "    const jsonData = pm.response.json();",
+                                "    pm.expect(jsonData).to.have.property('success');",
+                                "    pm.expect(jsonData.success).to.be.true;",
+                                "});"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"token\": \"{{resetToken}}\",\n    \"newPassword\": \"newpassword123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/reset-password",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "reset-password"
+                            ]
+                        },
+                        "description": "Step 3: Reset password using the temporary token from Step 2. Requires: token (from Step 2), newPassword. The token expires after 15 minutes."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Reset Password - Verify OTP (Deprecated)",
                     "event": [{
                         "listen": "test",
                         "script": {
@@ -266,12 +368,12 @@
                                 "verify-otp"
                             ]
                         },
-                        "description": "Step 2: Verify OTP code and set new password. Requires: email, code (OTP from email), newPassword"
+                        "description": "⚠️ DEPRECATED: This endpoint is deprecated. Use the new 3-step flow: Step 1 (Request OTP) → Step 2 (Verify Reset Code) → Step 3 (Reset Password). This endpoint verifies OTP and sets password in a single request. Requires: email, code (OTP from email), newPassword"
                     },
                     "response": []
                 }
             ],
-            "description": "Password reset flow with OTP verification (2 steps)"
+            "description": "Password reset flow with OTP verification (3 steps): Step 1 - Request OTP, Step 2 - Verify Reset Code (get token), Step 3 - Reset Password (use token). The old single-step endpoint is kept for backward compatibility but is deprecated."
         },
         {
             "name": "User Profile",
