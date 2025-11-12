@@ -17,9 +17,10 @@ router.get('/', authenticate, async(req, res) => {
         const search = req.query.search || '';
 
         // Build query with soft delete filter (only non-deleted projects)
+        // Only select id and title to reduce response size
         let countQuery = 'SELECT COUNT(*) FROM projects WHERE user_id = $1 AND deleted_at IS NULL';
         let dataQuery = `
-            SELECT id, user_id, title, json_doc, created_at, updated_at, deleted_at
+            SELECT id, title
             FROM projects
             WHERE user_id = $1 AND deleted_at IS NULL
         `;
@@ -40,23 +41,14 @@ router.get('/', authenticate, async(req, res) => {
         const countResult = await query(countQuery, queryParams.slice(0, search ? 2 : 1));
         const total = parseInt(countResult.rows[0].count);
 
-        // Get projects
+        // Get projects - only id and title for lightweight response
         const result = await query(dataQuery, queryParams);
 
-        // pg driver automatically parses JSONB, but we ensure it's an object
-        const projects = result.rows.map(row => {
-            // JSONB from PostgreSQL should already be an object, but handle edge cases
-            const jsonDoc = row.json_doc || null;
-            return {
-                id: row.id,
-                user_id: row.user_id,
-                title: row.title,
-                json_doc: jsonDoc,
-                created_at: row.created_at,
-                updated_at: row.updated_at,
-                deleted_at: row.deleted_at
-            };
-        });
+        // Map to simple format with only id and title
+        const projects = result.rows.map(row => ({
+            id: row.id,
+            title: row.title
+        }));
 
         res.json({
             success: true,
