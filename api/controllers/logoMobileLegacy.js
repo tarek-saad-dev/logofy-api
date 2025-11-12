@@ -56,6 +56,19 @@ function transformBackgroundToLegacy(background) {
         }
     }
 
+    // Include image if it exists and is not null
+    if (background.image && typeof background.image === 'object') {
+        result.image = {
+            type: background.image.type || 'imported',
+            path: background.image.path || background.image.url || null
+        };
+    }
+
+    // Include solidColor if it exists (for solid backgrounds)
+    if (background.solidColor) {
+        result.solidColor = background.solidColor;
+    }
+
     return result;
 }
 
