@@ -81,6 +81,21 @@ router.get('/:id', authenticate, async(req, res) => {
         const userId = req.userId;
         const projectId = req.params.id;
 
+        // Validate that userId and projectId are present
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: 'User not authenticated'
+            });
+        }
+
+        if (!projectId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Project ID is required'
+            });
+        }
+
         // Validate UUID format
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         if (!uuidRegex.test(projectId)) {
@@ -90,8 +105,10 @@ router.get('/:id', authenticate, async(req, res) => {
             });
         }
 
+        // Query with explicit parameter binding to ensure only one project is returned
+        // Using parameterized query to prevent SQL injection and ensure proper filtering
         const result = await query(
-            'SELECT id, user_id, title, json_doc, created_at, updated_at, deleted_at FROM projects WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL', [projectId, userId]
+            'SELECT id, user_id, title, json_doc, created_at, updated_at, deleted_at FROM projects WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL LIMIT 1', [projectId, userId]
         );
 
         if (result.rows.length === 0) {
@@ -101,7 +118,7 @@ router.get('/:id', authenticate, async(req, res) => {
             });
         }
 
-        // pg driver automatically parses JSONB, return the project as-is
+        // Ensure we only return the first (and should be only) row
         const project = result.rows[0];
 
         res.json({
