@@ -63,6 +63,7 @@
     },
     "homepage": "https://github.com/yourusername/express-starter-db-storage#readme",
     "dependencies": {
+        "@resvg/resvg-js": "^2.6.2",
         "accept-language-parser": "^1.5.0",
         "bcrypt": "^6.0.0",
         "cloudinary": "^1.41.0",
@@ -76,7 +77,8 @@
         "multer": "^1.4.5-lts.1",
         "multer-storage-cloudinary": "^4.0.0",
         "nodemailer": "^7.0.10",
-        "pg": "^8.11.3"
+        "pg": "^8.11.3",
+        "sharp": "^0.34.5"
     },
     "devDependencies": {
         "axios": "^1.6.0",
