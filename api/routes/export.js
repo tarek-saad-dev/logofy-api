@@ -129,22 +129,24 @@ router.get('/logo/:id/export', async(req, res) => {
                     return {
                         ...baseLayer,
                         text: {
-                            content: row.content,
-                            font_size: row.font_size,
-                            fill_hex: row.fill_hex,
-                            fill_alpha: row.fill_alpha,
-                            stroke_hex: row.stroke_hex,
-                            stroke_alpha: row.stroke_alpha,
-                            stroke_width: row.stroke_width,
-                            align: row.align,
+                            // Support both database format (content) and legacy format (value)
+                            content: row.content || row.value,
+                            // Support both snake_case and camelCase
+                            font_size: row.font_size || row.fontSize,
+                            fill_hex: row.fill_hex || row.fontColor,
+                            fill_alpha: row.fill_alpha !== undefined ? row.fill_alpha : (row.fillAlpha !== undefined ? row.fillAlpha : 1),
+                            stroke_hex: row.stroke_hex || row.strokeHex,
+                            stroke_alpha: row.stroke_alpha !== undefined ? row.stroke_alpha : row.strokeAlpha,
+                            stroke_width: row.stroke_width || row.strokeWidth,
+                            align: row.align || row.alignment,
                             baseline: row.baseline,
-                            font_family: row.font_family || 'Arial',
-                            font_weight: row.font_weight,
-                            font_style: row.font_style,
-                            letter_spacing: row.letter_spacing,
-                            text_decoration: row.text_decoration,
-                            text_transform: row.text_transform,
-                            text_case: row.text_case
+                            font_family: row.font_family || row.font || 'Arial',
+                            font_weight: row.font_weight || row.fontWeight,
+                            font_style: row.font_style || row.fontStyle,
+                            letter_spacing: row.letter_spacing !== undefined ? row.letter_spacing : (row.letterSpacing !== undefined ? row.letterSpacing : 0),
+                            text_decoration: row.text_decoration || row.textDecoration,
+                            text_transform: row.text_transform || row.textTransform,
+                            text_case: row.text_case || row.textCase
                         }
                     };
                 case 'SHAPE':
@@ -217,21 +219,89 @@ router.get('/logo/:id/export', async(req, res) => {
         const canvasHeight = height ? parseInt(height) : (logo.canvas_h || 1000);
 
         // Generate SVG from logo data
-        const svg = await generateSVGFromLogo(logo, layers, canvasWidth, canvasHeight);
+        let svg = await generateSVGFromLogo(logo, layers, canvasWidth, canvasHeight);
 
-        // Convert SVG to PNG using @resvg/resvg-js
-        const resvg = new Resvg(svg, {
-            background: logo.canvas_background_type === 'transparent' || logo.export_transparent_background ?
-                'rgba(0,0,0,0)' : logo.canvas_background_solid_color || '#ffffff',
-            fitTo: {
-                mode: 'width',
-                value: canvasWidth
-            },
-            dpi: parseInt(dpi)
-        });
+        // Validate SVG before processing
+        if (!svg || typeof svg !== 'string' || svg.trim().length === 0) {
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to generate SVG from logo data'
+            });
+        }
 
-        const pngData = resvg.render();
-        const pngBuffer = pngData.asPng();
+        // CRITICAL: Clean the entire SVG to remove newlines from attribute values
+        // This aggressively fixes any attribute formatting issues
+        svg = cleanSVGAttributes(svg);
+
+        // Try to convert SVG to PNG using @resvg/resvg-js first
+        let pngBuffer;
+        let useCloudinary = false;
+
+        try {
+            const background = logo.canvas_background_type === 'transparent' || logo.export_transparent_background ?
+                'rgba(0,0,0,0)' :
+                (logo.canvas_background_solid_color || '#ffffff');
+
+            const resvg = new Resvg(svg, {
+                background: background,
+                fitTo: {
+                    mode: 'width',
+                    value: canvasWidth
+                },
+                dpi: parseInt(dpi) || 300
+            });
+
+            const pngData = resvg.render();
+            pngBuffer = pngData.asPng();
+        } catch (svgError) {
+            console.warn('Resvg failed, falling back to Cloudinary:', svgError.message);
+            useCloudinary = true;
+
+            // Fallback: Use Cloudinary to convert SVG to PNG
+            try {
+                // Convert SVG to base64 data URL
+                const svgBase64 = Buffer.from(svg).toString('base64');
+                const svgDataUrl = `data:image/svg+xml;base64,${svgBase64}`;
+
+                // Upload SVG to Cloudinary and convert to PNG
+                const uploadResult = await cloudinary.uploader.upload(svgDataUrl, {
+                    resource_type: 'image',
+                    format: 'png',
+                    width: canvasWidth,
+                    height: canvasHeight,
+                    dpr: (parseInt(dpi) || 300) / 72, // Convert DPI to device pixel ratio
+                    quality: format === 'jpg' || format === 'jpeg' ? parseInt(quality) : 'auto',
+                    fetch_format: format === 'jpg' || format === 'jpeg' ? 'jpg' : 'png',
+                    flags: logo.export_transparent_background ? 'transparent' : undefined
+                });
+
+                // Download the converted PNG from Cloudinary
+                const imageResponse = await axios.get(uploadResult.secure_url, {
+                    responseType: 'arraybuffer',
+                    timeout: 30000
+                });
+
+                pngBuffer = Buffer.from(imageResponse.data);
+
+                // Clean up the uploaded file from Cloudinary (optional)
+                try {
+                    await cloudinary.uploader.destroy(uploadResult.public_id);
+                } catch (cleanupError) {
+                    // Ignore cleanup errors
+                    console.warn('Failed to cleanup Cloudinary temp file:', cleanupError.message);
+                }
+            } catch (cloudinaryError) {
+                console.error('Cloudinary conversion also failed:', cloudinaryError);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to export logo: Both Resvg and Cloudinary conversion failed',
+                    error: process.env.NODE_ENV === 'development' ? {
+                        resvg: svgError.message,
+                        cloudinary: cloudinaryError.message
+                    } : undefined
+                });
+            }
+        }
 
         // Apply quality compression if needed
         let finalBuffer = pngBuffer;
@@ -245,19 +315,148 @@ router.get('/logo/:id/export', async(req, res) => {
                 .toBuffer();
         }
 
-        // Set response headers
-        res.setHeader('Content-Type', format === 'png' ? 'image/png' : 'image/jpeg');
-        res.setHeader('Content-Disposition', `attachment; filename="logo-${id}.${format}"`);
-        res.setHeader('Content-Length', finalBuffer.length);
+        // Upload PNG to Cloudinary
+        try {
+            const uploadOptions = {
+                resource_type: 'image',
+                folder: 'logo-exports',
+                public_id: `logo-${id}-${Date.now()}`,
+                format: format === 'jpg' || format === 'jpeg' ? 'jpg' : 'png',
+                overwrite: false,
+                invalidate: true
+            };
 
-        // Send the image
-        res.send(finalBuffer);
+            // Upload buffer to Cloudinary using upload_stream
+            const uploadResult = await new Promise((resolve, reject) => {
+                const uploadStream = cloudinary.uploader.upload_stream(
+                    uploadOptions,
+                    (error, result) => {
+                        if (error) {
+                            reject(error);
+                        } else {
+                            resolve(result);
+                        }
+                    }
+                );
+                uploadStream.end(finalBuffer);
+            });
+
+            // Return JSON response with Cloudinary URL
+            return res.json({
+                success: true,
+                message: 'Logo exported successfully',
+                data: {
+                    url: uploadResult.secure_url,
+                    public_id: uploadResult.public_id,
+                    format: uploadResult.format,
+                    width: uploadResult.width,
+                    height: uploadResult.height,
+                    bytes: uploadResult.bytes,
+                    created_at: uploadResult.created_at
+                }
+            });
+        } catch (uploadError) {
+            console.error('Error uploading to Cloudinary:', uploadError);
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to upload logo to Cloudinary',
+                error: process.env.NODE_ENV === 'development' ? uploadError.message : undefined
+            });
+        }
     } catch (error) {
         console.error('Error exporting logo:', error);
         res.status(500).json({
             success: false,
             message: 'Failed to export logo',
             error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+// Debug endpoint to see the generated SVG
+router.get('/logo/:id/export/debug', async(req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Fetch logo (same as export endpoint)
+        const logoRes = await query(`
+            SELECT 
+                l.id, l.owner_id, l.title, l.description, l.canvas_w, l.canvas_h, l.dpi,
+                l.canvas_background_type, l.canvas_background_solid_color, l.canvas_background_gradient,
+                l.export_transparent_background
+            FROM logos l
+            WHERE l.id = $1
+        `, [id]);
+
+        if (logoRes.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Logo not found' });
+        }
+
+        const logo = logoRes.rows[0];
+        const layersRes = await query(`
+            SELECT 
+                lay.id, lay.logo_id, lay.type, lay.name, lay.z_index,
+                lay.x_norm, lay.y_norm, lay.scale, lay.rotation_deg,
+                lay.opacity, lay.is_visible, lay.common_style,
+                COALESCE(lay.flip_horizontal, false) as flip_horizontal,
+                COALESCE(lay.flip_vertical, false) as flip_vertical,
+                lt.content, lt.font_id, lt.font_size, lt.fill_hex, lt.fill_alpha,
+                lt.font_family, ls.shape_kind, ls.fill_hex as shape_fill_hex,
+                ls.meta as shape_meta, li.asset_id as icon_asset_id, li.tint_hex,
+                lim.asset_id as image_asset_id, ai.url as asset_url, ai.vector_svg
+            FROM layers lay
+            LEFT JOIN layer_text lt ON lt.layer_id = lay.id
+            LEFT JOIN layer_shape ls ON ls.layer_id = lay.id
+            LEFT JOIN layer_icon li ON li.layer_id = lay.id
+            LEFT JOIN layer_image lim ON lim.layer_id = lay.id
+            LEFT JOIN assets ai ON (ai.id = li.asset_id OR ai.id = lim.asset_id)
+            WHERE lay.logo_id = $1
+            ORDER BY lay.z_index ASC
+        `, [id]);
+
+        const layers = layersRes.rows.map(row => ({
+            id: row.id,
+            type: row.type,
+            z_index: row.z_index,
+            x_norm: row.x_norm,
+            y_norm: row.y_norm,
+            scale: row.scale,
+            rotation_deg: row.rotation_deg,
+            opacity: row.opacity,
+            is_visible: row.is_visible,
+            flip_horizontal: row.flip_horizontal,
+            flip_vertical: row.flip_vertical,
+            text: row.content ? {
+                content: row.content,
+                font_family: row.font_family,
+                font_size: row.font_size,
+                fill_hex: row.fill_hex
+            } : null,
+            shape: row.shape_kind ? {
+                shape_kind: row.shape_kind,
+                fill_hex: row.shape_fill_hex,
+                meta: row.shape_meta
+            } : null
+        }));
+
+        const svg = await generateSVGFromLogo(logo, layers, logo.canvas_w || 1000, logo.canvas_h || 1000);
+        const svgLines = svg.split('\n');
+
+        res.json({
+            success: true,
+            svg: svg,
+            lineCount: svgLines.length,
+            line8: svgLines.length >= 8 ? svgLines[7] : null,
+            line8Length: svgLines.length >= 8 ? svgLines[7].length : 0,
+            charAt183: svgLines.length >= 8 && svgLines[7].length >= 183 ? svgLines[7][182] : null,
+            context: svgLines.length >= 8 && svgLines[7].length >= 183 ?
+                svgLines[7].substring(Math.max(0, 173), Math.min(svgLines[7].length, 193)) : null
+        });
+    } catch (error) {
+        console.error('Debug error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
         });
     }
 });
@@ -292,26 +491,39 @@ async function generateSVGFromLogo(logo, layers, width, height) {
         const flipH = layer.flip_horizontal;
         const flipV = layer.flip_vertical;
 
-        // Build transform string with flip support
-        // Order matters: translate -> rotate -> scale (including flip) -> final scale
-        let transform = `translate(${x}, ${y})`;
-        if (rotation !== 0) {
-            transform += ` rotate(${rotation})`;
+        // Build transform string with flip support - ensure all values are valid numbers
+        const validX = isNaN(x) ? 0 : x;
+        const validY = isNaN(y) ? 0 : y;
+        const validRotation = isNaN(rotation) ? 0 : rotation;
+        const validScale = isNaN(scale) ? 1 : scale;
+
+        let transform = `translate(${validX}, ${validY})`;
+        if (validRotation !== 0) {
+            transform += ` rotate(${validRotation})`;
         }
         // Apply flip as part of scale transformation
-        const scaleX = (flipH ? -1 : 1) * scale;
-        const scaleY = (flipV ? -1 : 1) * scale;
+        const scaleX = (flipH ? -1 : 1) * validScale;
+        const scaleY = (flipV ? -1 : 1) * validScale;
         if (scaleX !== 1 || scaleY !== 1) {
             transform += ` scale(${scaleX}, ${scaleY})`;
         }
+        // Clean transform to ensure no newlines or extra spaces
+        transform = transform.replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
 
-        // Build style string
+        // Build style string - ensure no newlines
         let style = `opacity: ${opacity};`;
-        if (layer.common_style) {
+        if (layer.common_style && layer.common_style.shadow) {
             const shadow = layer.common_style.shadow;
-            const shadowColor = hexToRgba(shadow.hex || '#000000', shadow.alpha || 0.5);
-            style += `filter: drop-shadow(${shadow.dx || 0}px ${shadow.dy || 0}px ${shadow.blur || 0}px ${shadowColor});`;
+            if (shadow && typeof shadow === 'object') {
+                const shadowColor = hexToRgba(shadow.hex || '#000000', shadow.alpha || 0.5);
+                const dx = shadow.dx || 0;
+                const dy = shadow.dy || 0;
+                const blur = shadow.blur || 0;
+                style += `filter: drop-shadow(${dx}px ${dy}px ${blur}px ${shadowColor});`;
+            }
         }
+        // Clean style to remove any newlines or extra whitespace
+        style = style.replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
 
         switch (layer.type) {
             case 'BACKGROUND':
@@ -335,17 +547,30 @@ async function generateSVGFromLogo(logo, layers, width, height) {
     // Build background
     let backgroundRect = '';
     if (logo.canvas_background_type === 'solid' && logo.canvas_background_solid_color) {
-        backgroundRect = `<rect width="${width}" height="${height}" fill="${logo.canvas_background_solid_color}"/>`;
+        const bgColor = validateHexColor(logo.canvas_background_solid_color);
+        backgroundRect = `<rect width="${width}" height="${height}" fill="${bgColor}"/>`;
     } else if (logo.canvas_background_type === 'gradient' && logo.canvas_background_gradient) {
         const gradientId = 'bg-gradient';
         const gradient = typeof logo.canvas_background_gradient === 'string' ?
             JSON.parse(logo.canvas_background_gradient) :
             logo.canvas_background_gradient;
 
-        let gradientDef = `<defs><linearGradient id="${gradientId}" x1="0%" y1="0%" x2="100%" y2="100%">`;
+        // Calculate gradient direction from angle (0 = top to bottom, 90 = left to right)
+        const angle = gradient.angle !== undefined ? parseFloat(gradient.angle) : 0;
+        const radians = (angle * Math.PI) / 180;
+        const x1 = 50 + 50 * Math.sin(radians);
+        const y1 = 50 - 50 * Math.cos(radians);
+        const x2 = 50 - 50 * Math.sin(radians);
+        const y2 = 50 + 50 * Math.cos(radians);
+
+        let gradientDef = `<defs><linearGradient id="${gradientId}" x1="${x1}%" y1="${y1}%" x2="${x2}%" y2="${y2}%">`;
         if (gradient.stops && Array.isArray(gradient.stops)) {
             for (const stop of gradient.stops) {
-                gradientDef += `<stop offset="${(stop.offset || 0) * 100}%" stop-color="${stop.hex || '#000000'}" stop-opacity="${stop.alpha || 1}"/>`;
+                // Support both formats: {color, position} and {hex, offset, alpha}
+                const offset = Math.max(0, Math.min(100, ((stop.position !== undefined ? stop.position : (stop.offset || 0)) * 100)));
+                const stopColor = validateHexColor(stop.color || stop.hex || '#000000');
+                const stopAlpha = clampAlpha(stop.alpha !== undefined ? stop.alpha : 1);
+                gradientDef += `<stop offset="${offset}%" stop-color="${stopColor}" stop-opacity="${stopAlpha}"/>`;
             }
         }
         gradientDef += `</linearGradient></defs>`;
@@ -357,11 +582,19 @@ async function generateSVGFromLogo(logo, layers, width, height) {
         backgroundRect = `<rect width="${width}" height="${height}" fill="#ffffff"/>`;
     }
 
+    // Ensure width and height are valid numbers
+    const validWidth = isNaN(width) || width <= 0 ? 1000 : width;
+    const validHeight = isNaN(height) || height <= 0 ? 1000 : height;
+
+    // Clean up defs - remove any empty entries
+    const cleanDefs = defs.filter(def => def && def.trim().length > 0);
+
+    // Clean up svgContent to remove any problematic characters and ensure proper formatting
+    const cleanSvgContent = (svgContent || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
     return `<?xml version="1.0" encoding="UTF-8"?>
-<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-  ${defs.join('\n  ')}
-  ${backgroundRect}
-  ${svgContent}
+<svg width="${validWidth}" height="${validHeight}" viewBox="0 0 ${validWidth} ${validHeight}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+${cleanDefs.length > 0 ? '  ' + cleanDefs.join('\n  ') + '\n' : ''}${backgroundRect ? '  ' + backgroundRect + '\n' : ''}${cleanSvgContent}
 </svg>`;
 }
 
@@ -369,15 +602,29 @@ async function generateBackgroundSVG(layer, width, height, style, defs) {
     const { background } = layer;
 
     if (background.mode === 'solid' && background.fill_hex) {
-        return `<rect width="${width}" height="${height}" fill="${background.fill_hex}" fill-opacity="${background.fill_alpha || 1}" style="${style}"/>`;
+        const bgFillColor = validateHexColor(background.fill_hex);
+        const bgFillAlpha = clampAlpha(background.fill_alpha !== undefined ? background.fill_alpha : 1);
+        return `<rect width="${width}" height="${height}" fill="${bgFillColor}" fill-opacity="${bgFillAlpha}" style="${style}"/>`;
     } else if (background.mode === 'gradient' && background.gradient) {
         const gradientId = `gradient-bg-${layer.id}`;
         const gradient = typeof background.gradient === 'string' ? JSON.parse(background.gradient) : background.gradient;
 
-        let gradientDef = `<defs><linearGradient id="${gradientId}" x1="0%" y1="0%" x2="100%" y2="100%">`;
+        // Calculate gradient direction from angle (0 = top to bottom, 90 = left to right)
+        const angle = gradient.angle !== undefined ? parseFloat(gradient.angle) : 0;
+        const radians = (angle * Math.PI) / 180;
+        const x1 = 50 + 50 * Math.sin(radians);
+        const y1 = 50 - 50 * Math.cos(radians);
+        const x2 = 50 - 50 * Math.sin(radians);
+        const y2 = 50 + 50 * Math.cos(radians);
+
+        let gradientDef = `<defs><linearGradient id="${gradientId}" x1="${x1}%" y1="${y1}%" x2="${x2}%" y2="${y2}%">`;
         if (gradient.stops && Array.isArray(gradient.stops)) {
             for (const stop of gradient.stops) {
-                gradientDef += `<stop offset="${(stop.offset || 0) * 100}%" stop-color="${stop.hex || '#000000'}" stop-opacity="${stop.alpha || 1}"/>`;
+                // Support both formats: {color, position} and {hex, offset, alpha}
+                const offset = Math.max(0, Math.min(100, ((stop.position !== undefined ? stop.position : (stop.offset || 0)) * 100)));
+                const stopColor = validateHexColor(stop.color || stop.hex || '#000000');
+                const stopAlpha = clampAlpha(stop.alpha !== undefined ? stop.alpha : 1);
+                gradientDef += `<stop offset="${offset}%" stop-color="${stopColor}" stop-opacity="${stopAlpha}"/>`;
             }
         }
         gradientDef += `</linearGradient></defs>`;
@@ -391,60 +638,104 @@ async function generateBackgroundSVG(layer, width, height, style, defs) {
 
 function generateTextSVG(layer, x, y, scale, rotation, style, defs) {
     const { text } = layer;
-    if (!text || !text.content) return '';
+    // Support both content (database) and value (legacy JSON)
+    const textContent = text && text.content ? text.content : (text && text.value ? text.value : undefined);
+    if (!text || !textContent) return '';
 
-    const fontSize = (text.font_size || 16) * scale;
+    // Support both snake_case and camelCase for font_size
+    // Use fontSize directly from JSON - fontSize is the final size we want
+    const fontSize = parseFloat(text.font_size || text.fontSize || 16);
     const flipH = layer.flip_horizontal;
     const flipV = layer.flip_vertical;
 
-    // Build transform with proper order
-    let transform = `translate(${x}, ${y})`;
-    if (rotation !== 0) {
-        transform += ` rotate(${rotation})`;
+    // Build transform with proper order - ensure all values are valid numbers
+    const validX = isNaN(x) ? 0 : x;
+    const validY = isNaN(y) ? 0 : y;
+    const validRotation = isNaN(rotation) ? 0 : rotation;
+
+    let transform = `translate(${validX}, ${validY})`;
+    if (validRotation !== 0) {
+        transform += ` rotate(${validRotation})`;
     }
-    const scaleX = (flipH ? -1 : 1) * scale;
-    const scaleY = (flipV ? -1 : 1) * scale;
+    // For text, fontSize is already the final size, so we don't apply scale transform
+    // Scale is only used for flip operations
+    const scaleX = flipH ? -1 : 1;
+    const scaleY = flipV ? -1 : 1;
     if (scaleX !== 1 || scaleY !== 1) {
         transform += ` scale(${scaleX}, ${scaleY})`;
     }
 
-    let textStyle = `font-size: ${fontSize}px; font-family: "${text.font_family || 'Arial'}", sans-serif;`;
-    textStyle += `fill: ${text.fill_hex || '#000000'}; fill-opacity: ${text.fill_alpha !== undefined ? text.fill_alpha : 1};`;
+    // Ensure font size is valid
+    const validFontSize = isNaN(fontSize) || fontSize <= 0 ? 16 : fontSize;
+    // Font family - default to Arial if not found, remove quotes since we're already inside a quoted style attribute
+    // Support both snake_case (font_family) and camelCase (font)
+    let fontFamilyName = text.font_family || text.font || 'Arial';
+    // If font_family is null, undefined, or empty, use Arial
+    if (!fontFamilyName || fontFamilyName === 'null' || fontFamilyName === 'undefined') {
+        fontFamilyName = 'Arial';
+    }
+    fontFamilyName = String(fontFamilyName).replace(/"/g, '').replace(/'/g, '');
+    // Support both snake_case (fill_hex) and camelCase (fontColor)
+    const fillColor = validateHexColor(text.fill_hex || text.fontColor || '#000000');
+    // Support both snake_case and camelCase for fill_alpha
+    const fillAlpha = clampAlpha(text.fill_alpha !== undefined ? text.fill_alpha : (text.fillAlpha !== undefined ? text.fillAlpha : 1));
 
-    if (text.font_weight) {
-        textStyle += `font-weight: ${text.font_weight};`;
+    // Build style without nested quotes - font-family should NOT have quotes inside style attribute
+    // Escape any special characters in font name, but don't add quotes
+    const safeFontFamily = fontFamilyName.replace(/[;:]/g, ' ').trim() || 'Arial';
+    let textStyle = `font-size: ${validFontSize}px; font-family: ${safeFontFamily}, sans-serif;`;
+    textStyle += `fill: ${fillColor}; fill-opacity: ${fillAlpha};`;
+
+    // Handle font weight - support both font_weight and fontWeight
+    const fontWeight = text.font_weight || text.fontWeight;
+    if (fontWeight && fontWeight !== 'normal') {
+        textStyle += `font-weight: ${fontWeight};`;
     }
-    if (text.font_style) {
-        textStyle += `font-style: ${text.font_style};`;
+    // Handle font style - support both font_style and fontStyle
+    const fontStyle = text.font_style || text.fontStyle;
+    if (fontStyle && fontStyle !== 'normal') {
+        textStyle += `font-style: ${fontStyle};`;
     }
-    if (text.letter_spacing !== undefined && text.letter_spacing !== null) {
-        textStyle += `letter-spacing: ${text.letter_spacing}px;`;
+    // Support both snake_case and camelCase for letter_spacing
+    const letterSpacing = text.letter_spacing !== undefined ? text.letter_spacing : text.letterSpacing;
+    if (letterSpacing !== undefined && letterSpacing !== null && !isNaN(letterSpacing) && letterSpacing !== 0) {
+        textStyle += `letter-spacing: ${letterSpacing}px;`;
     }
-    if (text.text_decoration === 'underline') {
+    // Support both snake_case and camelCase for text_decoration
+    const textDecoration = text.text_decoration || text.textDecoration;
+    if (textDecoration === 'underline') {
         textStyle += `text-decoration: underline;`;
-    } else if (text.text_decoration === 'line-through') {
+    } else if (textDecoration === 'line-through') {
         textStyle += `text-decoration: line-through;`;
     }
 
-    if (text.stroke_hex && text.stroke_width) {
-        textStyle += `stroke: ${text.stroke_hex}; stroke-width: ${text.stroke_width}; stroke-opacity: ${text.stroke_alpha !== undefined ? text.stroke_alpha : 1};`;
+    // Support both snake_case and camelCase for stroke
+    const strokeHex = text.stroke_hex || text.strokeHex;
+    const strokeWidth = text.stroke_width || text.strokeWidth;
+    if (strokeHex && strokeWidth && !isNaN(strokeWidth)) {
+        const strokeColor = validateHexColor(strokeHex);
+        const strokeAlpha = clampAlpha((text.stroke_alpha !== undefined ? text.stroke_alpha : text.strokeAlpha) || 1);
+        textStyle += `stroke: ${strokeColor}; stroke-width: ${strokeWidth}; stroke-opacity: ${strokeAlpha};`;
     }
 
-    const textAnchor = text.align === 'left' ? 'start' : text.align === 'right' ? 'end' : 'middle';
+    // Support both snake_case (align) and camelCase (alignment)
+    const align = text.align || text.alignment || 'center';
+    const textAnchor = align === 'left' ? 'start' : align === 'right' ? 'end' : 'middle';
     const dominantBaseline = text.baseline || 'alphabetic';
 
-    // Apply text transform
-    let textContent = text.content;
-    if (text.text_transform === 'uppercase') {
-        textContent = textContent.toUpperCase();
-    } else if (text.text_transform === 'lowercase') {
-        textContent = textContent.toLowerCase();
-    } else if (text.text_transform === 'capitalize') {
-        textContent = textContent.replace(/\b\w/g, l => l.toUpperCase());
+    // Apply text transform - support both snake_case and camelCase
+    let finalTextContent = textContent;
+    const textTransform = text.text_transform || text.textTransform;
+    if (textTransform === 'uppercase') {
+        finalTextContent = finalTextContent.toUpperCase();
+    } else if (textTransform === 'lowercase') {
+        finalTextContent = finalTextContent.toLowerCase();
+    } else if (textTransform === 'capitalize') {
+        finalTextContent = finalTextContent.replace(/\b\w/g, l => l.toUpperCase());
     }
 
-    return `<text x="0" y="0" text-anchor="${textAnchor}" dominant-baseline="${dominantBaseline}" 
-          transform="${transform}" style="${textStyle} ${style}">${escapeXml(textContent)}</text>`;
+    // All attributes must be on the same line to avoid parsing errors
+    return `<text x="0" y="0" text-anchor="${textAnchor}" dominant-baseline="${dominantBaseline}" transform="${transform}" style="${textStyle} ${style}">${escapeXml(finalTextContent)}</text>`;
 }
 
 async function generateShapeSVG(layer, x, y, scale, rotation, style, defs) {
@@ -454,69 +745,100 @@ async function generateShapeSVG(layer, x, y, scale, rotation, style, defs) {
     const flipH = layer.flip_horizontal;
     const flipV = layer.flip_vertical;
 
-    // Build transform with proper order
-    let transform = `translate(${x}, ${y})`;
-    if (rotation !== 0) {
-        transform += ` rotate(${rotation})`;
+    // Build transform with proper order - ensure all values are valid numbers
+    const validX = isNaN(x) ? 0 : x;
+    const validY = isNaN(y) ? 0 : y;
+    const validRotation = isNaN(rotation) ? 0 : rotation;
+    const validScale = isNaN(scale) ? 1 : scale;
+
+    let transform = `translate(${validX}, ${validY})`;
+    if (validRotation !== 0) {
+        transform += ` rotate(${validRotation})`;
     }
-    const scaleX = (flipH ? -1 : 1) * scale;
-    const scaleY = (flipV ? -1 : 1) * scale;
+    const scaleX = (flipH ? -1 : 1) * validScale;
+    const scaleY = (flipV ? -1 : 1) * validScale;
     if (scaleX !== 1 || scaleY !== 1) {
         transform += ` scale(${scaleX}, ${scaleY})`;
     }
 
     let shapeElement = '';
-    let shapeStyle = `fill: ${shape.fill_hex || 'none'}; fill-opacity: ${shape.fill_alpha !== undefined ? shape.fill_alpha : 1};`;
+    const fillColor = shape.fill_hex ? validateHexColor(shape.fill_hex) : 'none';
+    const fillAlpha = clampAlpha(shape.fill_alpha !== undefined ? shape.fill_alpha : 1);
+    let shapeStyle = `fill: ${fillColor}; fill-opacity: ${fillAlpha};`;
 
-    if (shape.stroke_hex && shape.stroke_width) {
-        shapeStyle += `stroke: ${shape.stroke_hex}; stroke-width: ${shape.stroke_width}; stroke-opacity: ${shape.stroke_alpha !== undefined ? shape.stroke_alpha : 1};`;
+    if (shape.stroke_hex && shape.stroke_width && !isNaN(shape.stroke_width)) {
+        const strokeColor = validateHexColor(shape.stroke_hex);
+        const strokeAlpha = clampAlpha(shape.stroke_alpha !== undefined ? shape.stroke_alpha : 1);
+        shapeStyle += `stroke: ${strokeColor}; stroke-width: ${shape.stroke_width}; stroke-opacity: ${strokeAlpha};`;
     }
+
+    // Clean the style parameter to remove any newlines or extra spaces
+    const cleanStyle = (style || '').replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
+    const cleanShapeStyle = shapeStyle.replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
 
     // Check if shape has a src (local SVG asset)
     if (shape.meta && typeof shape.meta === 'object' && shape.meta.src) {
         try {
             // Try to fetch the SVG content
             const svgContent = await fetchSVGContent(shape.meta.src);
-            if (svgContent) {
+            if (svgContent && svgContent.trim().length > 0) {
                 // Apply color transformation to the SVG
                 let processedSvg = svgContent;
                 if (shape.fill_hex) {
+                    const fillColor = validateHexColor(shape.fill_hex);
                     // Replace fill colors in the SVG
-                    processedSvg = processedSvg.replace(/fill="[^"]*"/g, `fill="${shape.fill_hex}"`);
-                    processedSvg = processedSvg.replace(/fill='[^']*'/g, `fill="${shape.fill_hex}"`);
-                    processedSvg = processedSvg.replace(/fill:\s*[^;]+/g, `fill: ${shape.fill_hex}`);
+                    processedSvg = processedSvg.replace(/fill="[^"]*"/g, `fill="${fillColor}"`);
+                    processedSvg = processedSvg.replace(/fill='[^']*'/g, `fill="${fillColor}"`);
+                    processedSvg = processedSvg.replace(/fill:\s*[^;]+/g, `fill: ${fillColor}`);
                 }
                 if (shape.stroke_hex) {
-                    processedSvg = processedSvg.replace(/stroke="[^"]*"/g, `stroke="${shape.stroke_hex}"`);
-                    processedSvg = processedSvg.replace(/stroke='[^']*'/g, `stroke="${shape.stroke_hex}"`);
+                    const strokeColor = validateHexColor(shape.stroke_hex);
+                    processedSvg = processedSvg.replace(/stroke="[^"]*"/g, `stroke="${strokeColor}"`);
+                    processedSvg = processedSvg.replace(/stroke='[^']*'/g, `stroke="${strokeColor}"`);
                 }
                 return `<g transform="${transform}" style="${style}">${processedSvg}</g>`;
             }
         } catch (error) {
-            console.warn(`Failed to load SVG from ${shape.meta.src}:`, error.message);
+            console.warn(`Failed to load SVG from ${shape.meta.src}, using default shape:`, error.message);
         }
     }
 
-    // Fallback to basic shapes
+    // Fallback to basic shapes - always render something even if SVG asset fails
+    const validRx = isNaN(shape.rx) ? 0 : Math.max(0, shape.rx);
+    const validRy = isNaN(shape.ry) ? 0 : Math.max(0, shape.ry);
+
+    // Combine styles and clean them
+    const combinedStyle = `${cleanShapeStyle} ${cleanStyle}`.trim();
+
     switch (shape.shape_kind) {
         case 'rect':
-            shapeElement = `<rect x="-50" y="-50" width="100" height="100" rx="${shape.rx || 0}" ry="${shape.ry || 0}" 
-                        style="${shapeStyle} ${style}"/>`;
+            // All attributes on one line to avoid parsing errors
+            shapeElement = `<rect x="-50" y="-50" width="100" height="100" rx="${validRx}" ry="${validRy}" style="${combinedStyle}"/>`;
             break;
         case 'circle':
-            shapeElement = `<circle cx="0" cy="0" r="50" style="${shapeStyle} ${style}"/>`;
+            shapeElement = `<circle cx="0" cy="0" r="50" style="${combinedStyle}"/>`;
             break;
         case 'ellipse':
-            shapeElement = `<ellipse cx="0" cy="0" rx="50" ry="50" style="${shapeStyle} ${style}"/>`;
+            shapeElement = `<ellipse cx="0" cy="0" rx="50" ry="50" style="${combinedStyle}"/>`;
             break;
         case 'path':
-            if (shape.svg_path) {
-                shapeElement = `<path d="${shape.svg_path}" style="${shapeStyle} ${style}"/>`;
+            if (shape.svg_path && shape.svg_path.trim().length > 0) {
+                // Escape path data
+                const escapedPath = shape.svg_path.replace(/"/g, '&quot;');
+                shapeElement = `<path d="${escapedPath}" style="${combinedStyle}"/>`;
+            } else {
+                // Default to rect if path is invalid
+                shapeElement = `<rect x="-50" y="-50" width="100" height="100" style="${combinedStyle}"/>`;
             }
             break;
         default:
-            // Default to rect
-            shapeElement = `<rect x="-50" y="-50" width="100" height="100" style="${shapeStyle} ${style}"/>`;
+            // Default to rect for any unknown shape type
+            shapeElement = `<rect x="-50" y="-50" width="100" height="100" style="${combinedStyle}"/>`;
+    }
+
+    // Ensure shapeElement is not empty
+    if (!shapeElement || shapeElement.trim().length === 0) {
+        shapeElement = `<rect x="-50" y="-50" width="100" height="100" style="${combinedStyle}"/>`;
     }
 
     return `<g transform="${transform}">${shapeElement}</g>`;
@@ -529,13 +851,18 @@ async function generateIconSVG(layer, x, y, scale, rotation, style, defs) {
     const flipH = layer.flip_horizontal;
     const flipV = layer.flip_vertical;
 
-    // Build transform with proper order
-    let transform = `translate(${x}, ${y})`;
-    if (rotation !== 0) {
-        transform += ` rotate(${rotation})`;
+    // Build transform with proper order - ensure all values are valid numbers
+    const validX = isNaN(x) ? 0 : x;
+    const validY = isNaN(y) ? 0 : y;
+    const validRotation = isNaN(rotation) ? 0 : rotation;
+    const validScale = isNaN(scale) ? 1 : scale;
+
+    let transform = `translate(${validX}, ${validY})`;
+    if (validRotation !== 0) {
+        transform += ` rotate(${validRotation})`;
     }
-    const scaleX = (flipH ? -1 : 1) * scale;
-    const scaleY = (flipV ? -1 : 1) * scale;
+    const scaleX = (flipH ? -1 : 1) * validScale;
+    const scaleY = (flipV ? -1 : 1) * validScale;
     if (scaleX !== 1 || scaleY !== 1) {
         transform += ` scale(${scaleX}, ${scaleY})`;
     }
@@ -560,8 +887,27 @@ async function generateIconSVG(layer, x, y, scale, rotation, style, defs) {
 
     // For raster images or URLs, use image element
     if (icon.asset.url) {
-        return `<image href="${icon.asset.url}" x="-50" y="-50" width="100" height="100" 
-            transform="${transform}" style="${style}" opacity="${tintOpacity}"/>`;
+        // Ensure URL is properly formatted for XML/SVG
+        let iconUrl = String(icon.asset.url || '').trim();
+
+        // Remove any whitespace/newlines from URL (URLs shouldn't have these)
+        iconUrl = iconUrl.replace(/\s+/g, '');
+
+        // Only escape quotes in URL (for XML attribute), but preserve & and other URL characters
+        iconUrl = iconUrl.replace(/"/g, '&quot;');
+
+        // Validate URL format
+        if (iconUrl && iconUrl.length > 0 && (iconUrl.startsWith('http://') || iconUrl.startsWith('https://') || iconUrl.startsWith('data:'))) {
+            // Ensure style and transform don't have any issues (no newlines, extra spaces)
+            const cleanStyle = (style || '').replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
+            const cleanTransform = (transform || '').replace(/\s+/g, ' ').trim();
+
+            // All attributes must be on the same line to avoid parsing errors
+            return `<image href="${iconUrl}" x="-50" y="-50" width="100" height="100" transform="${cleanTransform}" style="${cleanStyle}" opacity="${tintOpacity}"/>`;
+        } else {
+            console.warn(`Invalid icon URL (length: ${iconUrl ? iconUrl.length : 0}): ${iconUrl ? iconUrl.substring(0, 100) : 'null'}...`);
+            return '';
+        }
     }
 
     return '';
@@ -574,20 +920,44 @@ async function generateImageSVG(layer, x, y, scale, rotation, style, defs) {
     const flipH = layer.flip_horizontal;
     const flipV = layer.flip_vertical;
 
-    // Build transform with proper order
-    let transform = `translate(${x}, ${y})`;
-    if (rotation !== 0) {
-        transform += ` rotate(${rotation})`;
+    // Build transform with proper order - ensure all values are valid numbers
+    const validX = isNaN(x) ? 0 : x;
+    const validY = isNaN(y) ? 0 : y;
+    const validRotation = isNaN(rotation) ? 0 : rotation;
+    const validScale = isNaN(scale) ? 1 : scale;
+
+    let transform = `translate(${validX}, ${validY})`;
+    if (validRotation !== 0) {
+        transform += ` rotate(${validRotation})`;
     }
-    const scaleX = (flipH ? -1 : 1) * scale;
-    const scaleY = (flipV ? -1 : 1) * scale;
+    const scaleX = (flipH ? -1 : 1) * validScale;
+    const scaleY = (flipV ? -1 : 1) * validScale;
     if (scaleX !== 1 || scaleY !== 1) {
         transform += ` scale(${scaleX}, ${scaleY})`;
     }
 
     if (image.asset.url) {
-        return `<image href="${image.asset.url}" x="-50" y="-50" width="100" height="100" 
-            transform="${transform}" style="${style}"/>`;
+        // Ensure URL is properly formatted for XML/SVG
+        let imageUrl = String(image.asset.url || '').trim();
+
+        // Remove any whitespace/newlines from URL (URLs shouldn't have these)
+        imageUrl = imageUrl.replace(/\s+/g, '');
+
+        // Only escape quotes in URL (for XML attribute), but preserve & and other URL characters
+        imageUrl = imageUrl.replace(/"/g, '&quot;');
+
+        // Validate URL format
+        if (imageUrl && imageUrl.length > 0 && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://') || imageUrl.startsWith('data:'))) {
+            // Ensure style and transform don't have any issues (no newlines, extra spaces)
+            const cleanStyle = (style || '').replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
+            const cleanTransform = (transform || '').replace(/\s+/g, ' ').trim();
+
+            // All attributes must be on the same line to avoid parsing errors
+            return `<image href="${imageUrl}" x="-50" y="-50" width="100" height="100" transform="${cleanTransform}" style="${cleanStyle}"/>`;
+        } else {
+            console.warn(`Invalid image URL (length: ${imageUrl ? imageUrl.length : 0}): ${imageUrl ? imageUrl.substring(0, 100) : 'null'}...`);
+            return '';
+        }
     }
 
     return '';
@@ -651,6 +1021,7 @@ function hexToRgba(hex, alpha = 1) {
 }
 
 function escapeXml(unsafe) {
+    if (!unsafe || typeof unsafe !== 'string') return '';
     return unsafe.replace(/[<>&'"]/g, (c) => {
         switch (c) {
             case '<':
@@ -667,6 +1038,133 @@ function escapeXml(unsafe) {
                 return c;
         }
     });
+}
+
+// Helper function to validate and escape CSS strings (like font names)
+function escapeCssString(str) {
+    if (!str || typeof str !== 'string') return '"Arial"';
+    // If it contains spaces or special characters, wrap in quotes
+    if (/[\s"'(),;]/.test(str)) {
+        return `"${str.replace(/"/g, '\\"')}"`;
+    }
+    return `"${str}"`;
+}
+
+// Helper function to validate hex colors
+function validateHexColor(hex) {
+    if (!hex || typeof hex !== 'string') return '#000000';
+    // Remove # if present
+    hex = hex.replace('#', '');
+    // Validate hex color (3 or 6 digits)
+    if (/^[0-9A-Fa-f]{3}$/.test(hex) || /^[0-9A-Fa-f]{6}$/.test(hex)) {
+        return `#${hex}`;
+    }
+    return '#000000';
+}
+
+// Helper function to clamp alpha values between 0 and 1
+function clampAlpha(alpha) {
+    if (isNaN(alpha) || alpha < 0) return 0;
+    if (alpha > 1) return 1;
+    return alpha;
+}
+
+// CRITICAL: Clean SVG to remove newlines from attribute values
+// This function aggressively removes newlines and fixes attribute formatting
+function cleanSVGAttributes(svg) {
+    if (!svg || typeof svg !== 'string') return svg;
+
+    let cleaned = svg;
+
+    // Step 1: Remove newlines from within quoted attribute values
+    // This regex matches: attribute="...content with\nnewline..." and replaces \n with space
+    cleaned = cleaned.replace(/(\w+)="([^"]*?)[\r\n]+([^"]*?)"/g, '$1="$2 $3"');
+
+    // Step 2: Handle attributes that span multiple lines (more complex pattern)
+    // Match: attribute="value\n" or attribute="\nvalue" or attribute="value1\nvalue2"
+    cleaned = cleaned.replace(/="([^"]*?)[\r\n]+([^"]*?)"/g, '="$1 $2"');
+
+    // Step 3: Remove newlines from specific critical attributes
+    cleaned = cleaned.replace(/style="([^"]*?)[\r\n\s]+([^"]*?)"/g, (match, p1, p2) => {
+        return `style="${p1.trim()} ${p2.trim()}"`;
+    });
+    cleaned = cleaned.replace(/transform="([^"]*?)[\r\n\s]+([^"]*?)"/g, (match, p1, p2) => {
+        return `transform="${p1.trim()} ${p2.trim()}"`;
+    });
+    cleaned = cleaned.replace(/href="([^"]*?)[\r\n\s]+([^"]*?)"/g, (match, p1, p2) => {
+        return `href="${p1.trim()}${p2.trim()}"`;
+    });
+
+    // Step 4: Process line by line to fix attributes that span lines
+    const lines = cleaned.split(/\r?\n/);
+    const result = [];
+    let buffer = '';
+    let inQuotes = false;
+
+    for (const line of lines) {
+        let lineQuotes = 0;
+        for (let i = 0; i < line.length; i++) {
+            if (line[i] === '"' && (i === 0 || line[i - 1] !== '\\')) {
+                lineQuotes++;
+            }
+        }
+
+        if (lineQuotes % 2 === 1) {
+            // Odd number of quotes means we're entering or leaving a quoted section
+            inQuotes = !inQuotes;
+            buffer += (buffer ? ' ' : '') + line.trim();
+            if (!inQuotes) {
+                // We've closed the quotes, add the line
+                result.push(buffer);
+                buffer = '';
+            }
+        } else if (inQuotes) {
+            // We're inside quotes, continue on same line
+            buffer += ' ' + line.trim();
+        } else {
+            // Normal line, not in quotes
+            if (buffer) {
+                result.push(buffer);
+                buffer = '';
+            }
+            result.push(line);
+        }
+    }
+
+    if (buffer) {
+        result.push(buffer);
+    }
+
+    cleaned = result.join('\n');
+
+    // Step 5: Fix nested quotes in style attributes (e.g., font-family:"Arial" should be font-family: Arial)
+    // This is critical - nested quotes break SVG parsing
+    cleaned = cleaned.replace(/style="([^"]*?)"/g, (match, content) => {
+        // Remove ALL nested quotes from font-family values (both double and single)
+        let fixed = content.replace(/font-family:\s*["']([^"']+)["']\s*,/g, 'font-family: $1,');
+        fixed = fixed.replace(/font-family:\s*"([^"]+)"\s*,/g, 'font-family: $1,');
+        fixed = fixed.replace(/font-family:\s*'([^']+)'\s*,/g, "font-family: $1,");
+        // Also fix any other nested quotes in the style
+        fixed = fixed.replace(/:\s*"([^"]+)"\s*;/g, ': $1;');
+        fixed = fixed.replace(/:\s*'([^']+)'\s*;/g, ": $1;");
+        // Remove any newlines
+        fixed = fixed.replace(/[\r\n]+/g, ' ');
+        // Clean up multiple spaces
+        fixed = fixed.replace(/\s+/g, ' ').trim();
+        return `style="${fixed}"`;
+    });
+
+    // Step 6: Final cleanup - remove any remaining newlines in ALL attributes
+    cleaned = cleaned.replace(/="([^"]*?)"/g, (match, content) => {
+        const cleanedContent = content.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+        return `="${cleanedContent}"`;
+    });
+
+    // Step 7: Clean up extra spaces but preserve structure
+    cleaned = cleaned.replace(/\s+/g, ' ');
+    cleaned = cleaned.replace(/>\s+</g, '><');
+
+    return cleaned;
 }
 
 module.exports = router;

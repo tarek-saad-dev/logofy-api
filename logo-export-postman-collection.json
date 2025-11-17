@@ -1,0 +1,345 @@
+{
+    "info": {
+        "_postman_id": "logo-export-collection-001",
+        "name": "Logo Export API",
+        "description": "Collection for testing the Logo Export endpoint",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [{
+            "name": "Get Logo (Verify Exists)",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/api/logo/{{logo_id}}",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "logo",
+                        "{{logo_id}}"
+                    ]
+                },
+                "description": "Get logo data to verify it exists before exporting"
+            },
+            "response": []
+        },
+        {
+            "name": "Export Logo - Default",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/api/logo/{{logo_id}}/export",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "logo",
+                        "{{logo_id}}",
+                        "export"
+                    ]
+                },
+                "description": "Export logo with default settings (uses logo's canvas dimensions)"
+            },
+            "response": []
+        },
+        {
+            "name": "Export Logo - Custom Size (1000x1000)",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/api/logo/{{logo_id}}/export?width=1000&height=1000",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "logo",
+                        "{{logo_id}}",
+                        "export"
+                    ],
+                    "query": [{
+                            "key": "width",
+                            "value": "1000",
+                            "description": "Output width in pixels"
+                        },
+                        {
+                            "key": "height",
+                            "value": "1000",
+                            "description": "Output height in pixels"
+                        }
+                    ]
+                },
+                "description": "Export logo with custom dimensions 1000x1000 pixels"
+            },
+            "response": []
+        },
+        {
+            "name": "Export Logo - High Quality (300 DPI)",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/api/logo/{{logo_id}}/export?width=2000&height=2000&dpi=300&quality=100",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "logo",
+                        "{{logo_id}}",
+                        "export"
+                    ],
+                    "query": [{
+                            "key": "width",
+                            "value": "2000",
+                            "description": "Output width in pixels"
+                        },
+                        {
+                            "key": "height",
+                            "value": "2000",
+                            "description": "Output height in pixels"
+                        },
+                        {
+                            "key": "dpi",
+                            "value": "300",
+                            "description": "DPI for rendering (higher = better quality)"
+                        },
+                        {
+                            "key": "quality",
+                            "value": "100",
+                            "description": "Image quality 1-100"
+                        }
+                    ]
+                },
+                "description": "Export logo with high quality settings (300 DPI, 100% quality)"
+            },
+            "response": []
+        },
+        {
+            "name": "Export Logo - Medium Quality (72 DPI)",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/api/logo/{{logo_id}}/export?width=1000&height=1000&dpi=72&quality=90",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "logo",
+                        "{{logo_id}}",
+                        "export"
+                    ],
+                    "query": [{
+                            "key": "width",
+                            "value": "1000",
+                            "description": "Output width in pixels"
+                        },
+                        {
+                            "key": "height",
+                            "value": "1000",
+                            "description": "Output height in pixels"
+                        },
+                        {
+                            "key": "dpi",
+                            "value": "72",
+                            "description": "DPI for rendering (standard web quality)"
+                        },
+                        {
+                            "key": "quality",
+                            "value": "90",
+                            "description": "Image quality 1-100"
+                        }
+                    ]
+                },
+                "description": "Export logo with medium quality settings (72 DPI, 90% quality) - good for web"
+            },
+            "response": []
+        },
+        {
+            "name": "Export Logo - JPEG Format",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/api/logo/{{logo_id}}/export?width=1000&height=1000&format=jpg&quality=85",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "logo",
+                        "{{logo_id}}",
+                        "export"
+                    ],
+                    "query": [{
+                            "key": "width",
+                            "value": "1000",
+                            "description": "Output width in pixels"
+                        },
+                        {
+                            "key": "height",
+                            "value": "1000",
+                            "description": "Output height in pixels"
+                        },
+                        {
+                            "key": "format",
+                            "value": "jpg",
+                            "description": "Output format: png or jpg"
+                        },
+                        {
+                            "key": "quality",
+                            "value": "85",
+                            "description": "Image quality 1-100"
+                        }
+                    ]
+                },
+                "description": "Export logo as JPEG format"
+            },
+            "response": []
+        },
+        {
+            "name": "Export Logo - Square (500x500)",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/api/logo/{{logo_id}}/export?width=500&height=500&dpi=150&quality=95",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "logo",
+                        "{{logo_id}}",
+                        "export"
+                    ],
+                    "query": [{
+                            "key": "width",
+                            "value": "500",
+                            "description": "Output width in pixels"
+                        },
+                        {
+                            "key": "height",
+                            "value": "500",
+                            "description": "Output height in pixels"
+                        },
+                        {
+                            "key": "dpi",
+                            "value": "150",
+                            "description": "DPI for rendering"
+                        },
+                        {
+                            "key": "quality",
+                            "value": "95",
+                            "description": "Image quality 1-100"
+                        }
+                    ]
+                },
+                "description": "Export logo as square 500x500 pixels"
+            },
+            "response": []
+        },
+        {
+            "name": "Export Logo - Wide Format (1920x1080)",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/api/logo/{{logo_id}}/export?width=1920&height=1080&dpi=72&quality=90",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "logo",
+                        "{{logo_id}}",
+                        "export"
+                    ],
+                    "query": [{
+                            "key": "width",
+                            "value": "1920",
+                            "description": "Output width in pixels"
+                        },
+                        {
+                            "key": "height",
+                            "value": "1080",
+                            "description": "Output height in pixels"
+                        },
+                        {
+                            "key": "dpi",
+                            "value": "72",
+                            "description": "DPI for rendering"
+                        },
+                        {
+                            "key": "quality",
+                            "value": "90",
+                            "description": "Image quality 1-100"
+                        }
+                    ]
+                },
+                "description": "Export logo in wide format (1920x1080) - good for banners"
+            },
+            "response": []
+        },
+        {
+            "name": "Export Logo - Test Logo ID",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/api/logo/1e268afa-f60c-4e74-841e-8e85e697f0a0/export?width=1000&height=1000&dpi=300&quality=100",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "api",
+                        "logo",
+                        "1e268afa-f60c-4e74-841e-8e85e697f0a0",
+                        "export"
+                    ],
+                    "query": [{
+                            "key": "width",
+                            "value": "1000",
+                            "description": "Output width in pixels"
+                        },
+                        {
+                            "key": "height",
+                            "value": "1000",
+                            "description": "Output height in pixels"
+                        },
+                        {
+                            "key": "dpi",
+                            "value": "300",
+                            "description": "DPI for rendering"
+                        },
+                        {
+                            "key": "quality",
+                            "value": "100",
+                            "description": "Image quality 1-100"
+                        }
+                    ]
+                },
+                "description": "Export the specific test logo ID provided"
+            },
+            "response": []
+        }
+    ],
+    "variable": [{
+            "key": "base_url",
+            "value": "http://localhost:3000",
+            "type": "string"
+        },
+        {
+            "key": "logo_id",
+            "value": "1e268afa-f60c-4e74-841e-8e85e697f0a0",
+            "type": "string"
+        }
+    ]
+}
