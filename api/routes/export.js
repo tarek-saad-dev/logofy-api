@@ -44,6 +44,16 @@ router.get('/logo/:id/export', async(req, res) => {
 
         const logo = logoRes.rows[0];
 
+        // Debug: Log canvas background info
+        if (logo.canvas_background_type === 'image') {
+            console.log('Canvas background image debug:', {
+                type: logo.canvas_background_type,
+                imagePath: logo.canvas_background_image_path,
+                imageType: logo.canvas_background_image_type,
+                pathType: typeof logo.canvas_background_image_path
+            });
+        }
+
         // Fetch all layers with their type-specific data
         const layersRes = await query(`
       SELECT 
@@ -100,15 +110,53 @@ router.get('/logo/:id/export', async(req, res) => {
       LEFT JOIN layer_icon li ON li.layer_id = lay.id
       LEFT JOIN layer_image lim ON lim.layer_id = lay.id
       LEFT JOIN layer_background lb ON lb.layer_id = lay.id
-      LEFT JOIN assets ai ON (ai.id = li.asset_id OR ai.id = lim.asset_id)
+      LEFT JOIN assets ai ON (
+        (lay.type = 'ICON' AND ai.id = li.asset_id) OR
+        (lay.type = 'IMAGE' AND ai.id = lim.asset_id)
+      )
       LEFT JOIN assets ai_bg ON ai_bg.id = lb.asset_id
       LEFT JOIN fonts f ON f.id = lt.font_id
       WHERE lay.logo_id = $1
       ORDER BY lay.z_index ASC, lay.created_at ASC
     `, [id]);
 
+        // Post-process: If any IMAGE layers are missing asset URLs, try to fetch them separately
+        const layersWithAssets = await Promise.all(layersRes.rows.map(async(row) => {
+            // If it's an IMAGE layer and we have asset_id but no asset_url, try to fetch it
+            if (row.type === 'IMAGE' && row.image_asset_id && !row.asset_url) {
+                try {
+                    const assetRes = await query('SELECT url, width, height, meta FROM assets WHERE id = $1', [row.image_asset_id]);
+                    if (assetRes.rows.length > 0) {
+                        const asset = assetRes.rows[0];
+                        row.asset_url = asset.url;
+                        row.asset_width = asset.width;
+                        row.asset_height = asset.height;
+                        row.asset_id = row.image_asset_id;
+                        row.asset_kind = 'raster';
+
+                        // Also check metadata for URL if main URL is missing
+                        if (!row.asset_url && asset.meta) {
+                            const meta = typeof asset.meta === 'string' ? JSON.parse(asset.meta) : asset.meta;
+                            row.asset_url = (meta && meta.url) || (meta && meta.path) || (meta && meta.image && meta.image.path) || null;
+                        }
+
+                        console.log(`Fetched missing asset URL for IMAGE layer ${row.id}: ${row.asset_url?.substring(0, 50)}`);
+                    } else {
+                        console.warn(`Asset ${row.image_asset_id} not found in database for IMAGE layer ${row.id}`);
+                    }
+                } catch (err) {
+                    console.warn(`Failed to fetch asset for IMAGE layer ${row.id}:`, err.message);
+                }
+            }
+            // Also check if IMAGE layer has no asset_id at all - might need to create/link it
+            if (row.type === 'IMAGE' && !row.image_asset_id && !row.asset_url) {
+                console.warn(`IMAGE layer ${row.id} has no asset_id and no asset_url - cannot render image`);
+            }
+            return row;
+        }));
+
         // Process layers
-        const layers = layersRes.rows.map(row => {
+        const layers = layersWithAssets.map(row => {
             const baseLayer = {
                 id: row.id,
                 type: row.type,
@@ -171,6 +219,8 @@ router.get('/logo/:id/export', async(req, res) => {
                             asset_id: row.icon_asset_id,
                             tint_hex: row.tint_hex,
                             tint_alpha: row.tint_alpha,
+                            // Support both database format (asset.url) and legacy format (path)
+                            path: row.asset_url || null,
                             asset: row.asset_id ? {
                                 id: row.asset_id,
                                 kind: row.asset_kind,
@@ -181,10 +231,16 @@ router.get('/logo/:id/export', async(req, res) => {
                         }
                     };
                 case 'IMAGE':
+                    // Debug: Log what we're getting from the database
+                    if (!row.asset_url && row.image_asset_id) {
+                        console.warn(`IMAGE layer ${row.id}: asset_id exists (${row.image_asset_id}) but asset_url is null. Asset might not be linked in database.`);
+                    }
                     return {
                         ...baseLayer,
                         image: {
                             asset_id: row.image_asset_id,
+                            // Support both database format (asset.url) and legacy format (path)
+                            path: row.asset_url || null,
                             asset: row.asset_id ? {
                                 id: row.asset_id,
                                 kind: row.asset_kind,
@@ -238,9 +294,19 @@ router.get('/logo/:id/export', async(req, res) => {
         let useCloudinary = false;
 
         try {
-            const background = logo.canvas_background_type === 'transparent' || logo.export_transparent_background ?
-                'rgba(0,0,0,0)' :
-                (logo.canvas_background_solid_color || '#ffffff');
+            // Only set background color if it's not an image background
+            // For image backgrounds, let the SVG handle it
+            let background = 'rgba(0,0,0,0)'; // Transparent by default
+            if (logo.canvas_background_type === 'transparent' || logo.export_transparent_background) {
+                background = 'rgba(0,0,0,0)';
+            } else if (logo.canvas_background_type === 'image') {
+                // For image backgrounds, use transparent so the SVG image shows through
+                background = 'rgba(0,0,0,0)';
+            } else if (logo.canvas_background_type === 'solid') {
+                background = logo.canvas_background_solid_color || '#ffffff';
+            } else {
+                background = logo.canvas_background_solid_color || '#ffffff';
+            }
 
             const resvg = new Resvg(svg, {
                 background: background,
@@ -373,6 +439,42 @@ router.get('/logo/:id/export', async(req, res) => {
     }
 });
 
+// Debug endpoint to inspect layer data
+router.get('/logo/:id/export/layers-debug', async(req, res) => {
+    try {
+        const { id } = req.params;
+
+        const layersRes = await query(`
+            SELECT 
+                lay.id, lay.type, lay.z_index,
+                lim.asset_id as image_asset_id,
+                ai.id as asset_id, ai.url as asset_url, ai.width, ai.height
+            FROM layers lay
+            LEFT JOIN layer_image lim ON lim.layer_id = lay.id
+            LEFT JOIN assets ai ON ai.id = lim.asset_id
+            WHERE lay.logo_id = $1 AND lay.type = 'IMAGE'
+            ORDER BY lay.z_index ASC
+        `, [id]);
+
+        res.json({
+            success: true,
+            layers: layersRes.rows.map(row => ({
+                layerId: row.id,
+                imageAssetId: row.image_asset_id,
+                assetId: row.asset_id,
+                assetUrl: row.asset_url,
+                width: row.width,
+                height: row.height
+            }))
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // Debug endpoint to see the generated SVG
 router.get('/logo/:id/export/debug', async(req, res) => {
     try {
@@ -477,9 +579,15 @@ async function generateSVGFromLogo(logo, layers, width, height) {
     const defs = [];
 
     // Sort layers by z_index
+    // Exclude BACKGROUND layers from regular processing - canvas background is handled separately
     const sortedLayers = layers
-        .filter(layer => layer.is_visible !== false)
+        .filter(layer => layer.is_visible !== false && layer.type !== 'BACKGROUND')
         .sort((a, b) => (a.z_index || 0) - (b.z_index || 0));
+
+    console.log(`Processing ${sortedLayers.length} layers (excluding BACKGROUND layers)`);
+    sortedLayers.forEach(layer => {
+        console.log(`  - Layer ${layer.id}: type=${layer.type}, z_index=${layer.z_index}`);
+    });
 
     // Process each layer
     for (const layer of sortedLayers) {
@@ -526,20 +634,42 @@ async function generateSVGFromLogo(logo, layers, width, height) {
         style = style.replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
 
         switch (layer.type) {
-            case 'BACKGROUND':
-                svgContent += await generateBackgroundSVG(layer, width, height, style, defs);
-                break;
             case 'TEXT':
-                svgContent += generateTextSVG(layer, x, y, scale, rotation, style, defs);
+                const textSvg = generateTextSVG(layer, x, y, scale, rotation, style, defs);
+                svgContent += textSvg;
+                if (textSvg) console.log(`  ✓ TEXT layer ${layer.id} rendered`);
                 break;
             case 'SHAPE':
-                svgContent += await generateShapeSVG(layer, x, y, scale, rotation, style, defs);
+                const shapeSvg = await generateShapeSVG(layer, x, y, scale, rotation, style, defs);
+                svgContent += shapeSvg;
+                if (shapeSvg) console.log(`  ✓ SHAPE layer ${layer.id} rendered`);
                 break;
             case 'ICON':
-                svgContent += await generateIconSVG(layer, x, y, scale, rotation, style, defs);
+                const iconSvg = await generateIconSVG(layer, x, y, scale, rotation, style, defs);
+                svgContent += iconSvg;
+                if (iconSvg) console.log(`  ✓ ICON layer ${layer.id} rendered`);
                 break;
             case 'IMAGE':
-                svgContent += await generateImageSVG(layer, x, y, scale, rotation, style, defs);
+                console.log(`Processing IMAGE layer ${layer.id}:`, {
+                    hasImage: !!layer.image,
+                    imagePath: layer.image && layer.image.path,
+                    assetUrl: layer.image && layer.image.asset && layer.image.asset.url,
+                    assetId: layer.image && layer.image.asset_id,
+                    x: validX,
+                    y: validY,
+                    scale: validScale,
+                    opacity: opacity,
+                    isVisible: layer.is_visible
+                });
+                const imageSvg = await generateImageSVG(layer, x, y, scale, rotation, style, defs);
+                svgContent += imageSvg;
+                if (imageSvg) {
+                    console.log(`  ✓ IMAGE layer ${layer.id} rendered (length: ${imageSvg.length})`);
+                    // Log a snippet of the actual SVG to verify structure
+                    console.log(`  SVG snippet: ${imageSvg.substring(0, Math.min(300, imageSvg.length))}...`);
+                } else {
+                    console.warn(`  ✗ IMAGE layer ${layer.id} failed to render`);
+                }
                 break;
         }
     }
@@ -576,6 +706,112 @@ async function generateSVGFromLogo(logo, layers, width, height) {
         gradientDef += `</linearGradient></defs>`;
         defs.push(gradientDef);
         backgroundRect = `<rect width="${width}" height="${height}" fill="url(#${gradientId})"/>`;
+    } else if (logo.canvas_background_type === 'image') {
+        // Handle canvas background image
+        // Support both direct path string and JSON structure
+        let bgImageUrl = null;
+
+        // Check if we have canvas_background_image_path
+        if (logo.canvas_background_image_path) {
+            try {
+                let parsed = logo.canvas_background_image_path;
+
+                // If it's a string, try to parse as JSON
+                if (typeof parsed === 'string') {
+                    const trimmed = parsed.trim();
+                    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                        try {
+                            parsed = JSON.parse(trimmed);
+                        } catch (parseError) {
+                            // If JSON parsing fails, treat as direct URL string
+                            parsed = trimmed;
+                        }
+                    } else {
+                        // Not JSON, treat as direct URL string
+                        parsed = trimmed;
+                    }
+                }
+
+                // If parsed is already an object (JSONB from database), use it directly
+                // Extract path from different possible structures
+                if (typeof parsed === 'string') {
+                    bgImageUrl = parsed;
+                } else if (parsed && typeof parsed === 'object') {
+                    // Try multiple possible paths in the object structure
+                    // Priority: image.path > image.url > path > url > nested structures
+                    if (parsed.image) {
+                        bgImageUrl = parsed.image.path || parsed.image.url || null;
+                    } else if (parsed.path) {
+                        bgImageUrl = parsed.path;
+                    } else if (parsed.url) {
+                        bgImageUrl = parsed.url;
+                    } else if (parsed.background && parsed.background.image) {
+                        bgImageUrl = parsed.background.image.path || parsed.background.image.url || null;
+                    }
+                }
+            } catch (e) {
+                console.warn('Error parsing canvas_background_image_path:', e.message);
+                // If parsing fails, use as direct string
+                bgImageUrl = String(logo.canvas_background_image_path);
+            }
+        }
+
+        // If still no URL found, log for debugging
+        if (!bgImageUrl) {
+            console.warn('Canvas background image: No URL found', {
+                backgroundType: logo.canvas_background_type,
+                imagePath: logo.canvas_background_image_path,
+                imageType: logo.canvas_background_image_type
+            });
+        }
+
+        if (bgImageUrl) {
+            bgImageUrl = String(bgImageUrl).trim();
+
+            if (bgImageUrl && (bgImageUrl.startsWith('http://') || bgImageUrl.startsWith('https://') || bgImageUrl.startsWith('data:'))) {
+                // For external URLs, try to download and convert to data URL for better compatibility
+                // This ensures Resvg can render the image even if it can't fetch external URLs
+                try {
+                    if (bgImageUrl.startsWith('http://') || bgImageUrl.startsWith('https://')) {
+                        const imageResponse = await axios.get(bgImageUrl, {
+                            responseType: 'arraybuffer',
+                            timeout: 10000,
+                            headers: {
+                                'User-Agent': 'Mozilla/5.0'
+                            }
+                        });
+                        const imageBuffer = Buffer.from(imageResponse.data);
+                        const mimeType = imageResponse.headers['content-type'] || 'image/jpeg';
+                        const base64Image = imageBuffer.toString('base64');
+                        bgImageUrl = `data:${mimeType};base64,${base64Image}`;
+                        console.log('Canvas background image: Converted to data URL');
+                    }
+                } catch (downloadError) {
+                    console.warn('Failed to download background image, using URL directly:', downloadError.message);
+                    // Continue with the original URL - Cloudinary conversion should handle it
+                }
+
+                // Escape quotes for XML
+                const escapedUrl = bgImageUrl.replace(/"/g, '&quot;');
+                // Use SVG image element with proper attributes
+                // Use both href (SVG 2) and xlink:href (SVG 1.1) for maximum compatibility
+                backgroundRect = `<image href="${escapedUrl}" xlink:href="${escapedUrl}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice"/>`;
+                console.log('Canvas background image: Successfully set', bgImageUrl.substring(0, 100));
+            } else {
+                console.warn('Canvas background image: Invalid URL format', bgImageUrl);
+                // Fallback to solid color if image URL is invalid
+                const bgColor = validateHexColor(logo.canvas_background_solid_color || '#ffffff');
+                backgroundRect = `<rect width="${width}" height="${height}" fill="${bgColor}"/>`;
+            }
+        } else {
+            console.warn('Canvas background image: No URL extracted from path', {
+                rawPath: logo.canvas_background_image_path,
+                pathType: typeof logo.canvas_background_image_path
+            });
+            // Fallback to solid color if no path found
+            const bgColor = validateHexColor(logo.canvas_background_solid_color || '#ffffff');
+            backgroundRect = `<rect width="${width}" height="${height}" fill="${bgColor}"/>`;
+        }
     } else if (logo.export_transparent_background) {
         // Transparent background - no rect needed
     } else {
@@ -592,6 +828,8 @@ async function generateSVGFromLogo(logo, layers, width, height) {
     // Clean up svgContent to remove any problematic characters and ensure proper formatting
     const cleanSvgContent = (svgContent || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
+    // IMPORTANT: Background must be FIRST in SVG so layers render on top
+    // Structure: <defs> -> <background> -> <layers>
     return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${validWidth}" height="${validHeight}" viewBox="0 0 ${validWidth} ${validHeight}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 ${cleanDefs.length > 0 ? '  ' + cleanDefs.join('\n  ') + '\n' : ''}${backgroundRect ? '  ' + backgroundRect + '\n' : ''}${cleanSvgContent}
@@ -846,7 +1084,22 @@ async function generateShapeSVG(layer, x, y, scale, rotation, style, defs) {
 
 async function generateIconSVG(layer, x, y, scale, rotation, style, defs) {
     const { icon } = layer;
-    if (!icon || !icon.asset) return '';
+    if (!icon) {
+        console.warn('generateIconSVG: No icon object in layer');
+        return '';
+    }
+
+    // Support both database format (icon.asset.url) and legacy format (icon.path)
+    const iconUrl = (icon.asset && icon.asset.url) || icon.path;
+    if (!iconUrl) {
+        console.warn('generateIconSVG: No icon URL found', {
+            hasAsset: !!icon.asset,
+            assetUrl: icon.asset && icon.asset.url,
+            path: icon.path,
+            assetId: icon.asset_id
+        });
+        return '';
+    }
 
     const flipH = layer.flip_horizontal;
     const flipV = layer.flip_vertical;
@@ -871,7 +1124,7 @@ async function generateIconSVG(layer, x, y, scale, rotation, style, defs) {
     const tintOpacity = icon.tint_alpha !== undefined ? icon.tint_alpha : 1;
 
     // If it's an SVG asset, use the vector_svg content
-    if (icon.asset.vector_svg) {
+    if (icon.asset && icon.asset.vector_svg) {
         let svgContent = icon.asset.vector_svg;
         // Apply tint color
         svgContent = svgContent.replace(/currentColor/g, tintColor);
@@ -886,36 +1139,73 @@ async function generateIconSVG(layer, x, y, scale, rotation, style, defs) {
     }
 
     // For raster images or URLs, use image element
-    if (icon.asset.url) {
-        // Ensure URL is properly formatted for XML/SVG
-        let iconUrl = String(icon.asset.url || '').trim();
+    // Ensure URL is properly formatted for XML/SVG
+    let cleanIconUrl = String(iconUrl).trim();
 
-        // Remove any whitespace/newlines from URL (URLs shouldn't have these)
-        iconUrl = iconUrl.replace(/\s+/g, '');
+    // Remove any whitespace/newlines from URL (URLs shouldn't have these)
+    cleanIconUrl = cleanIconUrl.replace(/\s+/g, '');
 
-        // Only escape quotes in URL (for XML attribute), but preserve & and other URL characters
-        iconUrl = iconUrl.replace(/"/g, '&quot;');
+    // Only escape quotes in URL (for XML attribute), but preserve & and other URL characters
+    cleanIconUrl = cleanIconUrl.replace(/"/g, '&quot;');
 
-        // Validate URL format
-        if (iconUrl && iconUrl.length > 0 && (iconUrl.startsWith('http://') || iconUrl.startsWith('https://') || iconUrl.startsWith('data:'))) {
-            // Ensure style and transform don't have any issues (no newlines, extra spaces)
-            const cleanStyle = (style || '').replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
-            const cleanTransform = (transform || '').replace(/\s+/g, ' ').trim();
+    // Validate URL format
+    if (cleanIconUrl && cleanIconUrl.length > 0 && (cleanIconUrl.startsWith('http://') || cleanIconUrl.startsWith('https://') || cleanIconUrl.startsWith('data:'))) {
+        // Ensure style and transform don't have any issues (no newlines, extra spaces)
+        const cleanStyle = (style || '').replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
+        const cleanTransform = (transform || '').replace(/\s+/g, ' ').trim();
 
-            // All attributes must be on the same line to avoid parsing errors
-            return `<image href="${iconUrl}" x="-50" y="-50" width="100" height="100" transform="${cleanTransform}" style="${cleanStyle}" opacity="${tintOpacity}"/>`;
+        // Calculate icon dimensions based on scale
+        // Use actual dimensions if available, otherwise use default size
+        let iconWidth, iconHeight;
+        if (icon.asset && icon.asset.width) {
+            iconWidth = icon.asset.width * validScale;
         } else {
-            console.warn(`Invalid icon URL (length: ${iconUrl ? iconUrl.length : 0}): ${iconUrl ? iconUrl.substring(0, 100) : 'null'}...`);
-            return '';
+            iconWidth = 100 * validScale;
         }
-    }
+        if (icon.asset && icon.asset.height) {
+            iconHeight = icon.asset.height * validScale;
+        } else {
+            iconHeight = 100 * validScale;
+        }
 
-    return '';
+        // All attributes must be on the same line to avoid parsing errors
+        return `<image href="${cleanIconUrl}" x="${-iconWidth / 2}" y="${-iconHeight / 2}" width="${iconWidth}" height="${iconHeight}" transform="${cleanTransform}" style="${cleanStyle}" opacity="${tintOpacity}"/>`;
+    } else {
+        console.warn(`Invalid icon URL (length: ${cleanIconUrl ? cleanIconUrl.length : 0}): ${cleanIconUrl ? cleanIconUrl.substring(0, 100) : 'null'}...`);
+        return '';
+    }
 }
 
 async function generateImageSVG(layer, x, y, scale, rotation, style, defs) {
     const { image } = layer;
-    if (!image || !image.asset) return '';
+    if (!image) {
+        console.warn('generateImageSVG: No image object in layer');
+        return '';
+    }
+
+    // Support both database format (image.asset.url) and legacy format (image.path)
+    // Also check if path might be nested in image.image.path (from JSON structure)
+    let imageUrl = (image.asset && image.asset.url) || image.path;
+
+    // If still no URL, check for nested structure like {image: {path: "..."}}
+    if (!imageUrl && image.image && (image.image.path || image.image.url)) {
+        imageUrl = image.image.path || image.image.url;
+        console.log('generateImageSVG: Found nested image path');
+    }
+
+    if (!imageUrl) {
+        console.warn('generateImageSVG: No image URL found', {
+            hasAsset: !!image.asset,
+            assetUrl: image.asset && image.asset.url,
+            path: image.path,
+            assetId: image.asset_id,
+            hasNestedImage: !!image.image,
+            nestedPath: image.image && image.image.path,
+            imageObjectKeys: Object.keys(image || {})
+        });
+        return '';
+    }
+    console.log('generateImageSVG: Found image URL', imageUrl.substring(0, 100));
 
     const flipH = layer.flip_horizontal;
     const flipV = layer.flip_vertical;
@@ -926,41 +1216,103 @@ async function generateImageSVG(layer, x, y, scale, rotation, style, defs) {
     const validRotation = isNaN(rotation) ? 0 : rotation;
     const validScale = isNaN(scale) ? 1 : scale;
 
+    // Calculate base dimensions (unscaled) - we'll apply scale in transform
+    let baseWidth, baseHeight;
+    const baseSize = 300; // Default base size
+
+    if (image.asset && image.asset.width && image.asset.height) {
+        baseWidth = image.asset.width;
+        baseHeight = image.asset.height;
+        console.log(`Using actual asset dimensions: ${baseWidth}x${baseHeight}`);
+    } else {
+        baseWidth = baseSize;
+        baseHeight = baseSize;
+        console.log(`Using default dimensions: ${baseSize}x${baseSize}`);
+    }
+
+    // Ensure minimum base size
+    const minBaseSize = 20;
+    if (baseWidth < minBaseSize) {
+        console.warn(`Base width ${baseWidth} too small, using minimum ${minBaseSize}`);
+        baseWidth = minBaseSize;
+    }
+    if (baseHeight < minBaseSize) {
+        console.warn(`Base height ${baseHeight} too small, using minimum ${minBaseSize}`);
+        baseHeight = minBaseSize;
+    }
+
+    // Build transform: translate -> rotate -> scale (including flips)
+    // Position is the center point, so we offset by half dimensions
     let transform = `translate(${validX}, ${validY})`;
     if (validRotation !== 0) {
         transform += ` rotate(${validRotation})`;
     }
+    // Apply scale and flips together
     const scaleX = (flipH ? -1 : 1) * validScale;
     const scaleY = (flipV ? -1 : 1) * validScale;
     if (scaleX !== 1 || scaleY !== 1) {
         transform += ` scale(${scaleX}, ${scaleY})`;
     }
 
-    if (image.asset.url) {
-        // Ensure URL is properly formatted for XML/SVG
-        let imageUrl = String(image.asset.url || '').trim();
+    // Ensure URL is properly formatted for XML/SVG
+    let cleanImageUrl = String(imageUrl).trim();
 
-        // Remove any whitespace/newlines from URL (URLs shouldn't have these)
-        imageUrl = imageUrl.replace(/\s+/g, '');
+    // Remove any whitespace/newlines from URL (URLs shouldn't have these)
+    cleanImageUrl = cleanImageUrl.replace(/\s+/g, '');
 
-        // Only escape quotes in URL (for XML attribute), but preserve & and other URL characters
-        imageUrl = imageUrl.replace(/"/g, '&quot;');
+    // Validate URL format
+    if (cleanImageUrl && cleanImageUrl.length > 0 && (cleanImageUrl.startsWith('http://') || cleanImageUrl.startsWith('https://') || cleanImageUrl.startsWith('data:'))) {
+        // For external URLs, download and convert to data URL for better compatibility with Resvg
+        try {
+            if (cleanImageUrl.startsWith('http://') || cleanImageUrl.startsWith('https://')) {
+                const imageResponse = await axios.get(cleanImageUrl, {
+                    responseType: 'arraybuffer',
+                    timeout: 10000,
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0'
+                    }
+                });
+                const imageBuffer = Buffer.from(imageResponse.data);
+                let mimeType = imageResponse.headers['content-type'] || 'image/png';
 
-        // Validate URL format
-        if (imageUrl && imageUrl.length > 0 && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://') || imageUrl.startsWith('data:'))) {
-            // Ensure style and transform don't have any issues (no newlines, extra spaces)
-            const cleanStyle = (style || '').replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
-            const cleanTransform = (transform || '').replace(/\s+/g, ' ').trim();
+                // Resvg may have issues with WebP, so convert to PNG if needed
+                // For now, keep original format but log it
+                if (mimeType === 'image/webp') {
+                    console.log('Image layer: WebP format detected - Resvg should support it');
+                }
 
-            // All attributes must be on the same line to avoid parsing errors
-            return `<image href="${imageUrl}" x="-50" y="-50" width="100" height="100" transform="${cleanTransform}" style="${cleanStyle}"/>`;
-        } else {
-            console.warn(`Invalid image URL (length: ${imageUrl ? imageUrl.length : 0}): ${imageUrl ? imageUrl.substring(0, 100) : 'null'}...`);
-            return '';
+                const base64Image = imageBuffer.toString('base64');
+                cleanImageUrl = `data:${mimeType};base64,${base64Image}`;
+                console.log(`Image layer: Converted to data URL (${mimeType}, ${Math.round(base64Image.length / 1024)}KB)`);
+            }
+        } catch (downloadError) {
+            console.warn('Failed to download image layer, using URL directly:', downloadError.message);
+            // Continue with the original URL - Cloudinary conversion should handle it
         }
-    }
 
-    return '';
+        // Escape quotes for XML
+        cleanImageUrl = cleanImageUrl.replace(/"/g, '&quot;');
+
+        // Ensure style and transform don't have any issues (no newlines, extra spaces)
+        const cleanStyle = (style || '').replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
+        const cleanTransform = (transform || '').replace(/\s+/g, ' ').trim();
+
+        // Use base dimensions (scale is applied in transform)
+        const imageWidth = baseWidth;
+        const imageHeight = baseHeight;
+
+        console.log(`Image layer final: ${imageWidth}x${imageHeight} (base), position: (${validX}, ${validY}), scale: ${validScale}, URL length: ${cleanImageUrl.length}`);
+
+        // Wrap image in a group with transform - this is more reliable than transform on image element
+        // Position image centered at origin, then group transform will move/scale/rotate it
+        // Use both href (SVG 2) and xlink:href (SVG 1.1) for maximum compatibility
+        const imageElement = `<g transform="${cleanTransform}" style="${cleanStyle}"><image href="${cleanImageUrl}" xlink:href="${cleanImageUrl}" x="${-imageWidth / 2}" y="${-imageHeight / 2}" width="${imageWidth}" height="${imageHeight}"/></g>`;
+        console.log(`Generated image SVG element (first 200 chars): ${imageElement.substring(0, 200)}`);
+        return imageElement;
+    } else {
+        console.warn(`Invalid image URL (length: ${cleanImageUrl ? cleanImageUrl.length : 0}): ${cleanImageUrl ? cleanImageUrl.substring(0, 100) : 'null'}...`);
+        return '';
+    }
 }
 
 // Helper function to fetch SVG content
