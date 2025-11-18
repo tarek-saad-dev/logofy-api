@@ -162,7 +162,7 @@ async function getLogoMobileLegacy(req, res, next) {
         ai.has_alpha as asset_has_alpha, ai.vector_svg, ai.meta as asset_meta,
         
         -- Font data for text layers
-        f.family as font_family, f.style as font_style, f.weight as font_weight,
+        f.family as font_family, f.style as default_font_style, f.weight as default_font_weight,
         f.url as font_url, f.fallbacks as font_fallbacks
       FROM layers lay
       LEFT JOIN layer_text lt ON lt.layer_id = lay.id
@@ -209,8 +209,8 @@ async function getLogoMobileLegacy(req, res, next) {
                             font: row.font_family || 'Arial',
                             fontSize: num(row.font_size) != null ? num(row.font_size) : 48,
                             fontColor: row.fill_hex || '#000000',
-                            fontWeight: row.font_weight || 'normal',
-                            fontStyle: row.font_style || 'normal',
+                            fontWeight: row.font_weight || row.default_font_weight || 'normal',
+                            fontStyle: row.font_style || row.default_font_style || 'normal',
                             alignment: row.align || 'center',
                             baseline: row.baseline || 'alphabetic',
                             lineHeight: num(row.line_height) != null ? num(row.line_height) : 1.0,
@@ -224,8 +224,8 @@ async function getLogoMobileLegacy(req, res, next) {
                             underline: row.underline || false,
                             underlineDirection: row.underline_direction || 'horizontal',
                             textCase: row.text_case || 'normal',
-                            fontStyle: row.font_style || 'normal',
-                            fontWeight: row.font_weight || 'normal',
+                            fontStyle: row.font_style || row.default_font_style || 'normal',
+                            fontWeight: row.font_weight || row.default_font_weight || 'normal',
                             textDecoration: row.text_decoration || 'none',
                             textTransform: row.text_transform || 'none',
                             fontVariant: row.font_variant || 'normal'
@@ -460,7 +460,7 @@ async function getAllLogosMobileLegacy(req, res, next) {
         lb.gradient as bg_gradient, lb.asset_id as bg_asset_id, lb.repeat, lb.position, lb.size,
         ai.id as asset_id, ai.kind as asset_kind, ai.name as asset_name, ai.url as asset_url,
         ai.width as asset_width, ai.height as asset_height, ai.has_alpha as asset_has_alpha, ai.vector_svg, ai.meta as asset_meta,
-        f.family as font_family, f.style as font_style, f.weight as font_weight, f.url as font_url, f.fallbacks as font_fallbacks
+        f.family as font_family, f.style as default_font_style, f.weight as default_font_weight, f.url as font_url, f.fallbacks as font_fallbacks
       FROM layers lay
       LEFT JOIN layer_text lt ON lt.layer_id = lay.id
       LEFT JOIN layer_shape ls ON ls.layer_id = lay.id
@@ -502,8 +502,8 @@ async function getAllLogosMobileLegacy(req, res, next) {
                             font: row.font_family || 'Arial',
                             fontSize: num(row.font_size) != null ? num(row.font_size) : 48,
                             fontColor: row.fill_hex || '#000000',
-                            fontWeight: row.font_weight || 'normal',
-                            fontStyle: row.font_style || 'normal',
+                            fontWeight: row.font_weight || row.default_font_weight || 'normal',
+                            fontStyle: row.font_style || row.default_font_style || 'normal',
                             alignment: row.align || 'center',
                             baseline: row.baseline || 'alphabetic',
                             lineHeight: num(row.line_height) != null ? num(row.line_height) : 1.0,
@@ -517,8 +517,8 @@ async function getAllLogosMobileLegacy(req, res, next) {
                             underline: row.underline || false,
                             underlineDirection: row.underline_direction || 'horizontal',
                             textCase: row.text_case || 'normal',
-                            fontStyle: row.font_style || 'normal',
-                            fontWeight: row.font_weight || 'normal',
+                            fontStyle: row.font_style || row.default_font_style || 'normal',
+                            fontWeight: row.font_weight || row.default_font_weight || 'normal',
                             textDecoration: row.text_decoration || 'none',
                             textTransform: row.text_transform || 'none',
                             fontVariant: row.font_variant || 'normal'
