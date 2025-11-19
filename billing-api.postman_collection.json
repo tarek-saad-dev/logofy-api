@@ -252,32 +252,47 @@
         },
         {
             "name": "Stripe Webhook",
+            "description": "⚠️ IMPORTANT: Webhook endpoint requires real Stripe signature verification.\n\nFor testing, use Stripe Test Mode:\n1. Use test keys (sk_test_..., pk_test_..., whsec_test_...)\n2. Use Stripe CLI or Stripe Dashboard to send test events\n3. The webhook will work exactly as in production\n\nTo go live, simply swap environment variables to live keys - no code changes needed.",
             "item": [{
-                "name": "Webhook - Checkout Session Completed",
-                "request": {
-                    "method": "POST",
-                    "header": [{
-                            "key": "Content-Type",
-                            "value": "application/json"
+                    "name": "📖 How to Test Webhooks",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/stripe/webhook",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "stripe", "webhook"]
                         },
-                        {
-                            "key": "stripe-signature",
-                            "value": "whsec_test_signature",
-                            "description": "This should be set by Stripe when sending webhooks. For testing, you can use Stripe CLI."
-                        }
-                    ],
-                    "body": {
-                        "mode": "raw",
-                        "raw": "{\n    \"id\": \"evt_test_webhook\",\n    \"object\": \"event\",\n    \"type\": \"checkout.session.completed\",\n    \"data\": {\n        \"object\": {\n            \"id\": \"cs_test_session\",\n            \"object\": \"checkout.session\",\n            \"mode\": \"subscription\",\n            \"subscription\": \"sub_test_subscription\"\n        }\n    }\n}"
-                    },
-                    "url": {
-                        "raw": "{{baseUrl}}/api/stripe/webhook",
-                        "host": ["{{baseUrl}}"],
-                        "path": ["api", "stripe", "webhook"]
-                    },
-                    "description": "⚠️ This endpoint requires raw body and stripe-signature header. Use Stripe CLI for proper testing:\n\nstripe listen --forward-to localhost:3000/api/stripe/webhook\nstripe trigger checkout.session.completed"
+                        "description": "## Testing Webhooks with Stripe Test Mode\n\n### Option 1: Stripe CLI (Recommended for Local Testing)\n\n1. **Install Stripe CLI**:\n   ```bash\n   # macOS\n   brew install stripe/stripe-cli/stripe\n   \n   # Windows\n   # Download from https://github.com/stripe/stripe-cli/releases\n   ```\n\n2. **Login to Stripe**:\n   ```bash\n   stripe login\n   ```\n\n3. **Forward webhooks to your local server**:\n   ```bash\n   stripe listen --forward-to localhost:3000/api/stripe/webhook\n   ```\n   This will output a webhook signing secret (whsec_...). Add it to your .env as STRIPE_WEBHOOK_SECRET.\n\n4. **Trigger test events**:\n   ```bash\n   stripe trigger checkout.session.completed\n   stripe trigger customer.subscription.created\n   stripe trigger customer.subscription.updated\n   stripe trigger customer.subscription.deleted\n   ```\n\n### Option 2: Stripe Dashboard (For Vercel/Production Testing)\n\n1. **Go to Stripe Dashboard** → Developers → Webhooks\n\n2. **Add endpoint** (for testing on Vercel):\n   - Endpoint URL: `https://logofy-api.vercel.app/api/stripe/webhook`\n   - Events to send:\n     - `checkout.session.completed`\n     - `customer.subscription.created`\n     - `customer.subscription.updated`\n     - `customer.subscription.deleted`\n\n3. **Copy the Signing Secret** (whsec_...) and add to your Vercel environment variables as `STRIPE_WEBHOOK_SECRET`\n\n4. **Send test events** from the webhook endpoint page using \"Send test webhook\"\n\n### Option 3: Real Test Payments\n\n1. Use test card: `4242 4242 4242 4242`\n2. Complete a checkout session using the billing endpoints\n3. Stripe will automatically send webhook events\n\n## Environment Variables\n\n**For Testing (Test Mode):**\n```\nSTRIPE_SECRET_KEY=sk_test_...\nSTRIPE_PUBLISHABLE_KEY=pk_test_...\nSTRIPE_WEBHOOK_SECRET=whsec_test_...\n```\n\n**For Production (Live Mode):**\n```\nSTRIPE_SECRET_KEY=sk_live_...\nSTRIPE_PUBLISHABLE_KEY=pk_live_...\nSTRIPE_WEBHOOK_SECRET=whsec_live_...\n```\n\n**No code changes needed** - just swap the keys!"
+                    }
+                },
+                {
+                    "name": "⚠️ Note: Cannot Test Directly in Postman",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "stripe-signature",
+                                "value": "",
+                                "description": "This header is automatically generated by Stripe and cannot be manually created. You must use Stripe CLI or Stripe Dashboard to send properly signed webhooks."
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"id\": \"evt_test\",\n    \"object\": \"event\",\n    \"type\": \"checkout.session.completed\",\n    \"data\": {\n        \"object\": {}\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/stripe/webhook",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "stripe", "webhook"]
+                        },
+                        "description": "❌ **This request will fail** because Postman cannot generate valid Stripe signatures.\n\nStripe webhook signatures are cryptographically signed using:\n- The raw request body\n- A timestamp\n- The webhook signing secret\n\n**You cannot manually create valid signatures.**\n\n✅ **Use one of these methods instead:**\n1. Stripe CLI (see \"📖 How to Test Webhooks\" request)\n2. Stripe Dashboard \"Send test webhook\"\n3. Complete a real test payment with test card 4242 4242 4242 4242"
+                    }
                 }
-            }]
+            ]
         },
         {
             "name": "Testing & Verification",
