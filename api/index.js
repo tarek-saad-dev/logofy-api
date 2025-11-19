@@ -63,6 +63,9 @@ app.use('/api', require('./routes/export'));
 app.use('/api/migration', require('./routes/migration'));
 
 // Billing routes
+// HTML pages (success/cancel) are at /billing/* (no /api prefix)
+app.use('/billing', require('./routes/billing'));
+// API endpoints are at /api/billing/*
 app.use('/api/billing', require('./routes/billing'));
 
 // 404 handler
