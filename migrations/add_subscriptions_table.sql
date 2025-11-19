@@ -39,7 +39,11 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_user_status
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user_period_end
   ON subscriptions(user_id, current_period_end);
 
--- Index on stripe_sub_id for quick lookups
+-- Unique constraint on stripe_sub_id to prevent duplicates
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_stripe_sub_id_unique
+  ON subscriptions(stripe_sub_id);
+
+-- Index on stripe_sub_id for quick lookups (if unique index doesn't cover it)
 CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe_sub_id
   ON subscriptions(stripe_sub_id);
 

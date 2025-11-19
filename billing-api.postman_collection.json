@@ -1,0 +1,303 @@
+{
+    "info": {
+        "name": "Logo Maker - Billing API",
+        "description": "Complete billing and subscription API collection for Logo Maker SaaS",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+        "_exporter_id": "billing-api"
+    },
+    "variable": [{
+            "key": "baseUrl",
+            "value": "https://logofy-api.vercel.app",
+            "type": "string"
+        },
+        {
+            "key": "token",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "userId",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "checkoutSessionId",
+            "value": "",
+            "type": "string"
+        }
+    ],
+    "item": [{
+            "name": "Authentication",
+            "item": [{
+                    "name": "Register User",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 201) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success && jsonData.data && jsonData.data.token) {",
+                                "        pm.collectionVariables.set(\"token\", jsonData.data.token);",
+                                "        if (jsonData.data.user && jsonData.data.user.id) {",
+                                "            pm.collectionVariables.set(\"userId\", jsonData.data.user.id);",
+                                "        }",
+                                "        console.log(\"Token and User ID saved\");",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"billing_test_{{$timestamp}}@example.com\",\n    \"password\": \"testpassword123\",\n    \"name\": \"Billing Test User\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/register",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "auth", "register"]
+                        },
+                        "description": "Register a new user for billing testing"
+                    }
+                },
+                {
+                    "name": "Login",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success && jsonData.data && jsonData.data.token) {",
+                                "        pm.collectionVariables.set(\"token\", jsonData.data.token);",
+                                "        if (jsonData.data.user && jsonData.data.user.id) {",
+                                "            pm.collectionVariables.set(\"userId\", jsonData.data.user.id);",
+                                "        }",
+                                "        console.log(\"Token and User ID saved\");",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"billing_test@example.com\",\n    \"password\": \"testpassword123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/login",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "auth", "login"]
+                        },
+                        "description": "Login to get JWT token"
+                    }
+                },
+                {
+                    "name": "Get Current User",
+                    "request": {
+                        "method": "GET",
+                        "header": [{
+                            "key": "Authorization",
+                            "value": "Bearer {{token}}"
+                        }],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/me",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "auth", "me"]
+                        },
+                        "description": "Get current authenticated user info"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Billing",
+            "item": [{
+                    "name": "Create Checkout Session - Weekly",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success && jsonData.url) {",
+                                "        pm.collectionVariables.set(\"checkoutSessionId\", jsonData.sessionId);",
+                                "        console.log(\"Checkout URL:\", jsonData.url);",
+                                "        console.log(\"Session ID:\", jsonData.sessionId);",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"plan\": \"weekly\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/billing/create-checkout-session",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "billing", "create-checkout-session"]
+                        },
+                        "description": "Create Stripe checkout session for weekly plan"
+                    }
+                },
+                {
+                    "name": "Create Checkout Session - Monthly",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success && jsonData.url) {",
+                                "        pm.collectionVariables.set(\"checkoutSessionId\", jsonData.sessionId);",
+                                "        console.log(\"Checkout URL:\", jsonData.url);",
+                                "        console.log(\"Session ID:\", jsonData.sessionId);",
+                                "        console.log(\"\\n📝 Next Steps:\");",
+                                "        console.log(\"1. Open the checkout URL in browser\");",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"plan\": \"monthly\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/billing/create-checkout-session",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "billing", "create-checkout-session"]
+                        },
+                        "description": "Create Stripe checkout session for monthly plan (most common)"
+                    }
+                },
+                {
+                    "name": "Create Checkout Session - Yearly",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success && jsonData.url) {",
+                                "        pm.collectionVariables.set(\"checkoutSessionId\", jsonData.sessionId);",
+                                "        console.log(\"Checkout URL:\", jsonData.url);",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"plan\": \"yearly\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/billing/create-checkout-session",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "billing", "create-checkout-session"]
+                        },
+                        "description": "Create Stripe checkout session for yearly plan"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Stripe Webhook",
+            "item": [{
+                "name": "Webhook - Checkout Session Completed",
+                "request": {
+                    "method": "POST",
+                    "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        },
+                        {
+                            "key": "stripe-signature",
+                            "value": "whsec_test_signature",
+                            "description": "This should be set by Stripe when sending webhooks. For testing, you can use Stripe CLI."
+                        }
+                    ],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n    \"id\": \"evt_test_webhook\",\n    \"object\": \"event\",\n    \"type\": \"checkout.session.completed\",\n    \"data\": {\n        \"object\": {\n            \"id\": \"cs_test_session\",\n            \"object\": \"checkout.session\",\n            \"mode\": \"subscription\",\n            \"subscription\": \"sub_test_subscription\"\n        }\n    }\n}"
+                    },
+                    "url": {
+                        "raw": "{{baseUrl}}/api/stripe/webhook",
+                        "host": ["{{baseUrl}}"],
+                        "path": ["api", "stripe", "webhook"]
+                    },
+                    "description": "⚠️ This endpoint requires raw body and stripe-signature header. Use Stripe CLI for proper testing:\n\nstripe listen --forward-to localhost:3000/api/stripe/webhook\nstripe trigger checkout.session.completed"
+                }
+            }]
+        },
+        {
+            "name": "Testing & Verification",
+            "item": [{
+                "name": "Test Entitlement Check",
+                "request": {
+                    "method": "GET",
+                    "header": [{
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                    }],
+                    "url": {
+                        "raw": "{{baseUrl}}/api/auth/me",
+                        "host": ["{{baseUrl}}"],
+                        "path": ["api", "auth", "me"]
+                    },
+                    "description": "Get user info (entitlement would be checked via middleware in protected routes)"
+                }
+            }],
+            "description": "Use these endpoints to verify the billing flow works correctly"
+        }
+    ]
+}

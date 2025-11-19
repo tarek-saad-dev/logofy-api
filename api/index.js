@@ -56,6 +56,10 @@ app.use('/api/projects', require('./routes/projects'));
 app.use('/api', require('./routes/export'));
 app.use('/api/migration', require('./routes/migration'));
 
+// Billing and Stripe routes
+app.use('/api/billing', require('./routes/billing'));
+app.use('/api/stripe', require('./routes/stripeWebhook'));
+
 // 404 handler
 app.use('*', (req, res) => {
     res.status(404).json({
