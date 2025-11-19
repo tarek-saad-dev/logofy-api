@@ -17,6 +17,12 @@ const PORT = process.env.PORT || 3000;
 app.use(helmet());
 app.use(cors());
 app.use(morgan('combined'));
+
+// IMPORTANT: Stripe webhook route MUST be registered BEFORE express.json()
+// because Stripe needs the raw request body for signature verification
+app.use('/api/stripe', require('./routes/stripeWebhook'));
+
+// Now apply JSON parsing middleware for all other routes
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -56,9 +62,8 @@ app.use('/api/projects', require('./routes/projects'));
 app.use('/api', require('./routes/export'));
 app.use('/api/migration', require('./routes/migration'));
 
-// Billing and Stripe routes
+// Billing routes
 app.use('/api/billing', require('./routes/billing'));
-app.use('/api/stripe', require('./routes/stripeWebhook'));
 
 // 404 handler
 app.use('*', (req, res) => {
