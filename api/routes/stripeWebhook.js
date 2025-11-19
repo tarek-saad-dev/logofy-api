@@ -121,13 +121,58 @@ async function handleCheckoutSessionCompleted(session) {
         return;
     }
 
-    // Retrieve the full subscription object
-    const subscription = await stripe.subscriptions.retrieve(
-        session.subscription
-    );
+    console.log(`Processing checkout.session.completed for subscription: ${session.subscription}`);
 
-    // Process the subscription
-    await upsertSubscription(subscription);
+    try {
+        // Retrieve the full subscription object from Stripe
+        // This is required because the session object doesn't include subscription details like current_period_end
+        const subscription = await stripe.subscriptions.retrieve(
+            session.subscription, {
+                expand: [] // We can expand related objects if needed, but subscription should have all we need
+            }
+        );
+
+        // Validate that we got a proper subscription object
+        if (!subscription || !subscription.id) {
+            throw new Error(`Failed to retrieve subscription ${session.subscription} from Stripe`);
+        }
+
+        // Validate that subscription has required fields
+        // Sometimes newly created subscriptions might not have current_period_end immediately
+        // Retry once after a short delay if it's missing
+        if (subscription.current_period_end === undefined || subscription.current_period_end === null) {
+            console.warn(`Subscription ${subscription.id} retrieved from Stripe is missing current_period_end, retrying after 1 second...`);
+            console.warn(`Subscription object:`, {
+                subscription_id: subscription.id,
+                status: subscription.status,
+                current_period_end: subscription.current_period_end,
+                subscription_keys: Object.keys(subscription)
+            });
+
+            // Wait 1 second and retry
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            const retrySubscription = await stripe.subscriptions.retrieve(session.subscription);
+
+            if (retrySubscription.current_period_end === undefined || retrySubscription.current_period_end === null) {
+                console.error(`Subscription ${subscription.id} still missing current_period_end after retry`);
+                throw new Error(`Subscription ${subscription.id} is missing required field: current_period_end (even after retry)`);
+            }
+
+            // Use the retried subscription
+            subscription.current_period_end = retrySubscription.current_period_end;
+            console.log(`Retry successful: subscription ${subscription.id} now has current_period_end: ${subscription.current_period_end}`);
+        }
+
+        console.log(`Successfully retrieved subscription ${subscription.id} with current_period_end: ${subscription.current_period_end}`);
+
+        // Process the subscription
+        await upsertSubscription(subscription);
+    } catch (error) {
+        console.error(`Error handling checkout.session.completed for subscription ${session.subscription}:`, error);
+        // Re-throw to let the webhook handler know this failed
+        // Stripe will retry the webhook if we return a non-200 status
+        throw error;
+    }
 }
 
 /**
