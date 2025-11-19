@@ -175,10 +175,28 @@ async function upsertSubscription(subscription) {
         const stripeCustomerId = subscription.customer;
         const stripeSubId = subscription.id;
         const status = mapStripeStatusToDb(subscription.status);
-        const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
-        const canceledAt = subscription.canceled_at ?
+
+        // Safely derive current_period_end - check if it exists and is valid
+        const currentPeriodEnd = subscription.current_period_end ?
+            new Date(subscription.current_period_end * 1000) :
+            null;
+
+        // Validate the date is not invalid (NaN)
+        if (currentPeriodEnd && isNaN(currentPeriodEnd.getTime())) {
+            console.error(`Invalid current_period_end for subscription ${stripeSubId}: ${subscription.current_period_end}`);
+            throw new Error(`Invalid current_period_end timestamp for subscription ${stripeSubId}`);
+        }
+
+        // Safely derive canceled_at
+        let canceledAt = subscription.canceled_at ?
             new Date(subscription.canceled_at * 1000) :
             null;
+
+        // Validate canceled_at date if it exists
+        if (canceledAt && isNaN(canceledAt.getTime())) {
+            console.warn(`Invalid canceled_at for subscription ${stripeSubId}, setting to null`);
+            canceledAt = null;
+        }
 
         // Try to find user by Stripe customer ID in existing subscriptions
         let userResult = await query(
@@ -219,34 +237,29 @@ async function upsertSubscription(subscription) {
             return;
         }
 
-        // Check if subscription already exists
-        const existingSub = await query(
-            `SELECT id FROM subscriptions WHERE stripe_sub_id = $1`, [stripeSubId]
-        );
+        // Validate current_period_end is required
+        if (!currentPeriodEnd) {
+            console.error(`Missing current_period_end for subscription ${stripeSubId}`);
+            throw new Error(`Missing current_period_end for subscription ${stripeSubId}`);
+        }
 
-        if (existingSub.rows.length > 0) {
-            // Update existing subscription
-            await query(
-                `UPDATE subscriptions 
-         SET status = $1,
-             current_period_end = $2,
-             canceled_at = $3,
-             updated_at = NOW()
-         WHERE stripe_sub_id = $4`, [status, currentPeriodEnd, canceledAt, stripeSubId]
-            );
-        } else {
-            // Insert new subscription
-            await query(
-                `INSERT INTO subscriptions (
+        // Upsert subscription using ON CONFLICT
+        await query(
+            `INSERT INTO subscriptions (
           user_id, 
           stripe_customer_id, 
           stripe_sub_id, 
           status, 
           current_period_end, 
           canceled_at
-        ) VALUES ($1, $2, $3, $4, $5, $6)`, [userId, stripeCustomerId, stripeSubId, status, currentPeriodEnd, canceledAt]
-            );
-        }
+        ) VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (stripe_sub_id) 
+        DO UPDATE SET
+          status = EXCLUDED.status,
+          current_period_end = EXCLUDED.current_period_end,
+          canceled_at = EXCLUDED.canceled_at,
+          updated_at = NOW()`, [userId, stripeCustomerId, stripeSubId, status, currentPeriodEnd, canceledAt]
+        );
 
         console.log(`Subscription ${stripeSubId} upserted for user ${userId}`);
     } catch (error) {
