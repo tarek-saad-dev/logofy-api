@@ -172,30 +172,62 @@ async function handleSubscriptionDeleted(subscription) {
  */
 async function upsertSubscription(subscription) {
     try {
+        // Log subscription data for debugging
+        console.log(`Processing subscription ${subscription.id}:`, {
+            customer: subscription.customer,
+            status: subscription.status,
+            current_period_end: subscription.current_period_end,
+            current_period_end_type: typeof subscription.current_period_end,
+            canceled_at: subscription.canceled_at,
+            canceled_at_type: typeof subscription.canceled_at
+        });
+
         const stripeCustomerId = subscription.customer;
         const stripeSubId = subscription.id;
         const status = mapStripeStatusToDb(subscription.status);
 
-        // Safely derive current_period_end - check if it exists and is valid
-        const currentPeriodEnd = subscription.current_period_end ?
-            new Date(subscription.current_period_end * 1000) :
-            null;
+        // Safely derive current_period_end - validate it's a valid number first
+        let currentPeriodEnd = null;
+        if (subscription.current_period_end !== undefined && subscription.current_period_end !== null) {
+            // Ensure it's a number
+            const periodEndTimestamp = typeof subscription.current_period_end === 'number' ?
+                subscription.current_period_end :
+                Number(subscription.current_period_end);
 
-        // Validate the date is not invalid (NaN)
-        if (currentPeriodEnd && isNaN(currentPeriodEnd.getTime())) {
-            console.error(`Invalid current_period_end for subscription ${stripeSubId}: ${subscription.current_period_end}`);
-            throw new Error(`Invalid current_period_end timestamp for subscription ${stripeSubId}`);
+            // Validate it's a valid number (not NaN)
+            if (!isNaN(periodEndTimestamp) && isFinite(periodEndTimestamp) && periodEndTimestamp > 0) {
+                currentPeriodEnd = new Date(periodEndTimestamp * 1000);
+
+                // Double-check the Date is valid
+                if (isNaN(currentPeriodEnd.getTime())) {
+                    console.error(`Invalid Date created from current_period_end for subscription ${stripeSubId}: ${subscription.current_period_end}`);
+                    throw new Error(`Invalid current_period_end timestamp for subscription ${stripeSubId}`);
+                }
+            } else {
+                console.error(`Invalid current_period_end value for subscription ${stripeSubId}: ${subscription.current_period_end} (type: ${typeof subscription.current_period_end})`);
+                throw new Error(`Invalid current_period_end value for subscription ${stripeSubId}: must be a positive number`);
+            }
         }
 
         // Safely derive canceled_at
-        let canceledAt = subscription.canceled_at ?
-            new Date(subscription.canceled_at * 1000) :
-            null;
+        let canceledAt = null;
+        if (subscription.canceled_at !== undefined && subscription.canceled_at !== null) {
+            const canceledTimestamp = typeof subscription.canceled_at === 'number' ?
+                subscription.canceled_at :
+                Number(subscription.canceled_at);
 
-        // Validate canceled_at date if it exists
-        if (canceledAt && isNaN(canceledAt.getTime())) {
-            console.warn(`Invalid canceled_at for subscription ${stripeSubId}, setting to null`);
-            canceledAt = null;
+            if (!isNaN(canceledTimestamp) && isFinite(canceledTimestamp) && canceledTimestamp > 0) {
+                canceledAt = new Date(canceledTimestamp * 1000);
+
+                // Validate the Date is valid
+                if (isNaN(canceledAt.getTime())) {
+                    console.warn(`Invalid canceled_at Date for subscription ${stripeSubId}, setting to null`);
+                    canceledAt = null;
+                }
+            } else {
+                console.warn(`Invalid canceled_at value for subscription ${stripeSubId}, setting to null`);
+                canceledAt = null;
+            }
         }
 
         // Try to find user by Stripe customer ID in existing subscriptions
@@ -237,11 +269,29 @@ async function upsertSubscription(subscription) {
             return;
         }
 
-        // Validate current_period_end is required
+        // Validate current_period_end is required and valid
         if (!currentPeriodEnd) {
             console.error(`Missing current_period_end for subscription ${stripeSubId}`);
+            console.error(`Subscription object:`, JSON.stringify(subscription, null, 2));
             throw new Error(`Missing current_period_end for subscription ${stripeSubId}`);
         }
+
+        // Final validation: ensure currentPeriodEnd is a valid Date object
+        if (!(currentPeriodEnd instanceof Date) || isNaN(currentPeriodEnd.getTime())) {
+            console.error(`Invalid currentPeriodEnd Date object for subscription ${stripeSubId}:`, currentPeriodEnd);
+            console.error(`Original subscription.current_period_end:`, subscription.current_period_end);
+            throw new Error(`Invalid current_period_end Date object for subscription ${stripeSubId}`);
+        }
+
+        // Log the values we're about to insert
+        console.log(`Inserting subscription ${stripeSubId} with:`, {
+            userId,
+            stripeCustomerId,
+            stripeSubId,
+            status,
+            currentPeriodEnd: currentPeriodEnd.toISOString(),
+            canceledAt: canceledAt ? canceledAt.toISOString() : null
+        });
 
         // Upsert subscription using ON CONFLICT
         await query(
