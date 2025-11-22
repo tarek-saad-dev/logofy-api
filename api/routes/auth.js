@@ -6,6 +6,7 @@ const { authenticate } = require('../middleware/auth');
 const { generateOTP, storeOTP, verifyOTP, getOTPWithMetadata, getOTPAttempts, checkOTP } = require('../services/otpService');
 const { sendLoginOTP, sendPasswordResetOTP, sendRegistrationOTP, isValidEmail, isValidGmail } = require('../services/emailService');
 const { query } = require('../config/database');
+const { getEntitlementForUser } = require('../services/entitlementService');
 
 /**
  * Generate short-lived access token for user (15 minutes to 1 hour)
@@ -37,17 +38,16 @@ const generateRefreshToken = () => {
 /**
  * Store refresh token in database
  */
-const storeRefreshToken = async (userId, refreshToken) => {
+const storeRefreshToken = async(userId, refreshToken) => {
     const expiresInDays = parseInt(process.env.JWT_REFRESH_EXPIRES_IN_DAYS || '30', 10);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expiresInDays);
-    
+
     try {
         await query(
             `INSERT INTO refresh_tokens (user_id, token, expires_at)
              VALUES ($1, $2, $3)
-             ON CONFLICT (token) DO NOTHING`,
-            [userId, refreshToken, expiresAt]
+             ON CONFLICT (token) DO NOTHING`, [userId, refreshToken, expiresAt]
         );
     } catch (error) {
         // If table doesn't exist, try to run migration
@@ -60,8 +60,7 @@ const storeRefreshToken = async (userId, refreshToken) => {
                 await query(
                     `INSERT INTO refresh_tokens (user_id, token, expires_at)
                      VALUES ($1, $2, $3)
-                     ON CONFLICT (token) DO NOTHING`,
-                    [userId, refreshToken, expiresAt]
+                     ON CONFLICT (token) DO NOTHING`, [userId, refreshToken, expiresAt]
                 );
             } catch (migrationError) {
                 console.error('❌ Failed to create refresh_tokens table:', migrationError.message);
@@ -71,67 +70,129 @@ const storeRefreshToken = async (userId, refreshToken) => {
             throw error;
         }
     }
-    
+
     return expiresAt;
 };
 
 /**
  * Verify and get refresh token from database
  */
-const verifyRefreshToken = async (refreshToken) => {
+const verifyRefreshToken = async(refreshToken) => {
     const result = await query(
         `SELECT rt.*, u.id as user_id, u.email
          FROM refresh_tokens rt
          JOIN users u ON rt.user_id = u.id
          WHERE rt.token = $1 
            AND rt.expires_at > NOW() 
-           AND rt.revoked = FALSE`,
-        [refreshToken]
+           AND rt.revoked = FALSE`, [refreshToken]
     );
-    
+
     if (result.rows.length === 0) {
         return null;
     }
-    
+
     return result.rows[0];
 };
 
 /**
  * Revoke refresh token
  */
-const revokeRefreshToken = async (refreshToken) => {
+const revokeRefreshToken = async(refreshToken) => {
     await query(
         `UPDATE refresh_tokens 
          SET revoked = TRUE 
-         WHERE token = $1`,
-        [refreshToken]
+         WHERE token = $1`, [refreshToken]
     );
 };
 
 /**
  * Revoke all refresh tokens for a user
  */
-const revokeAllRefreshTokens = async (userId) => {
+const revokeAllRefreshTokens = async(userId) => {
     await query(
         `UPDATE refresh_tokens 
          SET revoked = TRUE 
-         WHERE user_id = $1`,
-        [userId]
+         WHERE user_id = $1`, [userId]
     );
 };
 
 /**
  * Generate both access and refresh tokens for a user
  */
-const generateTokenPair = async (userId) => {
+const generateTokenPair = async(userId) => {
     const accessToken = generateAccessToken(userId);
     const refreshToken = generateRefreshToken();
     await storeRefreshToken(userId, refreshToken);
-    
+
     return {
         accessToken,
         refreshToken
     };
+};
+
+/**
+ * Get user data with subscription/plan status
+ * This is the single source of truth for user plan information
+ */
+const getUserWithSubscriptionStatus = async(userId) => {
+    try {
+        // Get user basic info
+        const user = await User.findById(userId);
+        if (!user) {
+            return null;
+        }
+
+        // Get entitlement (pro, trial, or guest)
+        const entitlement = await getEntitlementForUser(userId);
+
+        // Get subscription details if user has one
+        let subscription = null;
+        if (entitlement === 'pro') {
+            const subResult = await query(
+                `SELECT 
+                    status, 
+                    current_period_end, 
+                    stripe_sub_id, 
+                    stripe_customer_id,
+                    created_at,
+                    updated_at
+                FROM subscriptions
+                WHERE user_id = $1 
+                    AND status IN ('active', 'trialing')
+                    AND current_period_end > NOW()
+                ORDER BY current_period_end DESC
+                LIMIT 1`, [userId]
+            );
+
+            if (subResult.rows.length > 0) {
+                subscription = subResult.rows[0];
+            }
+        }
+
+        // Build user object with subscription info
+        const userData = user.toJSON();
+        return {
+            ...userData,
+            plan: entitlement, // 'pro', 'trial', or 'guest'
+            is_pro: entitlement === 'pro',
+            is_trial: entitlement === 'trial',
+            is_guest: entitlement === 'guest',
+            subscription: subscription
+        };
+    } catch (error) {
+        console.error('Error getting user with subscription status:', error);
+        // Return basic user data if subscription check fails
+        const user = await User.findById(userId);
+        if (!user) return null;
+        return {
+            ...user.toJSON(),
+            plan: 'guest',
+            is_pro: false,
+            is_trial: false,
+            is_guest: true,
+            subscription: null
+        };
+    }
 };
 
 /**
@@ -325,11 +386,14 @@ router.post('/register/verify-otp', async(req, res) => {
         // Generate token pair
         const { accessToken, refreshToken } = await generateTokenPair(newUser.id);
 
+        // Get user with subscription status (single source of truth)
+        const userWithStatus = await getUserWithSubscriptionStatus(newUser.id);
+
         // Return user data (without password) and tokens
         res.status(201).json({
             success: true,
             data: {
-                user: newUser.toJSON(),
+                user: userWithStatus,
                 access_token: accessToken,
                 refresh_token: refreshToken
             },
@@ -390,11 +454,14 @@ router.post('/login', async(req, res) => {
         // Generate token pair
         const { accessToken, refreshToken } = await generateTokenPair(user.id);
 
+        // Get user with subscription status (single source of truth)
+        const userWithStatus = await getUserWithSubscriptionStatus(user.id);
+
         // Return user data and tokens
         res.json({
             success: true,
             data: {
-                user: user.toJSON(),
+                user: userWithStatus,
                 access_token: accessToken,
                 refresh_token: refreshToken
             },
@@ -548,11 +615,14 @@ router.post('/login/verify-otp', async(req, res) => {
         // Generate token pair
         const { accessToken, refreshToken } = await generateTokenPair(user.id);
 
+        // Get user with subscription status (single source of truth)
+        const userWithStatus = await getUserWithSubscriptionStatus(user.id);
+
         // Return user data and tokens
         res.json({
             success: true,
             data: {
-                user: user.toJSON(),
+                user: userWithStatus,
                 access_token: accessToken,
                 refresh_token: refreshToken
             },
@@ -570,22 +640,33 @@ router.post('/login/verify-otp', async(req, res) => {
 
 /**
  * GET /api/auth/me
- * Get current authenticated user
+ * Get current authenticated user with subscription status
+ * This is the single source of truth for user plan information
  */
 router.get('/me', authenticate, async(req, res) => {
     try {
-        // User is already attached to req by authenticate middleware
+        // Get user with subscription status (single source of truth)
+        const userWithStatus = await getUserWithSubscriptionStatus(req.user.id);
+
+        if (!userWithStatus) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
         res.json({
             success: true,
             data: {
-                user: req.user.toJSON()
+                user: userWithStatus
             }
         });
     } catch (error) {
         console.error('Error fetching current user:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch user information'
+            message: 'Failed to fetch user information',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });
@@ -610,7 +691,7 @@ router.post('/refresh', async(req, res) => {
 
         // Verify refresh token from database
         const tokenRecord = await verifyRefreshToken(refresh_token);
-        
+
         if (!tokenRecord) {
             return res.status(401).json({
                 success: false,
@@ -1038,7 +1119,7 @@ router.post('/logout', authenticate, async(req, res) => {
         // If revoke_all is true, revoke all refresh tokens for this user
         if (revoke_all === true || revoke_all === 'true') {
             await revokeAllRefreshTokens(userId);
-            
+
             return res.json({
                 success: true,
                 message: 'All refresh tokens revoked successfully. User logged out from all devices.'
@@ -1049,7 +1130,7 @@ router.post('/logout', authenticate, async(req, res) => {
         if (refresh_token) {
             // Verify the token belongs to this user
             const tokenRecord = await verifyRefreshToken(refresh_token);
-            
+
             if (!tokenRecord || tokenRecord.user_id !== userId) {
                 return res.status(400).json({
                     success: false,
@@ -1058,7 +1139,7 @@ router.post('/logout', authenticate, async(req, res) => {
             }
 
             await revokeRefreshToken(refresh_token);
-            
+
             return res.json({
                 success: true,
                 message: 'Refresh token revoked successfully. User logged out.'
@@ -1067,7 +1148,7 @@ router.post('/logout', authenticate, async(req, res) => {
 
         // If no refresh_token provided and revoke_all is false, revoke all tokens
         await revokeAllRefreshTokens(userId);
-        
+
         res.json({
             success: true,
             message: 'All refresh tokens revoked successfully. User logged out.'

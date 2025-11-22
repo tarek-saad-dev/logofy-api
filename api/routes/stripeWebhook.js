@@ -165,8 +165,15 @@ async function handleCheckoutSessionCompleted(session) {
 
         console.log(`Successfully retrieved subscription ${subscription.id} with current_period_end: ${subscription.current_period_end}`);
 
-        // Process the subscription
-        await upsertSubscription(subscription);
+        // Get userId from session metadata (most reliable source)
+        let userId = null;
+        if (session.metadata && session.metadata.userId) {
+            userId = session.metadata.userId;
+            console.log(`Found userId from checkout session metadata: ${userId}`);
+        }
+
+        // Process the subscription (pass userId if we have it)
+        await upsertSubscription(subscription, userId);
     } catch (error) {
         console.error(`Error handling checkout.session.completed for subscription ${session.subscription}:`, error);
         // Re-throw to let the webhook handler know this failed
@@ -211,11 +218,15 @@ async function handleSubscriptionDeleted(subscription) {
  * Upsert subscription data into database
  * 
  * This function:
- * 1. Finds the user by Stripe customer ID (from subscription.customer)
- * 2. If user not found, tries to find by email from customer object
- * 3. Upserts subscription data into subscriptions table
+ * 1. Uses userId if provided (from checkout session metadata - most reliable)
+ * 2. Otherwise finds the user by Stripe customer ID (from subscription.customer)
+ * 3. If user not found, tries to find by email from customer object
+ * 4. Upserts subscription data into subscriptions table
+ * 
+ * @param {Object} subscription - Stripe subscription object
+ * @param {string|null} userId - Optional userId from checkout session metadata
  */
-async function upsertSubscription(subscription) {
+async function upsertSubscription(subscription, userId = null) {
     try {
         // Log subscription data for debugging
         console.log(`Processing subscription ${subscription.id}:`, {
@@ -231,14 +242,29 @@ async function upsertSubscription(subscription) {
         const stripeSubId = subscription.id;
         const status = mapStripeStatusToDb(subscription.status);
 
-        // TEMPORARY: Set current_period_end to null to avoid invalid timestamp errors
-        // TODO: Once Stripe subscription retrieval logic is fixed, restore proper parsing
-        // The column is nullable, so this is safe and prevents webhook failures
-        const currentPeriodEnd = null; // temporary fallback until Stripe logic is fixed
-
-        // Log that we're using the temporary fallback
+        // Parse current_period_end from Stripe timestamp (Unix timestamp in seconds)
+        let currentPeriodEnd = null;
         if (subscription.current_period_end !== undefined && subscription.current_period_end !== null) {
-            console.log(`⚠️  TEMPORARY: Ignoring current_period_end from subscription ${stripeSubId}: ${subscription.current_period_end} (will be NULL in database)`);
+            const periodEndTimestamp = typeof subscription.current_period_end === 'number' ?
+                subscription.current_period_end :
+                Number(subscription.current_period_end);
+
+            if (!isNaN(periodEndTimestamp) && isFinite(periodEndTimestamp) && periodEndTimestamp > 0) {
+                currentPeriodEnd = new Date(periodEndTimestamp * 1000);
+
+                // Validate the Date is valid
+                if (isNaN(currentPeriodEnd.getTime())) {
+                    console.warn(`Invalid current_period_end Date for subscription ${stripeSubId}, setting to null`);
+                    currentPeriodEnd = null;
+                } else {
+                    console.log(`Parsed current_period_end for subscription ${stripeSubId}: ${currentPeriodEnd.toISOString()}`);
+                }
+            } else {
+                console.warn(`Invalid current_period_end value for subscription ${stripeSubId}, setting to null`);
+                currentPeriodEnd = null;
+            }
+        } else {
+            console.warn(`Subscription ${stripeSubId} has no current_period_end, setting to null`);
         }
 
         // Safely derive canceled_at
@@ -262,20 +288,24 @@ async function upsertSubscription(subscription) {
             }
         }
 
-        // Try to find user by Stripe customer ID in existing subscriptions
-        let userResult = await query(
-            `SELECT user_id FROM subscriptions 
-       WHERE stripe_customer_id = $1 
-       ORDER BY created_at DESC 
-       LIMIT 1`, [stripeCustomerId]
-        );
+        // If userId not provided, try to find user
+        if (!userId) {
+            // Try to find user by Stripe customer ID in existing subscriptions
+            let userResult = await query(
+                `SELECT user_id FROM subscriptions 
+           WHERE stripe_customer_id = $1 
+           ORDER BY created_at DESC 
+           LIMIT 1`, [stripeCustomerId]
+            );
 
-        let userId = null;
+            if (userResult.rows.length > 0) {
+                // Found user from existing subscription
+                userId = userResult.rows[0].user_id;
+                console.log(`Found userId from existing subscription: ${userId}`);
+            }
+        }
 
-        if (userResult.rows.length > 0) {
-            // Found user from existing subscription
-            userId = userResult.rows[0].user_id;
-        } else {
+        if (!userId) {
             // Try to find user by email from Stripe customer
             try {
                 const customer = await stripe.customers.retrieve(stripeCustomerId);
@@ -301,15 +331,13 @@ async function upsertSubscription(subscription) {
             return;
         }
 
-        // TEMPORARY: Skip validation since we're setting currentPeriodEnd to null
-        // TODO: Restore validation once Stripe subscription retrieval logic is fixed
         // Log the values we're about to insert
         console.log(`Inserting subscription ${stripeSubId} with:`, {
             userId,
             stripeCustomerId,
             stripeSubId,
             status,
-            currentPeriodEnd: null, // TEMPORARY: Always null until Stripe logic is fixed
+            currentPeriodEnd: currentPeriodEnd ? currentPeriodEnd.toISOString() : null,
             canceledAt: canceledAt ? canceledAt.toISOString() : null
         });
 
