@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { query } = require('../config/database');
+const { authenticate } = require('../middleware/auth');
+const { entitlementMiddleware, requirePro } = require('../middleware/entitlement');
 const cloudinary = require('cloudinary').v2;
 const sharp = require('sharp');
 const { Resvg } = require('@resvg/resvg-js');
@@ -559,6 +561,335 @@ router.get('/logo/:id/export/debug', async(req, res) => {
         res.status(500).json({
             success: false,
             error: error.message
+        });
+    }
+});
+
+// GET /api/project/:id/export - Export project (stored as JSON) as PNG
+// Requires authentication and pro subscription
+router.get('/project/:id/export', authenticate, entitlementMiddleware, requirePro, async(req, res) => {
+    try {
+        const { id } = req.params;
+        const { width, height, dpi = 300, quality = 100, format = 'png' } = req.query;
+        const userId = req.user?.id || req.userId;
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: 'Authentication required'
+            });
+        }
+
+        // Fetch project from database
+        const projectRes = await query(
+            `SELECT id, user_id, title, json_doc, created_at, updated_at
+             FROM projects
+             WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+             LIMIT 1`,
+            [id, userId]
+        );
+
+        if (projectRes.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Project not found or access denied'
+            });
+        }
+
+        const project = projectRes.rows[0];
+        const jsonDoc = typeof project.json_doc === 'string' 
+            ? JSON.parse(project.json_doc) 
+            : project.json_doc;
+
+        // Extract logo data from json_doc
+        // Support multiple possible structures
+        let logoData = null;
+        let layersData = [];
+
+        // Structure 1: Direct logo structure
+        if (jsonDoc.canvas && jsonDoc.layers) {
+            logoData = {
+                id: project.id,
+                owner_id: project.user_id,
+                title: project.title || jsonDoc.title || 'Untitled Project',
+                canvas_w: jsonDoc.canvas.width || jsonDoc.canvas.w || 1000,
+                canvas_h: jsonDoc.canvas.height || jsonDoc.canvas.h || 1000,
+                dpi: jsonDoc.canvas.dpi || 300,
+                canvas_background_type: jsonDoc.canvas.backgroundType || jsonDoc.canvas.backgroundColor ? 'solid' : 'transparent',
+                canvas_background_solid_color: jsonDoc.canvas.backgroundColor || jsonDoc.canvas.background_color || '#ffffff',
+                canvas_background_gradient: jsonDoc.canvas.gradient || null,
+                canvas_background_image_type: jsonDoc.canvas.backgroundImage ? 'image' : null,
+                canvas_background_image_path: jsonDoc.canvas.backgroundImage || null,
+                export_format: jsonDoc.export?.format || 'png',
+                export_transparent_background: jsonDoc.export?.transparentBackground !== false,
+                export_quality: jsonDoc.export?.quality || 100,
+                export_scalable: jsonDoc.export?.scalable !== false,
+                export_maintain_aspect_ratio: jsonDoc.export?.maintainAspectRatio !== false
+            };
+            layersData = jsonDoc.layers || [];
+        }
+        // Structure 2: Nested logo structure
+        else if (jsonDoc.logo) {
+            logoData = {
+                id: project.id,
+                owner_id: project.user_id,
+                title: project.title || jsonDoc.logo.title || 'Untitled Project',
+                canvas_w: jsonDoc.logo.canvas_w || jsonDoc.logo.canvas?.width || 1000,
+                canvas_h: jsonDoc.logo.canvas_h || jsonDoc.logo.canvas?.height || 1000,
+                dpi: jsonDoc.logo.dpi || 300,
+                canvas_background_type: jsonDoc.logo.canvas_background_type || 'transparent',
+                canvas_background_solid_color: jsonDoc.logo.canvas_background_solid_color || '#ffffff',
+                canvas_background_gradient: jsonDoc.logo.canvas_background_gradient || null,
+                canvas_background_image_type: jsonDoc.logo.canvas_background_image_type || null,
+                canvas_background_image_path: jsonDoc.logo.canvas_background_image_path || null,
+                export_format: jsonDoc.logo.export_format || 'png',
+                export_transparent_background: jsonDoc.logo.export_transparent_background !== false,
+                export_quality: jsonDoc.logo.export_quality || 100,
+                export_scalable: jsonDoc.logo.export_scalable !== false,
+                export_maintain_aspect_ratio: jsonDoc.logo.export_maintain_aspect_ratio !== false
+            };
+            layersData = jsonDoc.logo.layers || [];
+        }
+        // Structure 3: Try to find logo and layers at root level
+        else {
+            // Try to extract from root level
+            logoData = {
+                id: project.id,
+                owner_id: project.user_id,
+                title: project.title || jsonDoc.title || 'Untitled Project',
+                canvas_w: jsonDoc.width || jsonDoc.canvas_w || 1000,
+                canvas_h: jsonDoc.height || jsonDoc.canvas_h || 1000,
+                dpi: jsonDoc.dpi || 300,
+                canvas_background_type: jsonDoc.backgroundType || 'transparent',
+                canvas_background_solid_color: jsonDoc.backgroundColor || '#ffffff',
+                canvas_background_gradient: jsonDoc.gradient || null,
+                canvas_background_image_type: jsonDoc.backgroundImage ? 'image' : null,
+                canvas_background_image_path: jsonDoc.backgroundImage || null,
+                export_format: jsonDoc.format || 'png',
+                export_transparent_background: jsonDoc.transparentBackground !== false,
+                export_quality: jsonDoc.quality || 100,
+                export_scalable: jsonDoc.scalable !== false,
+                export_maintain_aspect_ratio: jsonDoc.maintainAspectRatio !== false
+            };
+            layersData = jsonDoc.layers || [];
+        }
+
+        if (!logoData || !layersData || layersData.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid project structure. Project must contain canvas and layers data.'
+            });
+        }
+
+        // Convert layers to the format expected by generateSVGFromLogo
+        // The layers from json_doc might be in a different format, so we need to normalize them
+        const normalizedLayers = layersData.map((layer, index) => {
+            // Normalize layer structure to match database format
+            const normalized = {
+                id: layer.id || `layer-${index}`,
+                type: layer.type?.toUpperCase() || 'TEXT',
+                z_index: layer.z_index !== undefined ? layer.z_index : (layer.zIndex !== undefined ? layer.zIndex : index),
+                x_norm: layer.x_norm !== undefined ? layer.x_norm : (layer.x !== undefined ? layer.x / logoData.canvas_w : 0),
+                y_norm: layer.y_norm !== undefined ? layer.y_norm : (layer.y !== undefined ? layer.y / logoData.canvas_h : 0),
+                scale: layer.scale || 1,
+                rotation_deg: layer.rotation_deg !== undefined ? layer.rotation_deg : (layer.rotation !== undefined ? layer.rotation : 0),
+                opacity: layer.opacity !== undefined ? layer.opacity : 1,
+                is_visible: layer.is_visible !== false && layer.visible !== false,
+                flip_horizontal: layer.flip_horizontal || layer.flipHorizontal || false,
+                flip_vertical: layer.flip_vertical || layer.flipVertical || false,
+                common_style: layer.common_style || layer.style || null
+            };
+
+            // Add type-specific data
+            if (normalized.type === 'TEXT' && layer.text) {
+                normalized.text = {
+                    content: layer.text.content || layer.content || '',
+                    font_family: layer.text.fontFamily || layer.fontFamily || 'Arial',
+                    font_size: layer.text.fontSize || layer.fontSize || 48,
+                    fill_hex: layer.text.fillHex || layer.text.color || layer.color || '#000000',
+                    fill_alpha: layer.text.fillAlpha !== undefined ? layer.text.fillAlpha : 1
+                };
+            } else if (normalized.type === 'SHAPE' && layer.shape) {
+                normalized.shape = {
+                    shape_kind: layer.shape.kind || layer.shape.shape_kind || 'rectangle',
+                    fill_hex: layer.shape.fillHex || layer.shape.fill || '#000000',
+                    fill_alpha: layer.shape.fillAlpha !== undefined ? layer.shape.fillAlpha : 1,
+                    stroke_hex: layer.shape.strokeHex || layer.shape.stroke || null,
+                    stroke_width: layer.shape.strokeWidth || 0,
+                    meta: layer.shape.meta || {}
+                };
+            } else if (normalized.type === 'ICON' && layer.icon) {
+                normalized.icon = {
+                    asset_id: layer.icon.assetId || layer.icon.asset_id || null,
+                    path: layer.icon.path || layer.icon.url || null,
+                    tint_hex: layer.icon.tintHex || layer.icon.tint || null,
+                    tint_alpha: layer.icon.tintAlpha !== undefined ? layer.icon.tintAlpha : 1,
+                    asset: layer.icon.asset || null
+                };
+            } else if (normalized.type === 'IMAGE' && layer.image) {
+                normalized.image = {
+                    asset_id: layer.image.assetId || layer.image.asset_id || null,
+                    path: layer.image.path || layer.image.url || null,
+                    asset: layer.image.asset || null
+                };
+            }
+
+            return normalized;
+        });
+
+        // Determine canvas dimensions
+        const canvasWidth = width ? parseInt(width) : logoData.canvas_w;
+        const canvasHeight = height ? parseInt(height) : logoData.canvas_h;
+
+        // Generate SVG from logo data
+        let svg = await generateSVGFromLogo(logoData, normalizedLayers, canvasWidth, canvasHeight);
+
+        // Validate SVG before processing
+        if (!svg || typeof svg !== 'string' || svg.trim().length === 0) {
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to generate SVG from project data'
+            });
+        }
+
+        // Clean the SVG
+        svg = cleanSVGAttributes(svg);
+
+        // Convert SVG to PNG using @resvg/resvg-js
+        let pngBuffer;
+        let useCloudinary = false;
+
+        try {
+            let background = 'rgba(0,0,0,0)';
+            if (logoData.canvas_background_type === 'transparent' || logoData.export_transparent_background) {
+                background = 'rgba(0,0,0,0)';
+            } else if (logoData.canvas_background_type === 'image') {
+                background = 'rgba(0,0,0,0)';
+            } else if (logoData.canvas_background_type === 'solid') {
+                background = logoData.canvas_background_solid_color || '#ffffff';
+            } else {
+                background = logoData.canvas_background_solid_color || '#ffffff';
+            }
+
+            const resvg = new Resvg(svg, {
+                background: background,
+                fitTo: {
+                    mode: 'width',
+                    value: canvasWidth
+                },
+                dpi: parseInt(dpi) || 300
+            });
+
+            const pngData = resvg.render();
+            pngBuffer = pngData.asPng();
+        } catch (svgError) {
+            console.warn('Resvg failed, falling back to Cloudinary:', svgError.message);
+            useCloudinary = true;
+
+            try {
+                const svgBase64 = Buffer.from(svg).toString('base64');
+                const svgDataUrl = `data:image/svg+xml;base64,${svgBase64}`;
+
+                const uploadResult = await cloudinary.uploader.upload(svgDataUrl, {
+                    resource_type: 'image',
+                    format: 'png',
+                    width: canvasWidth,
+                    height: canvasHeight,
+                    dpr: (parseInt(dpi) || 300) / 72,
+                    quality: format === 'jpg' || format === 'jpeg' ? parseInt(quality) : 'auto',
+                    fetch_format: format === 'jpg' || format === 'jpeg' ? 'jpg' : 'png',
+                    flags: logoData.export_transparent_background ? 'transparent' : undefined
+                });
+
+                const imageResponse = await axios.get(uploadResult.secure_url, {
+                    responseType: 'arraybuffer',
+                    timeout: 30000
+                });
+
+                pngBuffer = Buffer.from(imageResponse.data);
+
+                try {
+                    await cloudinary.uploader.destroy(uploadResult.public_id);
+                } catch (cleanupError) {
+                    console.warn('Failed to cleanup Cloudinary temp file:', cleanupError.message);
+                }
+            } catch (cloudinaryError) {
+                console.error('Cloudinary conversion also failed:', cloudinaryError);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to export project: Both Resvg and Cloudinary conversion failed',
+                    error: process.env.NODE_ENV === 'development' ? {
+                        resvg: svgError.message,
+                        cloudinary: cloudinaryError.message
+                    } : undefined
+                });
+            }
+        }
+
+        // Apply quality compression if needed
+        let finalBuffer = pngBuffer;
+        if (format === 'png' && quality < 100) {
+            finalBuffer = await sharp(pngBuffer)
+                .png({ quality: parseInt(quality), compressionLevel: 9 })
+                .toBuffer();
+        } else if (format === 'jpg' || format === 'jpeg') {
+            finalBuffer = await sharp(pngBuffer)
+                .jpeg({ quality: parseInt(quality) })
+                .toBuffer();
+        }
+
+        // Upload PNG to Cloudinary
+        try {
+            const uploadOptions = {
+                resource_type: 'image',
+                folder: 'project-exports',
+                public_id: `project-${id}-${Date.now()}`,
+                format: format === 'jpg' || format === 'jpeg' ? 'jpg' : 'png',
+                overwrite: false,
+                invalidate: true
+            };
+
+            const uploadResult = await new Promise((resolve, reject) => {
+                const uploadStream = cloudinary.uploader.upload_stream(
+                    uploadOptions,
+                    (error, result) => {
+                        if (error) {
+                            reject(error);
+                        } else {
+                            resolve(result);
+                        }
+                    }
+                );
+                uploadStream.end(finalBuffer);
+            });
+
+            return res.json({
+                success: true,
+                message: 'Project exported successfully',
+                data: {
+                    url: uploadResult.secure_url,
+                    public_id: uploadResult.public_id,
+                    format: uploadResult.format,
+                    width: uploadResult.width,
+                    height: uploadResult.height,
+                    bytes: uploadResult.bytes,
+                    created_at: uploadResult.created_at
+                }
+            });
+        } catch (uploadError) {
+            console.error('Error uploading to Cloudinary:', uploadError);
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to upload project to Cloudinary',
+                error: process.env.NODE_ENV === 'development' ? uploadError.message : undefined
+            });
+        }
+    } catch (error) {
+        console.error('Error exporting project:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to export project',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });

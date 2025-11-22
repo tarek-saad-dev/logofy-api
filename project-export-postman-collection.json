@@ -1,0 +1,357 @@
+{
+	"info": {
+		"_postman_id": "project-export-2024",
+		"name": "Project Export API",
+		"description": "Postman collection for exporting projects (logos stored as JSON in projects table)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Projects",
+			"item": [
+				{
+					"name": "Get All Projects",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/projects?page=1&limit=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "projects"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								},
+								{
+									"key": "search",
+									"value": "",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Get all projects for the authenticated user"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Project by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.project && jsonData.data.project.id) {",
+									"        pm.environment.set('project_id', jsonData.data.project.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/projects/{{project_id}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "projects", "{{project_id}}"]
+						},
+						"description": "Get a specific project by ID. Automatically saves project_id to environment."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Project",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.project && jsonData.data.project.id) {",
+									"        pm.environment.set('project_id', jsonData.data.project.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"My Logo Project\",\n    \"json_doc\": {\n        \"canvas\": {\n            \"width\": 800,\n            \"height\": 600,\n            \"backgroundColor\": \"#ffffff\"\n        },\n        \"layers\": [\n            {\n                \"id\": \"layer1\",\n                \"type\": \"TEXT\",\n                \"content\": \"My Logo\",\n                \"x_norm\": 0.5,\n                \"y_norm\": 0.5,\n                \"z_index\": 0,\n                \"text\": {\n                    \"content\": \"My Logo\",\n                    \"fontFamily\": \"Arial\",\n                    \"fontSize\": 48,\n                    \"fillHex\": \"#000000\"\n                }\n            }\n        ]\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/projects",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "projects"]
+						},
+						"description": "Create a new project. Automatically saves project_id to environment."
+					},
+					"response": []
+				}
+			],
+			"description": "Project management endpoints"
+		},
+		{
+			"name": "Export",
+			"item": [
+				{
+					"name": "Export Project (PNG) - Default",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/project/{{project_id}}/export",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "project", "{{project_id}}", "export"]
+						},
+						"description": "**Export project as PNG (default settings)**\n\n- Requires: Authentication + Pro subscription\n- Default: 300 DPI, 100% quality, PNG format\n- Uses project's canvas dimensions\n\n**Response:** Returns Cloudinary URL with exported image"
+					},
+					"response": []
+				},
+				{
+					"name": "Export Project (PNG) - Custom Size",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/project/{{project_id}}/export?width=1920&height=1920&dpi=300&quality=100&format=png",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "project", "{{project_id}}", "export"],
+							"query": [
+								{
+									"key": "width",
+									"value": "1920",
+									"description": "Export width in pixels"
+								},
+								{
+									"key": "height",
+									"value": "1920",
+									"description": "Export height in pixels"
+								},
+								{
+									"key": "dpi",
+									"value": "300",
+									"description": "DPI for export (default: 300)"
+								},
+								{
+									"key": "quality",
+									"value": "100",
+									"description": "Quality 1-100 (default: 100)"
+								},
+								{
+									"key": "format",
+									"value": "png",
+									"description": "Export format: 'png' or 'jpg' (default: 'png')"
+								}
+							]
+						},
+						"description": "**Export project with custom dimensions and settings**\n\n**Query Parameters:**\n- `width`: Export width (defaults to project canvas width)\n- `height`: Export height (defaults to project canvas height)\n- `dpi`: DPI for export (default: 300)\n- `quality`: Quality 1-100 (default: 100)\n- `format`: 'png' or 'jpg' (default: 'png')\n\n**Requires:** Pro subscription"
+					},
+					"response": []
+				},
+				{
+					"name": "Export Project (JPG) - High Quality",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/project/{{project_id}}/export?width=4000&height=4000&dpi=600&quality=95&format=jpg",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "project", "{{project_id}}", "export"],
+							"query": [
+								{
+									"key": "width",
+									"value": "4000"
+								},
+								{
+									"key": "height",
+									"value": "4000"
+								},
+								{
+									"key": "dpi",
+									"value": "600"
+								},
+								{
+									"key": "quality",
+									"value": "95"
+								},
+								{
+									"key": "format",
+									"value": "jpg"
+								}
+							]
+						},
+						"description": "**Export project as high-quality JPG**\n\n- 4000x4000 pixels\n- 600 DPI\n- 95% quality\n- JPG format\n\n**Requires:** Pro subscription"
+					},
+					"response": []
+				},
+				{
+					"name": "Export Project (PNG) - Print Quality",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/project/{{project_id}}/export?width=5000&height=5000&dpi=600&quality=100&format=png",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "project", "{{project_id}}", "export"],
+							"query": [
+								{
+									"key": "width",
+									"value": "5000"
+								},
+								{
+									"key": "height",
+									"value": "5000"
+								},
+								{
+									"key": "dpi",
+									"value": "600"
+								},
+								{
+									"key": "quality",
+									"value": "100"
+								},
+								{
+									"key": "format",
+									"value": "png"
+								}
+							]
+						},
+						"description": "**Export project for print quality**\n\n- 5000x5000 pixels\n- 600 DPI\n- 100% quality\n- PNG format (supports transparency)\n\n**Requires:** Pro subscription"
+					},
+					"response": []
+				}
+			],
+			"description": "Project export endpoints - Requires Pro subscription"
+		},
+		{
+			"name": "Error Examples",
+			"item": [
+				{
+					"name": "403 - Not Pro User",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/project/{{project_id}}/export",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "project", "{{project_id}}", "export"]
+						},
+						"description": "Returns 403 if user is not a Pro subscriber"
+					},
+					"response": []
+				},
+				{
+					"name": "404 - Project Not Found",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/project/00000000-0000-0000-0000-000000000000/export",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "project", "00000000-0000-0000-0000-000000000000", "export"]
+						},
+						"description": "Returns 404 if project doesn't exist or user doesn't have access"
+					},
+					"response": []
+				},
+				{
+					"name": "401 - No Authentication",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/project/{{project_id}}/export",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "project", "{{project_id}}", "export"]
+						},
+						"description": "Returns 401 if no authentication token provided"
+					},
+					"response": []
+				}
+			],
+			"description": "Error response examples"
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "https://logofy-api.vercel.app",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "project_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
+
