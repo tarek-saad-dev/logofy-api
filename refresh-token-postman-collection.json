@@ -1,0 +1,315 @@
+{
+	"info": {
+		"_postman_id": "refresh-token-updates-2024",
+		"name": "Refresh Token System - Updated Endpoints",
+		"description": "Postman collection for the new two-token authentication system (access_token + refresh_token)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login (Returns access_token + refresh_token)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.access_token) {",
+									"        pm.environment.set('access_token', jsonData.data.access_token);",
+									"    }",
+									"    if (jsonData.data && jsonData.data.refresh_token) {",
+									"        pm.environment.set('refresh_token', jsonData.data.refresh_token);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Login endpoint now returns both access_token and refresh_token. Access token expires in 1 hour (configurable), refresh token expires in 30 days."
+					},
+					"response": []
+				},
+				{
+					"name": "Register - Verify OTP (Returns access_token + refresh_token)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.access_token) {",
+									"        pm.environment.set('access_token', jsonData.data.access_token);",
+									"    }",
+									"    if (jsonData.data && jsonData.data.refresh_token) {",
+									"        pm.environment.set('refresh_token', jsonData.data.refresh_token);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"user@example.com\",\n    \"code\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register/verify-otp",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "register", "verify-otp"]
+						},
+						"description": "Registration verification endpoint now returns both access_token and refresh_token."
+					},
+					"response": []
+				},
+				{
+					"name": "Login - Verify OTP (Returns access_token + refresh_token)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.access_token) {",
+									"        pm.environment.set('access_token', jsonData.data.access_token);",
+									"    }",
+									"    if (jsonData.data && jsonData.data.refresh_token) {",
+									"        pm.environment.set('refresh_token', jsonData.data.refresh_token);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"user@gmail.com\",\n    \"code\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login/verify-otp",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login", "verify-otp"]
+						},
+						"description": "OTP login verification endpoint now returns both access_token and refresh_token."
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Token (NEW - No Auth Required)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.access_token) {",
+									"        pm.environment.set('access_token', jsonData.data.access_token);",
+									"    }",
+									"    if (jsonData.data && jsonData.data.refresh_token) {",
+									"        pm.environment.set('refresh_token', jsonData.data.refresh_token);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/refresh",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "refresh"]
+						},
+						"description": "**NEW BEHAVIOR:**\n- Does NOT require authentication (no Bearer token in header)\n- Accepts refresh_token in request body\n- Works even if access_token is expired\n- Returns new access_token + refresh_token pair\n- Implements token rotation (old refresh token is revoked)\n- Returns 401 only if refresh token is invalid/expired"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Current User (Uses access_token)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/me",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "me"]
+						},
+						"description": "Uses access_token in Authorization header. Returns 401 if token is expired or invalid."
+					},
+					"response": []
+				}
+			],
+			"description": "Updated authentication endpoints with two-token system"
+		},
+		{
+			"name": "Status Code Examples",
+			"item": [
+				{
+					"name": "401 - Token Expired (Access Token)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer expired_token_here"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/me",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "me"]
+						},
+						"description": "Returns 401 when access token is expired or invalid. This is the ONLY case where 401 is returned."
+					},
+					"response": []
+				},
+				{
+					"name": "401 - Invalid Refresh Token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refresh_token\": \"invalid_or_expired_token\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/refresh",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "refresh"]
+						},
+						"description": "Returns 401 when refresh token is invalid or expired."
+					},
+					"response": []
+				},
+				{
+					"name": "400 - Wrong Password (NOT 401)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"wrongpassword\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Returns 400 (NOT 401) for wrong password. 401 is reserved ONLY for token expiration."
+					},
+					"response": []
+				},
+				{
+					"name": "400 - Invalid OTP (NOT 401)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"user@example.com\",\n    \"code\": \"000000\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login/verify-otp",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login", "verify-otp"]
+						},
+						"description": "Returns 400 (NOT 401) for invalid OTP. 401 is reserved ONLY for token expiration."
+					},
+					"response": []
+				}
+			],
+			"description": "Examples showing correct status code usage"
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "https://logofy-api.vercel.app",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refresh_token",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
+

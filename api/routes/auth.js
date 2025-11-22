@@ -8,15 +8,107 @@ const { sendLoginOTP, sendPasswordResetOTP, sendRegistrationOTP, isValidEmail, i
 const { query } = require('../config/database');
 
 /**
- * Generate JWT token for user
+ * Generate short-lived access token for user (15 minutes to 1 hour)
  */
-const generateToken = (userId) => {
+const generateAccessToken = (userId) => {
     if (!process.env.JWT_SECRET) {
         throw new Error('JWT_SECRET is not set in environment variables');
     }
-    return jwt.sign({ userId },
-        process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    // Default to 1 hour, can be configured via JWT_ACCESS_EXPIRES_IN
+    const expiresIn = process.env.JWT_ACCESS_EXPIRES_IN || '1h';
+    return jwt.sign({ userId, type: 'access' },
+        process.env.JWT_SECRET, { expiresIn }
     );
+};
+
+/**
+ * Generate long-lived refresh token for user (30 days)
+ * This token will be stored in the database
+ */
+const generateRefreshToken = () => {
+    if (!process.env.JWT_SECRET) {
+        throw new Error('JWT_SECRET is not set in environment variables');
+    }
+    // Use crypto to generate a secure random token
+    const crypto = require('crypto');
+    return crypto.randomBytes(64).toString('hex');
+};
+
+/**
+ * Store refresh token in database
+ */
+const storeRefreshToken = async (userId, refreshToken) => {
+    const expiresInDays = parseInt(process.env.JWT_REFRESH_EXPIRES_IN_DAYS || '30', 10);
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+    
+    await query(
+        `INSERT INTO refresh_tokens (user_id, token, expires_at)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (token) DO NOTHING`,
+        [userId, refreshToken, expiresAt]
+    );
+    
+    return expiresAt;
+};
+
+/**
+ * Verify and get refresh token from database
+ */
+const verifyRefreshToken = async (refreshToken) => {
+    const result = await query(
+        `SELECT rt.*, u.id as user_id, u.email
+         FROM refresh_tokens rt
+         JOIN users u ON rt.user_id = u.id
+         WHERE rt.token = $1 
+           AND rt.expires_at > NOW() 
+           AND rt.revoked = FALSE`,
+        [refreshToken]
+    );
+    
+    if (result.rows.length === 0) {
+        return null;
+    }
+    
+    return result.rows[0];
+};
+
+/**
+ * Revoke refresh token
+ */
+const revokeRefreshToken = async (refreshToken) => {
+    await query(
+        `UPDATE refresh_tokens 
+         SET revoked = TRUE 
+         WHERE token = $1`,
+        [refreshToken]
+    );
+};
+
+/**
+ * Revoke all refresh tokens for a user
+ */
+const revokeAllRefreshTokens = async (userId) => {
+    await query(
+        `UPDATE refresh_tokens 
+         SET revoked = TRUE 
+         WHERE user_id = $1`,
+        [userId]
+    );
+};
+
+/**
+ * Generate both access and refresh tokens for a user
+ */
+const generateTokenPair = async (userId) => {
+    const accessToken = generateAccessToken(userId);
+    const refreshToken = generateRefreshToken();
+    await storeRefreshToken(userId, refreshToken);
+    
+    return {
+        accessToken,
+        refreshToken
+    };
 };
 
 /**
@@ -164,7 +256,7 @@ router.post('/register/verify-otp', async(req, res) => {
         const otpRecord = await getOTPWithMetadata(email, code, 'register');
 
         if (!otpRecord) {
-            return res.status(401).json({
+            return res.status(400).json({
                 success: false,
                 message: 'Invalid or expired verification code'
             });
@@ -184,7 +276,7 @@ router.post('/register/verify-otp', async(req, res) => {
         // Verify OTP (this will delete it)
         const isValid = await verifyOTP(email, code, 'register');
         if (!isValid) {
-            return res.status(401).json({
+            return res.status(400).json({
                 success: false,
                 message: 'Invalid or expired verification code'
             });
@@ -207,15 +299,16 @@ router.post('/register/verify-otp', async(req, res) => {
             display_name: name
         });
 
-        // Generate token
-        const token = generateToken(newUser.id);
+        // Generate token pair
+        const { accessToken, refreshToken } = await generateTokenPair(newUser.id);
 
-        // Return user data (without password) and token
+        // Return user data (without password) and tokens
         res.status(201).json({
             success: true,
             data: {
                 user: newUser.toJSON(),
-                token
+                access_token: accessToken,
+                refresh_token: refreshToken
             },
             message: 'User registered successfully'
         });
@@ -256,7 +349,7 @@ router.post('/login', async(req, res) => {
         // Find user
         const user = await User.findByEmail(email);
         if (!user) {
-            return res.status(401).json({
+            return res.status(400).json({
                 success: false,
                 message: 'Invalid email or password'
             });
@@ -265,21 +358,22 @@ router.post('/login', async(req, res) => {
         // Verify password
         const isPasswordValid = await user.verifyPassword(password);
         if (!isPasswordValid) {
-            return res.status(401).json({
+            return res.status(400).json({
                 success: false,
                 message: 'Invalid email or password'
             });
         }
 
-        // Generate token
-        const token = generateToken(user.id);
+        // Generate token pair
+        const { accessToken, refreshToken } = await generateTokenPair(user.id);
 
-        // Return user data and token
+        // Return user data and tokens
         res.json({
             success: true,
             data: {
                 user: user.toJSON(),
-                token
+                access_token: accessToken,
+                refresh_token: refreshToken
             },
             message: 'Login successful'
         });
@@ -413,7 +507,7 @@ router.post('/login/verify-otp', async(req, res) => {
         const isValid = await verifyOTP(email, code, 'login');
 
         if (!isValid) {
-            return res.status(401).json({
+            return res.status(400).json({
                 success: false,
                 message: 'Invalid or expired verification code'
             });
@@ -428,15 +522,16 @@ router.post('/login/verify-otp', async(req, res) => {
             });
         }
 
-        // Generate token
-        const token = generateToken(user.id);
+        // Generate token pair
+        const { accessToken, refreshToken } = await generateTokenPair(user.id);
 
-        // Return user data and token
+        // Return user data and tokens
         res.json({
             success: true,
             data: {
                 user: user.toJSON(),
-                token
+                access_token: accessToken,
+                refresh_token: refreshToken
             },
             message: 'Login successful'
         });
@@ -474,17 +569,43 @@ router.get('/me', authenticate, async(req, res) => {
 
 /**
  * POST /api/auth/refresh
- * Refresh JWT token (optional - can be implemented later)
+ * Refresh access token using refresh token
+ * This endpoint does NOT require authentication - it accepts refresh_token only
+ * Works even if access_token is expired
  */
-router.post('/refresh', authenticate, async(req, res) => {
+router.post('/refresh', async(req, res) => {
     try {
-        // Generate new token
-        const token = generateToken(req.user.id);
+        const { refresh_token } = req.body;
+
+        // Validation
+        if (!refresh_token) {
+            return res.status(400).json({
+                success: false,
+                message: 'Refresh token is required'
+            });
+        }
+
+        // Verify refresh token from database
+        const tokenRecord = await verifyRefreshToken(refresh_token);
+        
+        if (!tokenRecord) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid or expired refresh token'
+            });
+        }
+
+        // Revoke the old refresh token (token rotation for security)
+        await revokeRefreshToken(refresh_token);
+
+        // Generate new token pair
+        const { accessToken, refreshToken: newRefreshToken } = await generateTokenPair(tokenRecord.user_id);
 
         res.json({
             success: true,
             data: {
-                token
+                access_token: accessToken,
+                refresh_token: newRefreshToken
             },
             message: 'Token refreshed successfully'
         });
@@ -492,7 +613,8 @@ router.post('/refresh', authenticate, async(req, res) => {
         console.error('Error refreshing token:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to refresh token'
+            message: 'Failed to refresh token',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });
@@ -616,7 +738,7 @@ router.post('/verify-reset-code', async(req, res) => {
         const isValid = await checkOTP(email, code, 'reset_password');
 
         if (!isValid) {
-            return res.status(401).json({
+            return res.status(400).json({
                 success: false,
                 message: 'Invalid or expired verification code. Please request a new code.'
             });
@@ -727,7 +849,7 @@ router.post('/reset-password', async(req, res) => {
         );
 
         if (otpCheck.rows.length === 0) {
-            return res.status(401).json({
+            return res.status(400).json({
                 success: false,
                 message: 'Reset code has already been used or expired. Please request a new code.'
             });
@@ -800,7 +922,7 @@ router.post('/reset-password/verify-otp', async(req, res) => {
         const isValid = await verifyOTP(email, code, 'reset_password');
 
         if (!isValid) {
-            return res.status(401).json({
+            return res.status(400).json({
                 success: false,
                 message: 'Invalid or expired verification code. Please request a new code.'
             });
@@ -858,7 +980,7 @@ router.post('/change-password', authenticate, async(req, res) => {
         const isPasswordValid = await req.user.verifyPassword(currentPassword);
 
         if (!isPasswordValid) {
-            return res.status(401).json({
+            return res.status(400).json({
                 success: false,
                 message: 'Current password is incorrect'
             });

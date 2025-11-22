@@ -29,11 +29,28 @@ const authenticate = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
+    // Verify token type (must be access token)
+    // If type is not set, it's an old token format - reject it for security
+    if (decoded.type && decoded.type !== 'access') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token type. Access token required.'
+      });
+    }
+    
+    // Reject tokens without type (old format) - they need to refresh
+    if (!decoded.type) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token format invalid. Please refresh your token.'
+      });
+    }
+    
     // Get user from database
     const user = await User.findById(decoded.userId);
     
     if (!user) {
-      return res.status(401).json({
+      return res.status(404).json({
         success: false,
         message: 'User not found'
       });

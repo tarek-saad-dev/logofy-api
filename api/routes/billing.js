@@ -7,7 +7,7 @@ const router = express.Router();
 
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-12-18.acacia',
+    apiVersion: '2024-12-18.acacia',
 });
 
 /**
@@ -28,85 +28,83 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
  * 4. Create Stripe Checkout Session
  * 5. Return checkout URL
  */
-router.post('/create-checkout-session', authenticate, async (req, res) => {
-  try {
-    const { plan } = req.body;
-    const userId = req.user?.id;
-    const userEmail = req.user?.email;
+router.post('/create-checkout-session', authenticate, async(req, res) => {
+    try {
+        const { plan } = req.body;
+        const userId = req.user && req.user.id;
+        const userEmail = req.user && req.user.email;
 
-    // Validate plan
-    if (!plan || !['weekly', 'monthly', 'yearly'].includes(plan)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid plan. Must be "weekly", "monthly", or "yearly"'
-      });
+        // Validate plan
+        if (!plan || !['weekly', 'monthly', 'yearly'].includes(plan)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid plan. Must be "weekly", "monthly", or "yearly"'
+            });
+        }
+
+        // Validate user (should not happen if authenticate middleware worked)
+        if (!userId || !userEmail) {
+            return res.status(500).json({
+                success: false,
+                message: 'Authentication error'
+            });
+        }
+
+        // Map plan to Stripe price ID from environment variables
+        const priceIdMap = {
+            weekly: process.env.STRIPE_PRICE_WEEKLY || '',
+            monthly: process.env.STRIPE_PRICE_MONTHLY || '',
+            yearly: process.env.STRIPE_PRICE_YEARLY || ''
+        };
+
+        const priceId = priceIdMap[plan];
+
+        if (!priceId) {
+            return res.status(500).json({
+                success: false,
+                message: `Stripe price ID not configured for plan: ${plan}`
+            });
+        }
+
+        // Get public API URL for success/cancel redirects
+        // This should be the same domain that Stripe can call via webhooks
+        const baseUrl = process.env.API_PUBLIC_URL || 'https://logofy-api.vercel.app';
+        const successUrl = `${baseUrl}/billing/success`;
+        const cancelUrl = `${baseUrl}/billing/cancel`;
+
+        // Create Stripe Checkout Session
+        const session = await stripe.checkout.sessions.create({
+            mode: 'subscription',
+            payment_method_types: ['card'],
+            line_items: [{
+                price: priceId,
+                quantity: 1,
+            }, ],
+            customer_email: userEmail,
+            metadata: {
+                userId: userId,
+                plan: plan,
+            },
+            success_url: successUrl,
+            cancel_url: cancelUrl,
+            // Allow promotion codes
+            allow_promotion_codes: true,
+        });
+
+        // Return checkout URL
+        res.json({
+            success: true,
+            url: session.url,
+            sessionId: session.id,
+        });
+    } catch (error) {
+        console.error('Error creating checkout session:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to create checkout session',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
-
-    // Validate user
-    if (!userId || !userEmail) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not authenticated'
-      });
-    }
-
-    // Map plan to Stripe price ID from environment variables
-    const priceIdMap = {
-      weekly: process.env.STRIPE_PRICE_WEEKLY || '',
-      monthly: process.env.STRIPE_PRICE_MONTHLY || '',
-      yearly: process.env.STRIPE_PRICE_YEARLY || ''
-    };
-
-    const priceId = priceIdMap[plan];
-
-    if (!priceId) {
-      return res.status(500).json({
-        success: false,
-        message: `Stripe price ID not configured for plan: ${plan}`
-      });
-    }
-
-    // Get public API URL for success/cancel redirects
-    // This should be the same domain that Stripe can call via webhooks
-    const baseUrl = process.env.API_PUBLIC_URL || 'https://logofy-api.vercel.app';
-    const successUrl = `${baseUrl}/billing/success`;
-    const cancelUrl = `${baseUrl}/billing/cancel`;
-
-    // Create Stripe Checkout Session
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      customer_email: userEmail,
-      metadata: {
-        userId: userId,
-        plan: plan,
-      },
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      // Allow promotion codes
-      allow_promotion_codes: true,
-    });
-
-    // Return checkout URL
-    res.json({
-      success: true,
-      url: session.url,
-      sessionId: session.id,
-    });
-  } catch (error) {
-    console.error('Error creating checkout session:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create checkout session',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
 });
 
 /**
@@ -116,7 +114,7 @@ router.post('/create-checkout-session', authenticate, async (req, res) => {
  * Mobile app users will see this page, then the app can check subscription status
  */
 router.get('/success', (req, res) => {
-  res.send(`
+    res.send(`
     <!DOCTYPE html>
     <html lang="en">
       <head>
@@ -173,7 +171,7 @@ router.get('/success', (req, res) => {
  * Mobile app users will see this page if they cancel the checkout
  */
 router.get('/cancel', (req, res) => {
-  res.send(`
+    res.send(`
     <!DOCTYPE html>
     <html lang="en">
       <head>
@@ -236,20 +234,20 @@ router.get('/cancel', (req, res) => {
  *   - stripe_sub_id: subscription ID from Stripe
  *   - stripe_customer_id: customer ID from Stripe
  */
-router.get('/status', authenticate, async (req, res) => {
-  try {
-    const userId = req.user?.id;
+router.get('/status', authenticate, async(req, res) => {
+    try {
+        const userId = req.user && req.user.id;
 
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not authenticated'
-      });
-    }
+        if (!userId) {
+            return res.status(500).json({
+                success: false,
+                message: 'Authentication error'
+            });
+        }
 
-    // Get the most recent subscription for this user
-    const result = await query(
-      `SELECT 
+        // Get the most recent subscription for this user
+        const result = await query(
+            `SELECT 
         status, 
         current_period_end, 
         stripe_sub_id, 
@@ -259,44 +257,42 @@ router.get('/status', authenticate, async (req, res) => {
       FROM subscriptions
       WHERE user_id = $1
       ORDER BY created_at DESC
-      LIMIT 1`,
-      [userId]
-    );
+      LIMIT 1`, [userId]
+        );
 
-    if (result.rows.length === 0) {
-      return res.json({
-        success: true,
-        active: false,
-        status: 'none',
-        subscription: null
-      });
+        if (result.rows.length === 0) {
+            return res.json({
+                success: true,
+                active: false,
+                status: 'none',
+                subscription: null
+            });
+        }
+
+        const sub = result.rows[0];
+
+        // Determine if subscription is active
+        // For now, just check status. Later you can add logic to check current_period_end
+        const isActive = sub.status === 'active' || sub.status === 'trialing';
+
+        res.json({
+            success: true,
+            active: isActive,
+            status: sub.status,
+            current_period_end: sub.current_period_end,
+            stripe_sub_id: sub.stripe_sub_id,
+            stripe_customer_id: sub.stripe_customer_id,
+            created_at: sub.created_at,
+            updated_at: sub.updated_at
+        });
+    } catch (error) {
+        console.error('Error fetching subscription status:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch subscription status',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
-
-    const sub = result.rows[0];
-
-    // Determine if subscription is active
-    // For now, just check status. Later you can add logic to check current_period_end
-    const isActive = sub.status === 'active' || sub.status === 'trialing';
-
-    res.json({
-      success: true,
-      active: isActive,
-      status: sub.status,
-      current_period_end: sub.current_period_end,
-      stripe_sub_id: sub.stripe_sub_id,
-      stripe_customer_id: sub.stripe_customer_id,
-      created_at: sub.created_at,
-      updated_at: sub.updated_at
-    });
-  } catch (error) {
-    console.error('Error fetching subscription status:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch subscription status',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
 });
 
 module.exports = router;
-

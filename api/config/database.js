@@ -112,6 +112,14 @@ const initializeDatabase = async () => {
       }
     }
 
+    // Run refresh tokens migration
+    try {
+      const { migrateRefreshTokens } = require('./migrate-refresh-tokens');
+      await migrateRefreshTokens();
+    } catch (error) {
+      console.warn('⚠️  Warning running refresh tokens migration:', error.message);
+    }
+
     client.release();
     console.log('✅ Database tables initialized successfully');
   } catch (err) {
