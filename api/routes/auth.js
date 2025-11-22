@@ -1025,4 +1025,61 @@ router.post('/change-password', authenticate, async(req, res) => {
     }
 });
 
+/**
+ * POST /api/auth/logout
+ * Logout user by revoking refresh token(s)
+ * Can revoke a specific refresh token or all tokens for the user
+ */
+router.post('/logout', authenticate, async(req, res) => {
+    try {
+        const { refresh_token, revoke_all } = req.body;
+        const userId = req.user.id;
+
+        // If revoke_all is true, revoke all refresh tokens for this user
+        if (revoke_all === true || revoke_all === 'true') {
+            await revokeAllRefreshTokens(userId);
+            
+            return res.json({
+                success: true,
+                message: 'All refresh tokens revoked successfully. User logged out from all devices.'
+            });
+        }
+
+        // If specific refresh_token provided, revoke only that one
+        if (refresh_token) {
+            // Verify the token belongs to this user
+            const tokenRecord = await verifyRefreshToken(refresh_token);
+            
+            if (!tokenRecord || tokenRecord.user_id !== userId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid refresh token'
+                });
+            }
+
+            await revokeRefreshToken(refresh_token);
+            
+            return res.json({
+                success: true,
+                message: 'Refresh token revoked successfully. User logged out.'
+            });
+        }
+
+        // If no refresh_token provided and revoke_all is false, revoke all tokens
+        await revokeAllRefreshTokens(userId);
+        
+        res.json({
+            success: true,
+            message: 'All refresh tokens revoked successfully. User logged out.'
+        });
+    } catch (error) {
+        console.error('Error logging out:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to logout',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
 module.exports = router;
