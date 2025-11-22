@@ -112,12 +112,14 @@ const initializeDatabase = async () => {
       }
     }
 
-    // Run refresh tokens migration
+    // Run refresh tokens migration (always run - it's idempotent)
     try {
       const { migrateRefreshTokens } = require('./migrate-refresh-tokens');
       await migrateRefreshTokens();
     } catch (error) {
-      console.warn('⚠️  Warning running refresh tokens migration:', error.message);
+      console.error('❌ Error running refresh tokens migration:', error.message);
+      // Don't throw - allow server to start, but log the error
+      // The migration can be run manually if needed
     }
 
     client.release();

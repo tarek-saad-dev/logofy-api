@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { migrateMultilingual } = require('../config/migrate-multilingual');
+const { migrateRefreshTokens } = require('../config/migrate-refresh-tokens');
 
 // Migration endpoint to add multilingual columns
 router.post('/multilingual', async (req, res) => {
@@ -91,6 +92,106 @@ router.get('/status', async (req, res) => {
       error: error.message,
       language: 'en',
       direction: 'ltr'
+    });
+  }
+});
+
+// Migration endpoint for refresh tokens table
+router.post('/refresh-tokens', async (req, res) => {
+  try {
+    console.log('🚀 Starting refresh tokens migration...');
+    
+    // Run the migration
+    await migrateRefreshTokens();
+
+    console.log('✅ Refresh tokens migration completed successfully!');
+    
+    res.json({
+      success: true,
+      message: 'Refresh tokens migration completed successfully!',
+      data: {
+        table: 'refresh_tokens',
+        columns: [
+          'id (UUID PRIMARY KEY)',
+          'user_id (UUID, FOREIGN KEY)',
+          'token (TEXT UNIQUE)',
+          'expires_at (TIMESTAMP)',
+          'created_at (TIMESTAMP)',
+          'revoked (BOOLEAN)'
+        ],
+        indexes: [
+          'idx_refresh_tokens_user_id',
+          'idx_refresh_tokens_token',
+          'idx_refresh_tokens_expires_at'
+        ]
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Migration failed:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Refresh tokens migration failed',
+      error: error.message
+    });
+  }
+});
+
+// Get refresh tokens migration status
+router.get('/refresh-tokens/status', async (req, res) => {
+  try {
+    const { query } = require('../config/database');
+    
+    const result = await query(`
+      SELECT EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_name = 'refresh_tokens'
+      );
+    `);
+
+    const exists = result.rows[0].exists;
+    
+    if (exists) {
+      // Get table info
+      const columns = await query(`
+        SELECT column_name, data_type, is_nullable
+        FROM information_schema.columns 
+        WHERE table_name = 'refresh_tokens'
+        ORDER BY ordinal_position;
+      `);
+
+      const indexes = await query(`
+        SELECT indexname
+        FROM pg_indexes
+        WHERE tablename = 'refresh_tokens';
+      `);
+
+      res.json({
+        success: true,
+        data: {
+          exists: true,
+          columns: columns.rows,
+          indexes: indexes.rows.map(i => i.indexname),
+          status: 'Migration completed',
+          message: 'Refresh tokens table exists and is ready'
+        }
+      });
+    } else {
+      res.json({
+        success: true,
+        data: {
+          exists: false,
+          status: 'Migration needed',
+          message: 'Run POST /api/migration/refresh-tokens to create the table'
+        }
+      });
+    }
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check migration status',
+      error: error.message
     });
   }
 });

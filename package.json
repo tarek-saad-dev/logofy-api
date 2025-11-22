@@ -9,6 +9,7 @@
         "init-db": "node scripts/init-db.js",
         "migrate": "node api/config/migrate-to-logo-maker.js",
         "migrate:auth": "node api/config/migrate-auth.js",
+        "migrate:refresh-tokens": "node scripts/migrate-refresh-tokens.js",
         "migrate:recreate-users": "node api/config/recreate-users-table.js",
         "migrate:simple": "node api/config/simple-migrate.js",
         "migrate:multilingual": "node api/config/migrate-multilingual.js",

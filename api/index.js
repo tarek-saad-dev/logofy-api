@@ -97,10 +97,15 @@ const startServer = async() => {
             process.exit(1);
         }
 
-        // Initialize database tables (only in development)
-        if (process.env.NODE_ENV !== 'production') {
-            console.log('Initializing database tables...');
+        // Initialize database tables
+        // Note: In production (Vercel), migrations should be run manually via /api/migration endpoints
+        // or the migration will run on first request if needed
+        console.log('Initializing database tables...');
+        try {
             await initializeDatabase();
+        } catch (error) {
+            console.warn('⚠️  Database initialization had warnings (this is OK if tables already exist):', error.message);
+            // Continue - migrations can be run manually if needed
         }
 
         // Start server (only if not in Vercel environment)

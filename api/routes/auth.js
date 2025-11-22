@@ -42,12 +42,35 @@ const storeRefreshToken = async (userId, refreshToken) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expiresInDays);
     
-    await query(
-        `INSERT INTO refresh_tokens (user_id, token, expires_at)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (token) DO NOTHING`,
-        [userId, refreshToken, expiresAt]
-    );
+    try {
+        await query(
+            `INSERT INTO refresh_tokens (user_id, token, expires_at)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (token) DO NOTHING`,
+            [userId, refreshToken, expiresAt]
+        );
+    } catch (error) {
+        // If table doesn't exist, try to run migration
+        if (error.code === '42P01' && error.message.includes('refresh_tokens')) {
+            console.log('⚠️  refresh_tokens table not found, attempting to create it...');
+            try {
+                const { migrateRefreshTokens } = require('../config/migrate-refresh-tokens');
+                await migrateRefreshTokens();
+                // Retry the insert
+                await query(
+                    `INSERT INTO refresh_tokens (user_id, token, expires_at)
+                     VALUES ($1, $2, $3)
+                     ON CONFLICT (token) DO NOTHING`,
+                    [userId, refreshToken, expiresAt]
+                );
+            } catch (migrationError) {
+                console.error('❌ Failed to create refresh_tokens table:', migrationError.message);
+                throw new Error('Refresh tokens table not available. Please run migration: POST /api/migration/refresh-tokens');
+            }
+        } else {
+            throw error;
+        }
+    }
     
     return expiresAt;
 };
