@@ -1,0 +1,677 @@
+{
+    "info": {
+        "_postman_id": "shapes-library-2024",
+        "name": "Shapes Library API",
+        "description": "Postman collection for the shapes library system - includes shape categories, shapes CRUD, search, filtering, and category assignments",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [{
+            "name": "Shape Categories",
+            "item": [{
+                    "name": "Get All Shape Categories",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/shape-categories?include_counts=true&include_inactive=false",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "shape-categories"],
+                            "query": [{
+                                    "key": "include_counts",
+                                    "value": "true",
+                                    "description": "Include shape count per category"
+                                },
+                                {
+                                    "key": "include_inactive",
+                                    "value": "false",
+                                    "description": "Include inactive categories"
+                                },
+                                {
+                                    "key": "parent_id",
+                                    "value": "",
+                                    "disabled": true,
+                                    "description": "Filter by parent category ID"
+                                },
+                                {
+                                    "key": "lang",
+                                    "value": "en",
+                                    "description": "Language preference: 'en' or 'ar'"
+                                }
+                            ]
+                        },
+                        "description": "Get all shape categories with optional filtering and localization"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Shape Category by ID",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.data && jsonData.data.id) {",
+                                "        pm.environment.set('shape_category_id', jsonData.data.id);",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/shape-categories/{{shape_category_id}}?lang=en",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "shape-categories", "{{shape_category_id}}"],
+                            "query": [{
+                                "key": "lang",
+                                "value": "en"
+                            }]
+                        },
+                        "description": "Get a specific shape category by ID. Auto-saves category_id to environment."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Shape Category",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 201) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.data && jsonData.data.id) {",
+                                "        pm.environment.set('shape_category_id', jsonData.data.id);",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Geometric Shapes\",\n    \"name_en\": \"Geometric Shapes\",\n    \"name_ar\": \"أشكال هندسية\",\n    \"description\": \"Basic geometric shapes like circles, squares, triangles\",\n    \"description_en\": \"Basic geometric shapes like circles, squares, triangles\",\n    \"description_ar\": \"أشكال هندسية أساسية مثل الدوائر والمربعات والمثلثات\",\n    \"slug\": \"geometric-shapes\",\n    \"sort_order\": 1,\n    \"is_active\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/shape-categories",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "shape-categories"]
+                        },
+                        "description": "Create a new shape category. Auto-saves category_id to environment."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Shape Category",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Updated Geometric Shapes\",\n    \"description\": \"Updated description\",\n    \"sort_order\": 2\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/shape-categories/{{shape_category_id}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "shape-categories", "{{shape_category_id}}"]
+                        },
+                        "description": "Update a shape category (partial update supported)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Shape Category",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/shape-categories/{{shape_category_id}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "shape-categories", "{{shape_category_id}}"]
+                        },
+                        "description": "Delete a shape category (only if it has no assigned shapes)"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Shape category management endpoints"
+        },
+        {
+            "name": "Shapes",
+            "item": [{
+                    "name": "Get All Shapes",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/shapes?page=1&limit=50&include_categories=true",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "logo", "shapes"],
+                            "query": [{
+                                    "key": "page",
+                                    "value": "1",
+                                    "description": "Page number"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "50",
+                                    "description": "Items per page"
+                                },
+                                {
+                                    "key": "include_categories",
+                                    "value": "true",
+                                    "description": "Include category information"
+                                },
+                                {
+                                    "key": "category",
+                                    "value": "",
+                                    "disabled": true,
+                                    "description": "Legacy category filter"
+                                },
+                                {
+                                    "key": "shape_category_id",
+                                    "value": "",
+                                    "disabled": true,
+                                    "description": "Filter by shape category ID"
+                                },
+                                {
+                                    "key": "type",
+                                    "value": "",
+                                    "disabled": true,
+                                    "description": "Filter by type: 'vector' or 'raster'"
+                                },
+                                {
+                                    "key": "search",
+                                    "value": "",
+                                    "disabled": true,
+                                    "description": "Search in name, description, tags"
+                                },
+                                {
+                                    "key": "tags",
+                                    "value": "",
+                                    "disabled": true,
+                                    "description": "Filter by tags (comma-separated)"
+                                },
+                                {
+                                    "key": "sort",
+                                    "value": "created_at",
+                                    "description": "Sort field: 'created_at', 'updated_at', 'name', 'category'"
+                                },
+                                {
+                                    "key": "order",
+                                    "value": "desc",
+                                    "description": "Sort order: 'asc' or 'desc'"
+                                },
+                                {
+                                    "key": "groupBy",
+                                    "value": "category",
+                                    "disabled": true,
+                                    "description": "Group results by category"
+                                }
+                            ]
+                        },
+                        "description": "Get all shapes with pagination and filtering options"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Shapes by Category",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/shapes?shape_category_id={{shape_category_id}}&page=1&limit=20",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "logo", "shapes"],
+                            "query": [{
+                                    "key": "shape_category_id",
+                                    "value": "{{shape_category_id}}"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                }
+                            ]
+                        },
+                        "description": "Get shapes filtered by category ID"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Search Shapes",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/shapes?search=circle&page=1&limit=20",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "logo", "shapes"],
+                            "query": [{
+                                    "key": "search",
+                                    "value": "circle",
+                                    "description": "Search term"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                }
+                            ]
+                        },
+                        "description": "Search shapes by name, description, or tags"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Shapes by Type",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/shapes?type=vector&page=1&limit=20",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "logo", "shapes"],
+                            "query": [{
+                                    "key": "type",
+                                    "value": "vector",
+                                    "description": "Filter by type: 'vector' or 'raster'"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                }
+                            ]
+                        },
+                        "description": "Get shapes filtered by type (vector or raster)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Shapes by Tags",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/shapes?tags=geometric,minimal&page=1&limit=20",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "logo", "shapes"],
+                            "query": [{
+                                    "key": "tags",
+                                    "value": "geometric,minimal",
+                                    "description": "Comma-separated tags"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                }
+                            ]
+                        },
+                        "description": "Get shapes filtered by tags"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Shape",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 201) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.data && jsonData.data.id) {",
+                                "        pm.environment.set('shape_id', jsonData.data.id);",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Circle Shape\",\n    \"url\": \"https://example.com/shapes/circle.svg\",\n    \"type\": \"vector\",\n    \"width\": 100,\n    \"height\": 100,\n    \"hasAlpha\": true,\n    \"vectorSvg\": \"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='#000000'/></svg>\",\n    \"category\": \"geometric\",\n    \"tags\": [\"geometric\", \"circle\", \"basic\"],\n    \"description\": \"A simple circle shape\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/shapes",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "logo", "shapes"]
+                        },
+                        "description": "Create a new shape in the library. Auto-saves shape_id to environment."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Shape (Raster)",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Decorative Pattern\",\n    \"url\": \"https://example.com/shapes/pattern.png\",\n    \"type\": \"raster\",\n    \"width\": 200,\n    \"height\": 200,\n    \"hasAlpha\": true,\n    \"category\": \"decorative\",\n    \"tags\": [\"pattern\", \"decorative\", \"texture\"],\n    \"description\": \"A decorative pattern shape\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/shapes",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "logo", "shapes"]
+                        },
+                        "description": "Create a raster (PNG/JPG) shape"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Shape management endpoints"
+        },
+        {
+            "name": "Category-Shape Assignments",
+            "item": [{
+                    "name": "Get Shapes in Category",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/shape-categories/{{shape_category_id}}/shapes?page=1&limit=20&lang=en",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "shape-categories", "{{shape_category_id}}", "shapes"],
+                            "query": [{
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                },
+                                {
+                                    "key": "lang",
+                                    "value": "en"
+                                }
+                            ]
+                        },
+                        "description": "Get all shapes assigned to a specific category"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Assign Shapes to Category",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"shape_ids\": [\n        \"{{shape_id}}\",\n        \"shape-uuid-2\",\n        \"shape-uuid-3\"\n    ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/shape-categories/{{shape_category_id}}/shapes",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "shape-categories", "{{shape_category_id}}", "shapes"]
+                        },
+                        "description": "Assign one or more shapes to a category"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Remove Shape from Category",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/shape-categories/{{shape_category_id}}/shapes/{{shape_id}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "shape-categories", "{{shape_category_id}}", "shapes", "{{shape_id}}"]
+                        },
+                        "description": "Remove a shape from a category"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Categories for Shape",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/shape-categories/by-shape/{{shape_id}}?lang=en",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "shape-categories", "by-shape", "{{shape_id}}"],
+                            "query": [{
+                                "key": "lang",
+                                "value": "en"
+                            }]
+                        },
+                        "description": "Get all categories assigned to a specific shape"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Manage relationships between shapes and categories"
+        },
+        {
+            "name": "Advanced Queries",
+            "item": [{
+                    "name": "Get Shapes - Grouped by Category",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/shapes?groupBy=category&page=1&limit=50",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "logo", "shapes"],
+                            "query": [{
+                                    "key": "groupBy",
+                                    "value": "category"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "50"
+                                }
+                            ]
+                        },
+                        "description": "Get shapes grouped by category"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Shapes - Sorted by Name",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/shapes?sort=name&order=asc&page=1&limit=50",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "logo", "shapes"],
+                            "query": [{
+                                    "key": "sort",
+                                    "value": "name"
+                                },
+                                {
+                                    "key": "order",
+                                    "value": "asc"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "50"
+                                }
+                            ]
+                        },
+                        "description": "Get shapes sorted alphabetically by name"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Complex Filter - Category + Type + Search",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/shapes?shape_category_id={{shape_category_id}}&type=vector&search=circle&page=1&limit=20",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "logo", "shapes"],
+                            "query": [{
+                                    "key": "shape_category_id",
+                                    "value": "{{shape_category_id}}"
+                                },
+                                {
+                                    "key": "type",
+                                    "value": "vector"
+                                },
+                                {
+                                    "key": "search",
+                                    "value": "circle"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                }
+                            ]
+                        },
+                        "description": "Complex query combining multiple filters"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Advanced query examples"
+        },
+        {
+            "name": "Error Examples",
+            "item": [{
+                    "name": "404 - Category Not Found",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/shape-categories/00000000-0000-0000-0000-000000000000",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "shape-categories", "00000000-0000-0000-0000-000000000000"]
+                        },
+                        "description": "Returns 404 if category doesn't exist"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "400 - Missing Required Fields",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"description\": \"Missing name field\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/shape-categories",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "shape-categories"]
+                        },
+                        "description": "Returns 400 if required fields are missing"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "409 - Category Already Exists",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Geometric\",\n    \"slug\": \"geometric\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/shape-categories",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "shape-categories"]
+                        },
+                        "description": "Returns 409 if category with same name/slug already exists"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "400 - Cannot Delete Category with Shapes",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/shape-categories/{{shape_category_id}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "shape-categories", "{{shape_category_id}}"]
+                        },
+                        "description": "Returns 400 if trying to delete a category that has assigned shapes"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Error response examples"
+        }
+    ],
+    "variable": [{
+            "key": "baseUrl",
+            "value": "https://logofy-api.vercel.app",
+            "type": "string",
+            "description": "Base URL for the API"
+        },
+        {
+            "key": "shape_category_id",
+            "value": "",
+            "type": "string",
+            "description": "Shape category ID (auto-set by some requests)"
+        },
+        {
+            "key": "shape_id",
+            "value": "",
+            "type": "string",
+            "description": "Shape ID (auto-set by some requests)"
+        }
+    ]
+}
