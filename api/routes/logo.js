@@ -81,8 +81,8 @@ router.use(localization);
 // GET /api/logo/thumbnails - Get lightweight logo list with thumbnails grouped by category
 router.get('/thumbnails', async(req, res) => {
     try {
-        const page = Math.max(1, parseInt(req.query.page ? ? '1', 10));
-        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit ? ? '20', 10)));
+        const page = Math.max(1, parseInt(req.query.page || '1', 10));
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '20', 10)));
         const categoryId = req.query.category_id;
         const lang = req.query.lang || 'en';
         const offset = (page - 1) * limit;
@@ -172,7 +172,7 @@ router.get('/thumbnails', async(req, res) => {
             logos: group.logos
         }));
 
-        const currentLang = res.locals.lang ? ? "en";
+        const currentLang = res.locals.lang || "en";
         return res.json(ok({
             data: groupedData,
             pagination: {
@@ -197,8 +197,8 @@ router.get('/thumbnails', async(req, res) => {
 // GET /api/logo/mobile - list all logos in mobile-compatible format (paginated)
 router.get('/mobile', async(req, res) => {
     try {
-        const page = Math.max(1, parseInt(req.query.page ? ? '1', 10));
-        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit ? ? '20', 10)));
+        const page = Math.max(1, parseInt(req.query.page || '1', 10));
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '20', 10)));
         const lang = req.query.lang || 'en';
         const offset = (page - 1) * limit;
 
@@ -258,10 +258,10 @@ router.get('/mobile', async(req, res) => {
                 type: row.type.toLowerCase(),
                 visible: !!row.is_visible,
                 order: row.z_index | 0,
-                position: { x: num(row.x_norm) ? ? 0.5, y: num(row.y_norm) ? ? 0.5 },
-                scaleFactor: num(row.scale) ? ? 1,
-                rotation: num(row.rotation_deg) ? ? 0,
-                opacity: num(row.opacity) ? ? 1,
+                position: { x: (num(row.x_norm) !== null && num(row.x_norm) !== undefined) ? num(row.x_norm) : 0.5, y: (num(row.y_norm) !== null && num(row.y_norm) !== undefined) ? num(row.y_norm) : 0.5 },
+                scaleFactor: (num(row.scale) !== null && num(row.scale) !== undefined) ? num(row.scale) : 1,
+                rotation: (num(row.rotation_deg) !== null && num(row.rotation_deg) !== undefined) ? num(row.rotation_deg) : 0,
+                opacity: (num(row.opacity) !== null && num(row.opacity) !== undefined) ? num(row.opacity) : 1,
                 flip: { horizontal: !!row.flip_horizontal, vertical: !!row.flip_vertical }
             };
             switch (row.type) {
@@ -271,18 +271,18 @@ router.get('/mobile', async(req, res) => {
                         text: {
                             value: row.content || '',
                             font: row.font_family || 'Arial',
-                            fontSize: num(row.font_size) ? ? 48,
+                            fontSize: (num(row.font_size) !== null && num(row.font_size) !== undefined) ? num(row.font_size) : 48,
                             fontColor: row.fill_hex || '#000000',
                             fontWeight: row.font_weight || 'normal',
                             fontStyle: row.font_style || 'normal',
                             alignment: row.align || 'center',
                             baseline: row.baseline || 'alphabetic',
-                            lineHeight: num(row.line_height) ? ? 1.0,
-                            letterSpacing: num(row.letter_spacing) ? ? 0,
-                            fillAlpha: num(row.fill_alpha) ? ? 1.0,
+                            lineHeight: (num(row.line_height) !== null && num(row.line_height) !== undefined) ? num(row.line_height) : 1.0,
+                            letterSpacing: (num(row.letter_spacing) !== null && num(row.letter_spacing) !== undefined) ? num(row.letter_spacing) : 0,
+                            fillAlpha: (num(row.fill_alpha) !== null && num(row.fill_alpha) !== undefined) ? num(row.fill_alpha) : 1.0,
                             strokeHex: row.stroke_hex || null,
-                            strokeAlpha: num(row.stroke_alpha) ? ? null,
-                            strokeWidth: num(row.stroke_width) ? ? null,
+                            strokeAlpha: (num(row.stroke_alpha) !== null && num(row.stroke_alpha) !== undefined) ? num(row.stroke_alpha) : null,
+                            strokeWidth: (num(row.stroke_width) !== null && num(row.stroke_width) !== undefined) ? num(row.stroke_width) : null,
                             strokeAlign: row.stroke_align || null,
                             gradient: row.text_gradient || null,
                             underline: row.underline || false,
@@ -312,11 +312,11 @@ router.get('/mobile', async(req, res) => {
                     return {
                         ...baseLayer,
                         shape: {
-                            src: row.shape_meta ? .src || null,
+                            src: (row.shape_meta && row.shape_meta.src) || null,
                             type: row.shape_kind || 'rect',
                             color: row.shape_fill_hex || '#000000',
                             strokeColor: row.shape_stroke_hex || null,
-                            strokeWidth: num(row.shape_stroke_width) ? ? 0
+                            strokeWidth: (num(row.shape_stroke_width) !== null && num(row.shape_stroke_width) !== undefined) ? num(row.shape_stroke_width) : 0
                         }
                     };
                 case 'BACKGROUND':
@@ -338,7 +338,7 @@ router.get('/mobile', async(req, res) => {
         };
 
         const data = logosRes.rows.map(logo => {
-            const rows = byLogo.get(logo.id) ? ? [];
+            const rows = byLogo.get(logo.id) || [];
 
             const colorsUsed = [];
             for (const r of rows) {
@@ -375,20 +375,20 @@ router.get('/mobile', async(req, res) => {
                     description: logo.responsive_description || 'Fully responsive logo data - no absolute sizes stored',
                     scalingMethod: logo.scaling_method || 'scaleFactor',
                     positionMethod: logo.position_method || 'relative',
-                    fullyResponsive: logo.fully_responsive ? ? true
+                    fullyResponsive: (logo.fully_responsive !== null && logo.fully_responsive !== undefined) ? logo.fully_responsive : true
                 },
                 metadata: {
                     createdAt: new Date(logo.created_at).toISOString(),
                     updatedAt: new Date(logo.updated_at).toISOString(),
                     tags: Array.isArray(logo.tags) ? logo.tags : ['logo', 'design', 'responsive'],
                     version: logo.version || 3,
-                    responsive: logo.responsive ? ? true
+                    responsive: (logo.responsive !== null && logo.responsive !== undefined) ? logo.responsive : true
                 },
                 export: {
                     format: logo.export_format || 'png',
-                    transparentBackground: logo.export_transparent_background ? ? true,
+                    transparentBackground: (logo.export_transparent_background !== null && logo.export_transparent_background !== undefined) ? logo.export_transparent_background : true,
                     quality: logo.export_quality || 100,
-                    responsive: { scalable: logo.export_scalable ? ? true, maintainAspectRatio: logo.export_maintain_aspect_ratio ? ? true }
+                    responsive: { scalable: (logo.export_scalable !== null && logo.export_scalable !== undefined) ? logo.export_scalable : true, maintainAspectRatio: (logo.export_maintain_aspect_ratio !== null && logo.export_maintain_aspect_ratio !== undefined) ? logo.export_maintain_aspect_ratio : true }
                 },
                 // Add language metadata
                 language: lang,
@@ -502,18 +502,18 @@ router.post('/mobile', async(req, res) => {
         RETURNING *
       `, [
                 logoId, ownerId, name, description || `Logo created on ${new Date().toISOString()}`,
-                canvas ? .aspectRatio ? 1080 : 1080, canvas ? .aspectRatio ? Math.round(1080 / canvas.aspectRatio) : 1080,
+                (canvas && canvas.aspectRatio) ? 1080 : 1080, (canvas && canvas.aspectRatio) ? Math.round(1080 / canvas.aspectRatio) : 1080,
                 300, !!templateId, templateId || null, categoryId || null, JSON.stringify(colorsUsed),
-                alignments ? .verticalAlign || 'center', alignments ? .horizontalAlign || 'center',
-                responsive ? .version || '3.0', responsive ? .description || 'Fully responsive logo data - no absolute sizes stored',
-                responsive ? .scalingMethod || 'scaleFactor', responsive ? .positionMethod || 'relative',
-                responsive ? .fullyResponsive || true, JSON.stringify(metadata ? .tags || ['logo', 'design', 'responsive']),
-                metadata ? .version || 3, metadata ? .responsive || true, exportSettings ? .format || 'png',
-                exportSettings ? .transparentBackground || true, exportSettings ? .quality || 100,
-                exportSettings ? .responsive ? .scalable || true, exportSettings ? .responsive ? .maintainAspectRatio || true,
-                canvas ? .background ? .type || 'solid', canvas ? .background ? .solidColor || '#ffffff',
-                canvas ? .background ? .gradient ? JSON.stringify(canvas.background.gradient) : null,
-                canvas ? .background ? .image ? .type || null, canvas ? .background ? .image ? .path || null,
+                (alignments && alignments.verticalAlign) || 'center', (alignments && alignments.horizontalAlign) || 'center',
+                (responsive && responsive.version) || '3.0', (responsive && responsive.description) || 'Fully responsive logo data - no absolute sizes stored',
+                (responsive && responsive.scalingMethod) || 'scaleFactor', (responsive && responsive.positionMethod) || 'relative',
+                (responsive && responsive.fullyResponsive) || true, JSON.stringify((metadata && metadata.tags) || ['logo', 'design', 'responsive']),
+                (metadata && metadata.version) || 3, (metadata && metadata.responsive) || true, (exportSettings && exportSettings.format) || 'png',
+                (exportSettings && exportSettings.transparentBackground) || true, (exportSettings && exportSettings.quality) || 100,
+                (exportSettings && exportSettings.responsive && exportSettings.responsive.scalable) || true, (exportSettings && exportSettings.responsive && exportSettings.responsive.maintainAspectRatio) || true,
+                (canvas && canvas.background && canvas.background.type) || 'solid', (canvas && canvas.background && canvas.background.solidColor) || '#ffffff',
+                (canvas && canvas.background && canvas.background.gradient) ? JSON.stringify(canvas.background.gradient) : null,
+                (canvas && canvas.background && canvas.background.image && canvas.background.image.type) || null, (canvas && canvas.background && canvas.background.image && canvas.background.image.path) || null,
                 name_en, name_ar, description_en, description_ar,
                 tags_en ? JSON.stringify(tags_en) : null,
                 tags_ar ? JSON.stringify(tags_ar) : null
@@ -532,18 +532,18 @@ router.post('/mobile', async(req, res) => {
         RETURNING *
       `, [
                 ownerId, name, description || `Logo created on ${new Date().toISOString()}`,
-                canvas ? .aspectRatio ? 1080 : 1080, canvas ? .aspectRatio ? Math.round(1080 / canvas.aspectRatio) : 1080,
+                (canvas && canvas.aspectRatio) ? 1080 : 1080, (canvas && canvas.aspectRatio) ? Math.round(1080 / canvas.aspectRatio) : 1080,
                 300, !!templateId, templateId || null, categoryId || null, JSON.stringify(colorsUsed),
-                alignments ? .verticalAlign || 'center', alignments ? .horizontalAlign || 'center',
-                responsive ? .version || '3.0', responsive ? .description || 'Fully responsive logo data - no absolute sizes stored',
-                responsive ? .scalingMethod || 'scaleFactor', responsive ? .positionMethod || 'relative',
-                responsive ? .fullyResponsive || true, JSON.stringify(metadata ? .tags || ['logo', 'design', 'responsive']),
-                metadata ? .version || 3, metadata ? .responsive || true, exportSettings ? .format || 'png',
-                exportSettings ? .transparentBackground || true, exportSettings ? .quality || 100,
-                exportSettings ? .responsive ? .scalable || true, exportSettings ? .responsive ? .maintainAspectRatio || true,
-                canvas ? .background ? .type || 'solid', canvas ? .background ? .solidColor || '#ffffff',
-                canvas ? .background ? .gradient || null, canvas ? .background ? .image ? .type || null,
-                canvas ? .background ? .image ? .path || null,
+                (alignments && alignments.verticalAlign) || 'center', (alignments && alignments.horizontalAlign) || 'center',
+                (responsive && responsive.version) || '3.0', (responsive && responsive.description) || 'Fully responsive logo data - no absolute sizes stored',
+                (responsive && responsive.scalingMethod) || 'scaleFactor', (responsive && responsive.positionMethod) || 'relative',
+                (responsive && responsive.fullyResponsive) || true, JSON.stringify((metadata && metadata.tags) || ['logo', 'design', 'responsive']),
+                (metadata && metadata.version) || 3, (metadata && metadata.responsive) || true, (exportSettings && exportSettings.format) || 'png',
+                (exportSettings && exportSettings.transparentBackground) || true, (exportSettings && exportSettings.quality) || 100,
+                (exportSettings && exportSettings.responsive && exportSettings.responsive.scalable) || true, (exportSettings && exportSettings.responsive && exportSettings.responsive.maintainAspectRatio) || true,
+                (canvas && canvas.background && canvas.background.type) || 'solid', (canvas && canvas.background && canvas.background.solidColor) || '#ffffff',
+                (canvas && canvas.background && canvas.background.gradient) || null, (canvas && canvas.background && canvas.background.image && canvas.background.image.type) || null,
+                (canvas && canvas.background && canvas.background.image && canvas.background.image.path) || null,
                 name_en, name_ar, description_en, description_ar,
                 tags_en ? JSON.stringify(tags_en) : null,
                 tags_ar ? JSON.stringify(tags_ar) : null
@@ -656,7 +656,7 @@ router.post('/mobile', async(req, res) => {
                     if (icon) {
                         // Check if asset already exists by name
                         const assetRes = await client.query(`SELECT id FROM assets WHERE name = $1 LIMIT 1`, [icon.src]);
-                        let assetId = assetRes.rows[0] ? .id;
+                        let assetId = (assetRes.rows[0] && assetRes.rows[0].id);
 
                         if (!assetId) {
                             // Create new asset with proper URL structure
@@ -675,7 +675,7 @@ router.post('/mobile', async(req, res) => {
                 case 'IMAGE':
                     if (image) {
                         const assetRes = await client.query(`SELECT id FROM assets WHERE url = $1 LIMIT 1`, [image.src]);
-                        let assetId = assetRes.rows[0] ? .id;
+                        let assetId = (assetRes.rows[0] && assetRes.rows[0].id);
                         if (!assetId) {
                             const newAssetRes = await client.query(`INSERT INTO assets (kind, name, url, width, height, has_alpha) VALUES ('raster', $1, $2, 100, 100, true) RETURNING id`, [image.src, image.src]);
                             assetId = newAssetRes.rows[0].id;
@@ -940,16 +940,16 @@ router.get('/icons/library', async(req, res) => {
             hasAlpha: icon.has_alpha,
             vectorSvg: icon.vector_svg,
             dominantColor: icon.dominant_hex,
-            category: icon.meta ? .category || 'general',
-            tags: Array.isArray(icon.meta ? .tags) ? icon.meta.tags : (icon.meta ? .tags ? icon.meta.tags.split(',') : []),
-            description: icon.meta ? .description || '',
-            keywords: icon.meta ? .keywords || [],
-            style: icon.meta ? .style || 'outline',
-            isFeatured: icon.meta ? .is_featured || false,
-            isPopular: icon.meta ? .is_popular || false,
-            isNew: icon.meta ? .is_new || false,
-            downloadCount: parseInt(icon.meta ? .download_count) || 0,
-            rating: parseFloat(icon.meta ? .rating) || 0,
+            category: (icon.meta && icon.meta.category) || 'general',
+            tags: Array.isArray(icon.meta && icon.meta.tags) ? icon.meta.tags : ((icon.meta && icon.meta.tags) ? icon.meta.tags.split(',') : []),
+            description: (icon.meta && icon.meta.description) || '',
+            keywords: (icon.meta && icon.meta.keywords) || [],
+            style: (icon.meta && icon.meta.style) || 'outline',
+            isFeatured: (icon.meta && icon.meta.is_featured) || false,
+            isPopular: (icon.meta && icon.meta.is_popular) || false,
+            isNew: (icon.meta && icon.meta.is_new) || false,
+            downloadCount: parseInt((icon.meta && icon.meta.download_count) || 0),
+            rating: parseFloat((icon.meta && icon.meta.rating) || 0),
             createdAt: new Date(icon.created_at).toISOString(),
             updatedAt: new Date(icon.updated_at).toISOString()
         }));
@@ -1095,13 +1095,13 @@ router.get('/icons/featured', async(req, res) => {
             hasAlpha: icon.has_alpha,
             vectorSvg: icon.vector_svg,
             dominantColor: icon.dominant_hex,
-            category: icon.meta ? .category || 'general',
-            tags: Array.isArray(icon.meta ? .tags) ? icon.meta.tags : (icon.meta ? .tags ? icon.meta.tags.split(',') : []),
-            description: icon.meta ? .description || '',
-            style: icon.meta ? .style || 'outline',
-            isFeatured: icon.meta ? .is_featured || false,
-            isPopular: icon.meta ? .is_popular || false,
-            downloadCount: parseInt(icon.meta ? .download_count) || 0,
+            category: icon.meta && typeof icon.meta.category !== 'undefined' ? icon.meta.category : 'general',
+            tags: icon.meta && Array.isArray(icon.meta.tags) ? icon.meta.tags : (icon.meta && icon.meta.tags ? icon.meta.tags.split(',') : []),
+            description: icon.meta && typeof icon.meta.description !== 'undefined' ? icon.meta.description : '',
+            style: icon.meta && typeof icon.meta.style !== 'undefined' ? icon.meta.style : 'outline',
+            isFeatured: icon.meta && typeof icon.meta.is_featured !== 'undefined' ? icon.meta.is_featured : false,
+            isPopular: icon.meta && typeof icon.meta.is_popular !== 'undefined' ? icon.meta.is_popular : false,
+            downloadCount: icon.meta && typeof icon.meta.download_count !== 'undefined' ? parseInt(icon.meta.download_count) : 0,
             createdAt: new Date(icon.created_at).toISOString()
         }));
 
@@ -1312,14 +1312,15 @@ router.get('/icons', async(req, res) => {
                 hasAlpha: icon.has_alpha,
                 vectorSvg: icon.vector_svg,
                 dominantColor: icon.dominant_hex,
-                category: icon.meta ? .category || 'general', // Legacy category
-                tags: Array.isArray(icon.meta ? .tags) ? icon.meta.tags : (icon.meta ? .tags ? icon.meta.tags.split(',') : []),
-                description: icon.meta ? .description || '',
-                keywords: icon.meta ? .keywords || [],
-                style: icon.meta ? .style || 'outline',
-                isPopular: icon.meta ? .is_popular || false,
-                isNew: icon.meta ? .is_new || false,
-                downloadCount: icon.meta ? .download_count || 0,
+                category: icon.meta && typeof icon.meta.category !== 'undefined' ? icon.meta.category : 'general', // Legacy category
+                tags: icon.meta && Array.isArray(icon.meta.tags) ? icon.meta.tags :
+                    (icon.meta && icon.meta.tags ? icon.meta.tags.split(',') : []),
+                description: icon.meta && typeof icon.meta.description !== 'undefined' ? icon.meta.description : '',
+                keywords: icon.meta && typeof icon.meta.keywords !== 'undefined' ? icon.meta.keywords : [],
+                style: icon.meta && typeof icon.meta.style !== 'undefined' ? icon.meta.style : 'outline',
+                isPopular: icon.meta && typeof icon.meta.is_popular !== 'undefined' ? icon.meta.is_popular : false,
+                isNew: icon.meta && typeof icon.meta.is_new !== 'undefined' ? icon.meta.is_new : false,
+                downloadCount: icon.meta && typeof icon.meta.download_count !== 'undefined' ? icon.meta.download_count : 0,
                 createdAt: new Date(icon.created_at).toISOString(),
                 updatedAt: new Date(icon.updated_at).toISOString()
             };
@@ -1454,9 +1455,9 @@ router.post('/icons', async(req, res) => {
                 height: icon.height,
                 hasAlpha: icon.has_alpha,
                 vectorSvg: icon.vector_svg,
-                category: icon.meta ? .category || 'general',
-                tags: icon.meta ? .tags || [],
-                description: icon.meta ? .description || '',
+                category: (icon.meta && typeof icon.meta.category !== 'undefined') ? icon.meta.category : 'general',
+                tags: (icon.meta && typeof icon.meta.tags !== 'undefined') ? icon.meta.tags : [],
+                description: (icon.meta && typeof icon.meta.description !== 'undefined') ? icon.meta.description : '',
                 createdAt: new Date(icon.created_at).toISOString(),
                 updatedAt: new Date(icon.updated_at).toISOString()
             }
@@ -1655,14 +1656,15 @@ router.get('/shapes', async(req, res) => {
                 hasAlpha: shape.has_alpha,
                 vectorSvg: shape.vector_svg,
                 dominantColor: shape.dominant_hex,
-                category: shape.meta ? .category || 'general', // Legacy category
-                tags: Array.isArray(shape.meta ? .tags) ? shape.meta.tags : (shape.meta ? .tags ? shape.meta.tags.split(',') : []),
-                description: shape.meta ? .description || '',
-                keywords: shape.meta ? .keywords || [],
-                style: shape.meta ? .style || 'outline',
-                isPopular: shape.meta ? .is_popular || false,
-                isNew: shape.meta ? .is_new || false,
-                downloadCount: shape.meta ? .download_count || 0,
+                category: shape.meta && typeof shape.meta.category !== 'undefined' ? shape.meta.category : 'general', // Legacy category
+                tags: (shape.meta && Array.isArray(shape.meta.tags)) ? shape.meta.tags :
+                    (shape.meta && shape.meta.tags ? shape.meta.tags.split(',') : []),
+                description: shape.meta && typeof shape.meta.description !== 'undefined' ? shape.meta.description : '',
+                keywords: shape.meta && typeof shape.meta.keywords !== 'undefined' ? shape.meta.keywords : [],
+                style: shape.meta && typeof shape.meta.style !== 'undefined' ? shape.meta.style : 'outline',
+                isPopular: shape.meta && typeof shape.meta.is_popular !== 'undefined' ? shape.meta.is_popular : false,
+                isNew: shape.meta && typeof shape.meta.is_new !== 'undefined' ? shape.meta.is_new : false,
+                downloadCount: shape.meta && typeof shape.meta.download_count !== 'undefined' ? shape.meta.download_count : 0,
                 createdAt: new Date(shape.created_at).toISOString(),
                 updatedAt: new Date(shape.updated_at).toISOString()
             };
@@ -1797,9 +1799,9 @@ router.post('/shapes', async(req, res) => {
                 height: shape.height,
                 hasAlpha: shape.has_alpha,
                 vectorSvg: shape.vector_svg,
-                category: shape.meta ? .category || 'general',
-                tags: shape.meta ? .tags || [],
-                description: shape.meta ? .description || '',
+                category: (shape.meta && shape.meta.category) ? shape.meta.category : 'general',
+                tags: (shape.meta && shape.meta.tags) ? shape.meta.tags : [],
+                description: (shape.meta && shape.meta.description) ? shape.meta.description : '',
                 createdAt: new Date(shape.created_at).toISOString(),
                 updatedAt: new Date(shape.updated_at).toISOString()
             }
@@ -1866,9 +1868,9 @@ router.get('/backgrounds', async(req, res) => {
             height: bg.height,
             hasAlpha: bg.has_alpha,
             vectorSvg: bg.vector_svg,
-            category: bg.meta ? .category || 'general',
-            tags: bg.meta ? .tags || [],
-            description: bg.meta ? .description || '',
+            category: bg.meta && bg.meta.category ? bg.meta.category : 'general',
+            tags: bg.meta && bg.meta.tags ? bg.meta.tags : [],
+            description: bg.meta && bg.meta.description ? bg.meta.description : '',
             createdAt: new Date(bg.created_at).toISOString(),
             updatedAt: new Date(bg.updated_at).toISOString()
         }));
@@ -1949,9 +1951,9 @@ router.post('/backgrounds', async(req, res) => {
                 height: background.height,
                 hasAlpha: background.has_alpha,
                 vectorSvg: background.vector_svg,
-                category: background.meta ? .category || 'general',
-                tags: background.meta ? .tags || [],
-                description: background.meta ? .description || '',
+                category: background.meta && background.meta.category ? background.meta.category : 'general',
+                tags: background.meta && background.meta.tags ? background.meta.tags : [],
+                description: background.meta && background.meta.description ? background.meta.description : '',
                 createdAt: new Date(background.created_at).toISOString(),
                 updatedAt: new Date(background.updated_at).toISOString()
             },
@@ -2386,7 +2388,7 @@ router.get('/:id', async(req, res) => {
     `, [id]);
 
         if (logoRes.rows.length === 0) {
-            const currentLang = res.locals.lang ? ? "en";
+            const currentLang = res.locals.lang || "en";
             return res.status(404).json(fail(currentLang, currentLang === "ar" ? "Ø§Ù„Ø´Ø¹Ø§Ø± ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯" : "Logo not found"));
         }
 
@@ -2645,14 +2647,14 @@ router.get('/:id', async(req, res) => {
             direction: lang === 'ar' ? 'rtl' : 'ltr'
         };
 
-        const currentLang = res.locals.lang ? ? "en";
+        const currentLang = res.locals.lang || "en";
         return res.json(ok({
             ...localizedLogo,
             layers
         }, currentLang, currentLang === "ar" ? "ØªÙ… Ø¬Ù„Ø¨ Ø§Ù„Ø´Ø¹Ø§Ø± Ø¨Ù†Ø¬Ø§Ø­" : "Logo fetched successfully"));
     } catch (error) {
         console.error('Error fetching logo with layers:', error);
-        const lang = res.locals.lang ? ? "en";
+        const lang = res.locals.lang || "en";
         return res.status(500).json(fail(lang, lang === "ar" ? "Ø®Ø·Ø£ ÙÙŠ Ø¬Ù„Ø¨ Ø§Ù„Ø´Ø¹Ø§Ø±" : "Failed to fetch logo"));
     }
 });
@@ -2908,7 +2910,7 @@ router.post('/', async(req, res) => {
 
         await client.query('COMMIT');
 
-        const lang = res.locals.lang ? ? "en";
+        const lang = res.locals.lang || "en";
         return res.status(201).json(ok({
             ...logo,
             layers: createdLayers
@@ -2916,7 +2918,7 @@ router.post('/', async(req, res) => {
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Error creating logo:', error);
-        const lang = res.locals.lang ? ? "en";
+        const lang = res.locals.lang || "en";
         return res.status(500).json(fail(lang, lang === "ar" ? "Ø®Ø·Ø£ ÙÙŠ Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø´Ø¹Ø§Ø±" : "Failed to create logo"));
     } finally {
         client.release();
@@ -2957,15 +2959,15 @@ router.patch('/:id', async(req, res) => {
     `, values);
 
         if (result.rows.length === 0) {
-            const currentLang = res.locals.lang ? ? "en";
+            const currentLang = (typeof res.locals.lang !== 'undefined' && res.locals.lang !== null) ? res.locals.lang : "en";
             return res.status(404).json(fail(currentLang, currentLang === "ar" ? "Ø§Ù„Ø´Ø¹Ø§Ø± ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯" : "Logo not found"));
         }
 
-        const lang = res.locals.lang ? ? "en";
+        const lang = (typeof res.locals.lang !== 'undefined' && res.locals.lang !== null) ? res.locals.lang : "en";
         return res.json(ok(result.rows[0], lang, lang === "ar" ? "ØªÙ… ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø´Ø¹Ø§Ø± Ø¨Ù†Ø¬Ø§Ø­" : "Logo updated successfully"));
     } catch (error) {
         console.error('Error updating logo:', error);
-        const lang = res.locals.lang ? ? "en";
+        const lang = (typeof res.locals.lang !== 'undefined' && res.locals.lang !== null) ? res.locals.lang : "en";
         return res.status(500).json(fail(lang, lang === "ar" ? "Ø®Ø·Ø£ ÙÙŠ ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø´Ø¹Ø§Ø±" : "Failed to update logo"));
     }
 });
@@ -2977,15 +2979,15 @@ router.delete('/:id', async(req, res) => {
         const result = await query('DELETE FROM logos WHERE id = $1 RETURNING *', [id]);
 
         if (result.rows.length === 0) {
-            const currentLang = res.locals.lang ? ? "en";
+            const currentLang = res.locals.lang && res.locals.lang !== undefined ? res.locals.lang : "en";
             return res.status(404).json(fail(currentLang, currentLang === "ar" ? "Ø§Ù„Ø´Ø¹Ø§Ø± ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯" : "Logo not found"));
         }
 
-        const lang = res.locals.lang ? ? "en";
+        const lang = res.locals.lang && res.locals.lang !== undefined ? res.locals.lang : "en";
         return res.json(ok(result.rows[0], lang, lang === "ar" ? "ØªÙ… Ø­Ø°Ù Ø§Ù„Ø´Ø¹Ø§Ø± Ø¨Ù†Ø¬Ø§Ø­" : "Logo deleted successfully"));
     } catch (error) {
         console.error('Error deleting logo:', error);
-        const lang = res.locals.lang ? ? "en";
+        const lang = res.locals.lang && res.locals.lang !== undefined ? res.locals.lang : "en";
         return res.status(500).json(fail(lang, lang === "ar" ? "Ø®Ø·Ø£ ÙÙŠ Ø­Ø°Ù Ø§Ù„Ø´Ø¹Ø§Ø±" : "Failed to delete logo"));
     }
 });
@@ -3000,7 +3002,7 @@ router.post('/:id/version', async(req, res) => {
         const logoResult = await query('SELECT get_logo_with_layers($1) as snapshot', [id]);
 
         if (!logoResult.rows[0].snapshot) {
-            const currentLang = res.locals.lang ? ? "en";
+            const currentLang = (typeof res.locals.lang !== 'undefined' && res.locals.lang !== null) ? res.locals.lang : "en";
             return res.status(404).json(fail(currentLang, currentLang === "ar" ? "Ø§Ù„Ø´Ø¹Ø§Ø± ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯" : "Logo not found"));
         }
 
@@ -3095,7 +3097,7 @@ router.get('/:id/mobile-structured', async(req, res) => {
     `, [id]);
 
         if (logoRes.rows.length === 0) {
-            const currentLang = res.locals.lang ? ? "en";
+            const currentLang = res.locals.lang ? res.locals.lang : "en";
             return res.status(404).json(fail(currentLang, currentLang === "ar" ? "Ø§Ù„Ø´Ø¹Ø§Ø± ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯" : "Logo not found"));
         }
 
@@ -3142,10 +3144,10 @@ router.get('/:id/mobile-structured', async(req, res) => {
                 type: row.type.toLowerCase(),
                 visible: !!row.is_visible,
                 order: row.z_index | 0,
-                position: { x: num(row.x_norm) ? ? 0.5, y: num(row.y_norm) ? ? 0.5 },
-                scaleFactor: num(row.scale) ? ? 1,
-                rotation: num(row.rotation_deg) ? ? 0,
-                opacity: num(row.opacity) ? ? 1,
+                position: { x: (num(row.x_norm) !== null && num(row.x_norm) !== undefined ? num(row.x_norm) : 0.5), y: (num(row.y_norm) !== null && num(row.y_norm) !== undefined ? num(row.y_norm) : 0.5) },
+                scaleFactor: (num(row.scale) !== null && num(row.scale) !== undefined ? num(row.scale) : 1),
+                rotation: (num(row.rotation_deg) !== null && num(row.rotation_deg) !== undefined ? num(row.rotation_deg) : 0),
+                opacity: (num(row.opacity) !== null && num(row.opacity) !== undefined ? num(row.opacity) : 1),
                 flip: { horizontal: !!row.flip_horizontal, vertical: !!row.flip_vertical }
             };
 
@@ -3156,18 +3158,18 @@ router.get('/:id/mobile-structured', async(req, res) => {
                         text: {
                             value: row.content || '',
                             font: row.font_family || 'Arial',
-                            fontSize: num(row.font_size) ? ? 48,
-                            fontColor: row.fill_hex || '#000000',
-                            fontWeight: row.font_weight || 'normal',
-                            fontStyle: row.font_style || 'normal',
-                            alignment: row.align || 'center',
-                            baseline: row.baseline || 'alphabetic',
-                            lineHeight: num(row.line_height) ? ? 1.0,
-                            letterSpacing: num(row.letter_spacing) ? ? 0,
-                            fillAlpha: num(row.fill_alpha) ? ? 1.0,
-                            strokeHex: row.stroke_hex || null,
-                            strokeAlpha: num(row.stroke_alpha) ? ? null,
-                            strokeWidth: num(row.stroke_width) ? ? null,
+                            fontSize: typeof num(row.font_size) !== 'undefined' && num(row.font_size) !== null ? num(row.font_size) : 48,
+                            fontColor: row.fill_hex ? row.fill_hex : '#000000',
+                            fontWeight: row.font_weight ? row.font_weight : 'normal',
+                            fontStyle: row.font_style ? row.font_style : 'normal',
+                            alignment: row.align ? row.align : 'center',
+                            baseline: row.baseline ? row.baseline : 'alphabetic',
+                            lineHeight: typeof num(row.line_height) !== 'undefined' && num(row.line_height) !== null ? num(row.line_height) : 1.0,
+                            letterSpacing: typeof num(row.letter_spacing) !== 'undefined' && num(row.letter_spacing) !== null ? num(row.letter_spacing) : 0,
+                            fillAlpha: typeof num(row.fill_alpha) !== 'undefined' && num(row.fill_alpha) !== null ? num(row.fill_alpha) : 1.0,
+                            strokeHex: row.stroke_hex ? row.stroke_hex : null,
+                            strokeAlpha: typeof num(row.stroke_alpha) !== 'undefined' && num(row.stroke_alpha) !== null ? num(row.stroke_alpha) : null,
+                            strokeWidth: typeof num(row.stroke_width) !== 'undefined' && num(row.stroke_width) !== null ? num(row.stroke_width) : null,
                             strokeAlign: row.stroke_align || null,
                             gradient: row.text_gradient || null,
                             underline: row.underline || false,
@@ -3197,11 +3199,11 @@ router.get('/:id/mobile-structured', async(req, res) => {
                     return {
                         ...base,
                         shape: {
-                            src: row.shape_meta ? .src || null,
-                            type: row.shape_kind || 'rect',
-                            color: row.shape_fill_hex || '#000000',
-                            strokeColor: row.shape_stroke_hex || null,
-                            strokeWidth: num(row.shape_stroke_width) ? ? 0
+                            src: (row.shape_meta && row.shape_meta.src) ? row.shape_meta.src : null,
+                            type: row.shape_kind ? row.shape_kind : 'rect',
+                            color: row.shape_fill_hex ? row.shape_fill_hex : '#000000',
+                            strokeColor: row.shape_stroke_hex ? row.shape_stroke_hex : null,
+                            strokeWidth: typeof num(row.shape_stroke_width) !== 'undefined' && num(row.shape_stroke_width) !== null ? num(row.shape_stroke_width) : 0
                         }
                     };
                 case 'BACKGROUND':
@@ -3266,22 +3268,22 @@ router.get('/:id/mobile-structured', async(req, res) => {
                 description: logo.responsive_description || 'Fully responsive logo data - no absolute sizes stored',
                 scalingMethod: logo.scaling_method || 'scaleFactor',
                 positionMethod: logo.position_method || 'relative',
-                fullyResponsive: logo.fully_responsive ? ? true
+                fullyResponsive: (typeof logo.fully_fresponsive !== 'undefined' && logo.fully_fresponsive !== null) ? logo.fully_fresponsive : true
             },
             metadata: {
                 createdAt: new Date(logo.created_at).toISOString(),
                 updatedAt: new Date(logo.updated_at).toISOString(),
                 tags: Array.isArray(logo.tags) ? logo.tags : ['logo', 'design', 'responsive'],
                 version: logo.version || 3,
-                responsive: logo.responsive ? ? true
+                responsive: (typeof logo.responsive !== 'undefined' && logo.responsive !== null) ? logo.responsive : true
             },
             export: {
                 format: logo.export_format || 'png',
-                transparentBackground: logo.export_transparent_background ? ? true,
+                transparentBackground: typeof logo.export_transparent_background !== 'undefined' ? logo.export_transparent_background : true,
                 quality: logo.export_quality || 100,
                 responsive: {
-                    scalable: logo.export_scalable ? ? true,
-                    maintainAspectRatio: logo.export_maintain_aspect_ratio ? ? true
+                    scalable: typeof logo.export_scalable !== 'undefined' ? logo.export_scalable : true,
+                    maintainAspectRatio: typeof logo.export_maintain_aspect_ratio !== 'undefined' ? logo.export_maintain_aspect_ratio : true
                 }
             }
         };
