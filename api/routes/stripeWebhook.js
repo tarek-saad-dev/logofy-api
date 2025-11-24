@@ -126,9 +126,10 @@ async function handleCheckoutSessionCompleted(session) {
     try {
         // Retrieve the full subscription object from Stripe
         // This is required because the session object doesn't include subscription details like current_period_end
+        // Expand items.data.price to get plan_type from recurring interval
         const subscription = await stripe.subscriptions.retrieve(
             session.subscription, {
-                expand: [] // We can expand related objects if needed, but subscription should have all we need
+                expand: ['items.data.price'] // Expand price to get recurring.interval for plan_type
             }
         );
 
@@ -172,6 +173,14 @@ async function handleCheckoutSessionCompleted(session) {
             console.log(`Found userId from checkout session metadata: ${userId}`);
         }
 
+        // If plan_type is in session metadata, add it to subscription metadata for upsertSubscription
+        if (session.metadata && session.metadata.plan && !subscription.metadata) {
+            subscription.metadata = { plan: session.metadata.plan };
+        } else if (session.metadata && session.metadata.plan) {
+            subscription.metadata = subscription.metadata || {};
+            subscription.metadata.plan = session.metadata.plan;
+        }
+
         // Process the subscription (pass userId if we have it)
         await upsertSubscription(subscription, userId);
     } catch (error) {
@@ -188,6 +197,21 @@ async function handleCheckoutSessionCompleted(session) {
  * Upsert subscription data into database
  */
 async function handleSubscriptionCreatedOrUpdated(subscription) {
+    // Ensure we have items expanded to extract plan_type
+    // Stripe webhooks usually include items, but if not, retrieve with expansion
+    if (!subscription.items || !subscription.items.data || subscription.items.data.length === 0) {
+        console.log(`Subscription ${subscription.id} from webhook doesn't have items, retrieving with expansion...`);
+        subscription = await stripe.subscriptions.retrieve(subscription.id, {
+            expand: ['items.data.price']
+        });
+    } else if (subscription.items.data[0].price && typeof subscription.items.data[0].price === 'string') {
+        // Price is just an ID, need to expand
+        console.log(`Subscription ${subscription.id} has price IDs but not expanded, retrieving with expansion...`);
+        subscription = await stripe.subscriptions.retrieve(subscription.id, {
+            expand: ['items.data.price']
+        });
+    }
+    
     await upsertSubscription(subscription);
 }
 
@@ -242,7 +266,34 @@ async function upsertSubscription(subscription, userId = null) {
         const stripeSubId = subscription.id;
         const status = mapStripeStatusToDb(subscription.status);
 
+        // Extract plan_type from subscription items
+        // Get the billing interval from the first subscription item's price
+        let planType = null;
+        if (subscription.items && subscription.items.data && subscription.items.data.length > 0) {
+            const firstItem = subscription.items.data[0];
+            if (firstItem.price && firstItem.price.recurring && firstItem.price.recurring.interval) {
+                const interval = firstItem.price.recurring.interval.toLowerCase();
+                // Map Stripe interval to our plan_type format
+                const intervalMap = {
+                    'day': 'daily',
+                    'week': 'weekly',
+                    'month': 'monthly',
+                    'year': 'yearly'
+                };
+                planType = intervalMap[interval] || interval;
+                console.log(`Extracted plan_type for subscription ${stripeSubId}: ${planType} (from interval: ${interval})`);
+            }
+        }
+
+        // If plan_type not found from items, try to get from checkout session metadata
+        // This is a fallback for subscriptions created via checkout
+        if (!planType && subscription.metadata && subscription.metadata.plan) {
+            planType = subscription.metadata.plan;
+            console.log(`Extracted plan_type from subscription metadata for ${stripeSubId}: ${planType}`);
+        }
+
         // Parse current_period_end from Stripe timestamp (Unix timestamp in seconds)
+        // IMPORTANT: Use Stripe's actual current_period_end, never use created_at
         let currentPeriodEnd = null;
         if (subscription.current_period_end !== undefined && subscription.current_period_end !== null) {
             const periodEndTimestamp = typeof subscription.current_period_end === 'number' ?
@@ -258,6 +309,14 @@ async function upsertSubscription(subscription, userId = null) {
                     currentPeriodEnd = null;
                 } else {
                     console.log(`Parsed current_period_end for subscription ${stripeSubId}: ${currentPeriodEnd.toISOString()}`);
+                    // Verify it's not the same as created_at (which would indicate an error)
+                    if (subscription.created) {
+                        const createdAt = new Date(subscription.created * 1000);
+                        const timeDiff = currentPeriodEnd.getTime() - createdAt.getTime();
+                        if (Math.abs(timeDiff) < 60000) { // Less than 1 minute difference
+                            console.error(`WARNING: current_period_end (${currentPeriodEnd.toISOString()}) is very close to created_at (${createdAt.toISOString()}) for subscription ${stripeSubId}. This may indicate an issue.`);
+                        }
+                    }
                 }
             } else {
                 console.warn(`Invalid current_period_end value for subscription ${stripeSubId}, setting to null`);
@@ -337,27 +396,57 @@ async function upsertSubscription(subscription, userId = null) {
             stripeCustomerId,
             stripeSubId,
             status,
+            planType,
             currentPeriodEnd: currentPeriodEnd ? currentPeriodEnd.toISOString() : null,
             canceledAt: canceledAt ? canceledAt.toISOString() : null
         });
 
         // Upsert subscription using ON CONFLICT
-        await query(
-            `INSERT INTO subscriptions (
-          user_id, 
-          stripe_customer_id, 
-          stripe_sub_id, 
-          status, 
-          current_period_end, 
-          canceled_at
-        ) VALUES ($1, $2, $3, $4, $5, $6)
-        ON CONFLICT (stripe_sub_id) 
-        DO UPDATE SET
-          status = EXCLUDED.status,
-          current_period_end = EXCLUDED.current_period_end,
-          canceled_at = EXCLUDED.canceled_at,
-          updated_at = NOW()`, [userId, stripeCustomerId, stripeSubId, status, currentPeriodEnd, canceledAt]
-        );
+        // Note: plan_type column may not exist yet if migration hasn't been run
+        // We'll handle this gracefully by checking if the column exists
+        try {
+            await query(
+                `INSERT INTO subscriptions (
+              user_id, 
+              stripe_customer_id, 
+              stripe_sub_id, 
+              status, 
+              current_period_end, 
+              canceled_at,
+              plan_type
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (stripe_sub_id) 
+            DO UPDATE SET
+              status = EXCLUDED.status,
+              current_period_end = EXCLUDED.current_period_end,
+              canceled_at = EXCLUDED.canceled_at,
+              plan_type = EXCLUDED.plan_type,
+              updated_at = NOW()`, [userId, stripeCustomerId, stripeSubId, status, currentPeriodEnd, canceledAt, planType]
+            );
+        } catch (error) {
+            // If plan_type column doesn't exist, try without it
+            if (error.message && error.message.includes('plan_type')) {
+                console.warn(`plan_type column not found, inserting without it. Please run migration: add_plan_type_to_subscriptions.sql`);
+                await query(
+                    `INSERT INTO subscriptions (
+                  user_id, 
+                  stripe_customer_id, 
+                  stripe_sub_id, 
+                  status, 
+                  current_period_end, 
+                  canceled_at
+                ) VALUES ($1, $2, $3, $4, $5, $6)
+                ON CONFLICT (stripe_sub_id) 
+                DO UPDATE SET
+                  status = EXCLUDED.status,
+                  current_period_end = EXCLUDED.current_period_end,
+                  canceled_at = EXCLUDED.canceled_at,
+                  updated_at = NOW()`, [userId, stripeCustomerId, stripeSubId, status, currentPeriodEnd, canceledAt]
+                );
+            } else {
+                throw error;
+            }
+        }
 
         console.log(`Subscription ${stripeSubId} upserted for user ${userId}`);
     } catch (error) {

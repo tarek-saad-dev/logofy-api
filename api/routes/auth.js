@@ -148,24 +148,55 @@ const getUserWithSubscriptionStatus = async(userId) => {
         // Get subscription details if user has one
         let subscription = null;
         if (entitlement === 'pro') {
-            const subResult = await query(
-                `SELECT 
-                    status, 
-                    current_period_end, 
-                    stripe_sub_id, 
-                    stripe_customer_id,
-                    created_at,
-                    updated_at
-                FROM subscriptions
-                WHERE user_id = $1 
-                    AND status IN ('active', 'trialing')
-                    AND current_period_end > NOW()
-                ORDER BY current_period_end DESC
-                LIMIT 1`, [userId]
-            );
+            // Try to select with plan_type, fallback if column doesn't exist
+            let subResult;
+            try {
+                subResult = await query(
+                    `SELECT 
+                        status, 
+                        current_period_end, 
+                        stripe_sub_id, 
+                        stripe_customer_id,
+                        plan_type,
+                        created_at,
+                        updated_at
+                    FROM subscriptions
+                    WHERE user_id = $1 
+                        AND status IN ('active', 'trialing')
+                        AND current_period_end > NOW()
+                    ORDER BY current_period_end DESC
+                    LIMIT 1`, [userId]
+                );
+            } catch (error) {
+                // If plan_type column doesn't exist, query without it
+                if (error.message && error.message.includes('plan_type')) {
+                    console.warn('plan_type column not found, querying without it. Please run migration: add_plan_type_to_subscriptions.sql');
+                    subResult = await query(
+                        `SELECT 
+                            status, 
+                            current_period_end, 
+                            stripe_sub_id, 
+                            stripe_customer_id,
+                            created_at,
+                            updated_at
+                        FROM subscriptions
+                        WHERE user_id = $1 
+                            AND status IN ('active', 'trialing')
+                            AND current_period_end > NOW()
+                        ORDER BY current_period_end DESC
+                        LIMIT 1`, [userId]
+                    );
+                } else {
+                    throw error;
+                }
+            }
 
             if (subResult.rows.length > 0) {
                 subscription = subResult.rows[0];
+                // Ensure plan_type is included (will be null if column doesn't exist)
+                if (subscription.plan_type === undefined) {
+                    subscription.plan_type = null;
+                }
             }
         }
 
