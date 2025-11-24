@@ -147,3 +147,4 @@ VALUES
   ('Patterns', 'Patterns', 'أنماط', 'Pattern and texture shapes', 'patterns', 10)
 ON CONFLICT (name) DO NOTHING;
 
+
