@@ -102,11 +102,17 @@ router.get('/thumbnails', async(req, res) => {
         l.title,
         l.title_en,
         l.title_ar,
+        l.description,
+        l.description_en,
+        l.description_ar,
         l.thumbnail_url,
         l.category_id,
         c.name as category_name,
         c.name_en as category_name_en,
         c.name_ar as category_name_ar,
+        c.description as category_description,
+        c.description_en as category_description_en,
+        c.description_ar as category_description_ar,
         l.created_at,
         l.updated_at
       FROM logos l
@@ -133,8 +139,14 @@ router.get('/thumbnails', async(req, res) => {
             id: logo.id,
             title: lang === 'ar' ? (logo.title_ar || logo.title_en || logo.title) : (logo.title_en || logo.title),
             thumbnailUrl: logo.thumbnail_url,
+            description: lang === 'ar' ?
+                (logo.description_ar || logo.description_en || logo.description) :
+                (logo.description_en || logo.description),
             categoryId: logo.category_id,
             categoryName: lang === 'ar' ? (logo.category_name_ar || logo.category_name_en || logo.category_name) : (logo.category_name_en || logo.category_name),
+            categoryDescription: lang === 'ar' ?
+                (logo.category_description_ar || logo.category_description_en || logo.category_description) :
+                (logo.category_description_en || logo.category_description),
             createdAt: new Date(logo.created_at).toISOString(),
             updatedAt: new Date(logo.updated_at).toISOString(),
             // Add language metadata
@@ -149,11 +161,13 @@ router.get('/thumbnails', async(req, res) => {
         formattedLogos.forEach(logo => {
             const categoryKey = logo.categoryId || 'uncategorized';
             const categoryName = logo.categoryName || 'Uncategorized';
+            const categoryDescription = logo.categoryDescription || null;
 
             if (!categoryMap.has(categoryKey)) {
                 const categoryGroup = {
                     categoryId: logo.categoryId,
                     categoryName: categoryName,
+                    categoryDescription,
                     logos: []
                 };
                 categoryMap.set(categoryKey, categoryGroup);
@@ -167,7 +181,8 @@ router.get('/thumbnails', async(req, res) => {
         const groupedData = categoryGroups.map(group => ({
             category: {
                 id: group.categoryId,
-                name: group.categoryName
+                name: group.categoryName,
+                description: group.categoryDescription
             },
             logos: group.logos
         }));
