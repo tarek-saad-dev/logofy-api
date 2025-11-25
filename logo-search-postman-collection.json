@@ -1,0 +1,285 @@
+{
+    "info": {
+        "_postman_id": "logo-search-2024",
+        "name": "Logo Search API",
+        "description": "Postman collection for searching logos by tags, title, and description",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Search Logos",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test('Status code is 200', function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "pm.test('Response has success field', function () {",
+                            "    const jsonData = pm.response.json();",
+                            "    pm.expect(jsonData).to.have.property('success');",
+                            "    pm.expect(jsonData.success).to.be.true;",
+                            "});",
+                            "",
+                            "pm.test('Response contains logos array', function () {",
+                            "    const jsonData = pm.response.json();",
+                            "    pm.expect(jsonData.data).to.have.property('logos');",
+                            "    pm.expect(jsonData.data.logos).to.be.an('array');",
+                            "});",
+                            "",
+                            "pm.test('Response contains pagination', function () {",
+                            "    const jsonData = pm.response.json();",
+                            "    pm.expect(jsonData.data.pagination).to.have.property('page');",
+                            "    pm.expect(jsonData.data.pagination).to.have.property('limit');",
+                            "    pm.expect(jsonData.data.pagination).to.have.property('total');",
+                            "    pm.expect(jsonData.data.pagination).to.have.property('pages');",
+                            "    pm.expect(jsonData.data.pagination).to.have.property('hasMore');",
+                            "});",
+                            "",
+                            "pm.test('Logos have tags field', function () {",
+                            "    const jsonData = pm.response.json();",
+                            "    if (jsonData.data.logos.length > 0) {",
+                            "        const logo = jsonData.data.logos[0];",
+                            "        pm.expect(logo).to.have.property('tags');",
+                            "        pm.expect(logo.tags).to.be.an('array');",
+                            "    }",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/api/logo/search?query={{searchQuery}}&lang={{lang}}&page={{page}}&limit={{limit}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "logo",
+                        "search"
+                    ],
+                    "query": [
+                        {
+                            "key": "query",
+                            "value": "{{searchQuery}}",
+                            "description": "Search term to match against tags, title, and description"
+                        },
+                        {
+                            "key": "lang",
+                            "value": "{{lang}}",
+                            "description": "Language preference: 'en' or 'ar' (default: 'en')"
+                        },
+                        {
+                            "key": "page",
+                            "value": "{{page}}",
+                            "description": "Page number (default: 1)"
+                        },
+                        {
+                            "key": "limit",
+                            "value": "{{limit}}",
+                            "description": "Results per page (default: 20, max: 100)"
+                        }
+                    ]
+                },
+                "description": "Search logos by tags, title, and description. Supports multilingual search and pagination."
+            },
+            "response": []
+        },
+        {
+            "name": "Search Logos - English",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/api/logo/search?query=design&lang=en&page=1&limit=20",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "logo",
+                        "search"
+                    ],
+                    "query": [
+                        {
+                            "key": "query",
+                            "value": "design",
+                            "description": "Search for 'design'"
+                        },
+                        {
+                            "key": "lang",
+                            "value": "en"
+                        },
+                        {
+                            "key": "page",
+                            "value": "1"
+                        },
+                        {
+                            "key": "limit",
+                            "value": "20"
+                        }
+                    ]
+                },
+                "description": "Example: Search for logos with 'design' in English"
+            },
+            "response": []
+        },
+        {
+            "name": "Search Logos - Arabic",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/api/logo/search?query=تصميم&lang=ar&page=1&limit=20",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "logo",
+                        "search"
+                    ],
+                    "query": [
+                        {
+                            "key": "query",
+                            "value": "تصميم",
+                            "description": "Search for 'تصميم' (design in Arabic)"
+                        },
+                        {
+                            "key": "lang",
+                            "value": "ar"
+                        },
+                        {
+                            "key": "page",
+                            "value": "1"
+                        },
+                        {
+                            "key": "limit",
+                            "value": "20"
+                        }
+                    ]
+                },
+                "description": "Example: Search for logos with 'تصميم' in Arabic"
+            },
+            "response": []
+        },
+        {
+            "name": "Search Logos - By Tag",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/api/logo/search?query=responsive&lang=en&page=1&limit=20",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "logo",
+                        "search"
+                    ],
+                    "query": [
+                        {
+                            "key": "query",
+                            "value": "responsive",
+                            "description": "Search for logos with 'responsive' tag"
+                        },
+                        {
+                            "key": "lang",
+                            "value": "en"
+                        },
+                        {
+                            "key": "page",
+                            "value": "1"
+                        },
+                        {
+                            "key": "limit",
+                            "value": "20"
+                        }
+                    ]
+                },
+                "description": "Example: Search for logos tagged with 'responsive'"
+            },
+            "response": []
+        },
+        {
+            "name": "Search Logos - Pagination",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/api/logo/search?query=logo&lang=en&page=2&limit=10",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "logo",
+                        "search"
+                    ],
+                    "query": [
+                        {
+                            "key": "query",
+                            "value": "logo",
+                            "description": "Search term"
+                        },
+                        {
+                            "key": "lang",
+                            "value": "en"
+                        },
+                        {
+                            "key": "page",
+                            "value": "2",
+                            "description": "Page 2"
+                        },
+                        {
+                            "key": "limit",
+                            "value": "10",
+                            "description": "10 results per page"
+                        }
+                    ]
+                },
+                "description": "Example: Get page 2 with 10 results per page"
+            },
+            "response": []
+        }
+    ],
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "http://localhost:3000",
+            "type": "string"
+        },
+        {
+            "key": "searchQuery",
+            "value": "design",
+            "type": "string",
+            "description": "Search term"
+        },
+        {
+            "key": "lang",
+            "value": "en",
+            "type": "string",
+            "description": "Language: 'en' or 'ar'"
+        },
+        {
+            "key": "page",
+            "value": "1",
+            "type": "string",
+            "description": "Page number"
+        },
+        {
+            "key": "limit",
+            "value": "20",
+            "type": "string",
+            "description": "Results per page"
+        }
+    ]
+}
+

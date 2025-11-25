@@ -2545,6 +2545,190 @@ router.delete('/backgrounds/:id', async(req, res) => {
 });
 
 // ==============================================
+// LOGO SEARCH ENDPOINT
+// ==============================================
+
+// GET /api/logo/search - Search logos by tags, title, and description
+router.get('/search', async(req, res) => {
+    try {
+        const { query: searchQuery, lang = 'en', page = 1, limit = 20 } = req.query;
+
+        // Validate search query
+        if (!searchQuery || searchQuery.trim().length === 0) {
+            const currentLang = res.locals.lang || "en";
+            return res.status(400).json(fail(currentLang, currentLang === "ar" ? "يرجى إدخال نص البحث" : "Search query is required"));
+        }
+
+        const searchTerm = searchQuery.trim();
+        const pageNum = Math.max(1, parseInt(page, 10));
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
+        const offset = (pageNum - 1) * limitNum;
+
+        // Build search conditions
+        // Search in: title, title_en, title_ar, description, description_en, description_ar
+        // And in tags arrays (tags, tags_en, tags_ar) using JSONB contains or text search
+        const searchPattern = `%${searchTerm}%`;
+
+        // Query to search logos
+        // We'll search in:
+        // 1. Title fields (title, title_en, title_ar)
+        // 2. Description fields (description, description_en, description_ar)
+        // 3. Tags arrays (tags, tags_en, tags_ar) - using JSONB text search
+        const logosRes = await query(`
+            SELECT 
+                l.id, l.owner_id, l.title, l.description, l.canvas_w, l.canvas_h, l.dpi,
+                l.thumbnail_url, l.is_template, l.category_id, l.template_id,
+                l.colors_used, l.vertical_align, l.horizontal_align,
+                l.responsive_version, l.responsive_description, l.scaling_method, l.position_method,
+                l.fully_responsive, l.tags, l.version, l.responsive,
+                l.export_format, l.export_transparent_background, l.export_quality,
+                l.export_scalable, l.export_maintain_aspect_ratio,
+                l.canvas_background_type, l.canvas_background_solid_color, l.canvas_background_gradient,
+                l.canvas_background_image_type, l.canvas_background_image_path,
+                l.created_at, l.updated_at,
+                -- Multilingual fields
+                l.title_en, l.title_ar, l.description_en, l.description_ar, l.tags_en, l.tags_ar,
+                -- Category multilingual fields
+                c.name as category_name, c.name_en as category_name_en, c.name_ar as category_name_ar,
+                c.description as category_description, c.description_en as category_description_en, c.description_ar as category_description_ar
+            FROM logos l
+            LEFT JOIN categories c ON c.id = l.category_id
+            WHERE (
+                -- Search in title fields
+                l.title ILIKE $1 OR
+                l.title_en ILIKE $1 OR
+                l.title_ar ILIKE $1 OR
+                -- Search in description fields
+                l.description ILIKE $1 OR
+                l.description_en ILIKE $1 OR
+                l.description_ar ILIKE $1 OR
+                -- Search in tags (JSONB array) - check if any tag contains the search term
+                EXISTS (
+                    SELECT 1 FROM jsonb_array_elements_text(COALESCE(l.tags, '[]'::jsonb)) AS tag
+                    WHERE tag ILIKE $1
+                ) OR
+                EXISTS (
+                    SELECT 1 FROM jsonb_array_elements_text(COALESCE(l.tags_en, '[]'::jsonb)) AS tag
+                    WHERE tag ILIKE $1
+                ) OR
+                EXISTS (
+                    SELECT 1 FROM jsonb_array_elements_text(COALESCE(l.tags_ar, '[]'::jsonb)) AS tag
+                    WHERE tag ILIKE $1
+                )
+            )
+            ORDER BY l.created_at DESC
+            LIMIT $2 OFFSET $3
+        `, [searchPattern, limitNum, offset]);
+
+        // Get total count for pagination
+        const totalRes = await query(`
+            SELECT COUNT(*)::int AS total
+            FROM logos l
+            WHERE (
+                -- Search in title fields
+                l.title ILIKE $1 OR
+                l.title_en ILIKE $1 OR
+                l.title_ar ILIKE $1 OR
+                -- Search in description fields
+                l.description ILIKE $1 OR
+                l.description_en ILIKE $1 OR
+                l.description_ar ILIKE $1 OR
+                -- Search in tags (JSONB array)
+                EXISTS (
+                    SELECT 1 FROM jsonb_array_elements_text(COALESCE(l.tags, '[]'::jsonb)) AS tag
+                    WHERE tag ILIKE $1
+                ) OR
+                EXISTS (
+                    SELECT 1 FROM jsonb_array_elements_text(COALESCE(l.tags_en, '[]'::jsonb)) AS tag
+                    WHERE tag ILIKE $1
+                ) OR
+                EXISTS (
+                    SELECT 1 FROM jsonb_array_elements_text(COALESCE(l.tags_ar, '[]'::jsonb)) AS tag
+                    WHERE tag ILIKE $1
+                )
+            )
+        `, [searchPattern]);
+
+        const total = totalRes.rows[0].total;
+        const pages = Math.ceil(total / limitNum);
+        const hasMore = pageNum < pages;
+
+        // Process and localize logos
+        const logos = logosRes.rows.map(logo => {
+            // Parse tags arrays from JSON if they are strings
+            const tags_en = logo.tags_en ? (typeof logo.tags_en === 'string' ? JSON.parse(logo.tags_en) : logo.tags_en) : [];
+            const tags_ar = logo.tags_ar ? (typeof logo.tags_ar === 'string' ? JSON.parse(logo.tags_ar) : logo.tags_ar) : [];
+            const tags = logo.tags ? (typeof logo.tags === 'string' ? JSON.parse(logo.tags) : logo.tags) : [];
+
+            // Localize the logo data based on language preference
+            return {
+                id: logo.id,
+                owner_id: logo.owner_id,
+                title: lang === 'ar' ? (logo.title_ar || logo.title_en || logo.title) : (logo.title_en || logo.title),
+                description: lang === 'ar' ? (logo.description_ar || logo.description_en || logo.description) : (logo.description_en || logo.description),
+                canvas_w: logo.canvas_w,
+                canvas_h: logo.canvas_h,
+                dpi: logo.dpi,
+                thumbnail_url: logo.thumbnail_url,
+                is_template: logo.is_template,
+                category_id: logo.category_id,
+                template_id: logo.template_id,
+                colors_used: logo.colors_used,
+                vertical_align: logo.vertical_align,
+                horizontal_align: logo.horizontal_align,
+                responsive_version: logo.responsive_version,
+                responsive_description: logo.responsive_description,
+                scaling_method: logo.scaling_method,
+                position_method: logo.position_method,
+                fully_responsive: logo.fully_responsive,
+                version: logo.version,
+                responsive: logo.responsive,
+                export_format: logo.export_format,
+                export_transparent_background: logo.export_transparent_background,
+                export_quality: logo.export_quality,
+                export_scalable: logo.export_scalable,
+                export_maintain_aspect_ratio: logo.export_maintain_aspect_ratio,
+                canvas_background_type: logo.canvas_background_type,
+                canvas_background_solid_color: logo.canvas_background_solid_color,
+                canvas_background_gradient: logo.canvas_background_gradient,
+                canvas_background_image_type: logo.canvas_background_image_type,
+                canvas_background_image_path: logo.canvas_background_image_path,
+                created_at: logo.created_at,
+                updated_at: logo.updated_at,
+                // Include all tag variants
+                tags: lang === 'ar' ? (tags_ar.length > 0 ? tags_ar : tags_en.length > 0 ? tags_en : tags) : (tags_en.length > 0 ? tags_en : tags),
+                tags_en: tags_en,
+                tags_ar: tags_ar,
+                // Category information (localized)
+                category_name: lang === 'ar' ? (logo.category_name_ar || logo.category_name_en || logo.category_name) : (logo.category_name_en || logo.category_name),
+                category_description: lang === 'ar' ? (logo.category_description_ar || logo.category_description_en || logo.category_description) : (logo.category_description_en || logo.category_description),
+                // Language metadata
+                language: lang,
+                direction: lang === 'ar' ? 'rtl' : 'ltr'
+            };
+        });
+
+        const currentLang = res.locals.lang || "en";
+        return res.json(ok({
+            logos,
+            pagination: {
+                page: pageNum,
+                limit: limitNum,
+                total,
+                pages,
+                hasMore
+            },
+            query: searchTerm,
+            language: lang
+        }, currentLang, currentLang === "ar" ? "تم البحث بنجاح" : "Search completed successfully"));
+    } catch (error) {
+        console.error('Error searching logos:', error);
+        const currentLang = res.locals.lang || "en";
+        return res.status(500).json(fail(currentLang, currentLang === "ar" ? "خطأ في البحث" : "Failed to search logos"));
+    }
+});
+
+// ==============================================
 // LOGO CRUD OPERATIONS
 // ==============================================
 

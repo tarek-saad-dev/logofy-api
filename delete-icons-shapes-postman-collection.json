@@ -5,46 +5,43 @@
         "description": "Postman collection for deleting icons and shapes from the logo maker API",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
-    "item": [
-        {
+    "item": [{
             "name": "Delete Icon",
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "exec": [
-                            "pm.test('Status code is 200 or 404', function () {",
-                            "    pm.expect(pm.response.code).to.be.oneOf([200, 404, 400]);",
-                            "});",
-                            "",
-                            "if (pm.response.code === 200) {",
-                            "    pm.test('Icon deleted successfully', function () {",
-                            "        const jsonData = pm.response.json();",
-                            "        pm.expect(jsonData.success).to.be.true;",
-                            "        pm.expect(jsonData.message).to.include('deleted');",
-                            "    });",
-                            "}",
-                            "",
-                            "if (pm.response.code === 400) {",
-                            "    pm.test('Icon is in use', function () {",
-                            "        const jsonData = pm.response.json();",
-                            "        pm.expect(jsonData.success).to.be.false;",
-                            "        pm.expect(jsonData.message).to.include('used');",
-                            "    });",
-                            "}",
-                            "",
-                            "if (pm.response.code === 404) {",
-                            "    pm.test('Icon not found', function () {",
-                            "        const jsonData = pm.response.json();",
-                            "        pm.expect(jsonData.success).to.be.false;",
-                            "        pm.expect(jsonData.message).to.include('not found');",
-                            "    });",
-                            "}"
-                        ],
-                        "type": "text/javascript"
-                    }
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "pm.test('Status code is 200 or 404', function () {",
+                        "    pm.expect(pm.response.code).to.be.oneOf([200, 404, 400]);",
+                        "});",
+                        "",
+                        "if (pm.response.code === 200) {",
+                        "    pm.test('Icon deleted successfully', function () {",
+                        "        const jsonData = pm.response.json();",
+                        "        pm.expect(jsonData.success).to.be.true;",
+                        "        pm.expect(jsonData.message).to.include('deleted');",
+                        "    });",
+                        "}",
+                        "",
+                        "if (pm.response.code === 400) {",
+                        "    pm.test('Icon is in use', function () {",
+                        "        const jsonData = pm.response.json();",
+                        "        pm.expect(jsonData.success).to.be.false;",
+                        "        pm.expect(jsonData.message).to.include('used');",
+                        "    });",
+                        "}",
+                        "",
+                        "if (pm.response.code === 404) {",
+                        "    pm.test('Icon not found', function () {",
+                        "        const jsonData = pm.response.json();",
+                        "        pm.expect(jsonData.success).to.be.false;",
+                        "        pm.expect(jsonData.message).to.include('not found');",
+                        "    });",
+                        "}"
+                    ],
+                    "type": "text/javascript"
                 }
-            ],
+            }],
             "request": {
                 "method": "DELETE",
                 "header": [],
@@ -59,13 +56,11 @@
                         "icons",
                         ":id"
                     ],
-                    "variable": [
-                        {
-                            "key": "id",
-                            "value": "{{iconId}}",
-                            "description": "Icon UUID to delete"
-                        }
-                    ]
+                    "variable": [{
+                        "key": "id",
+                        "value": "{{iconId}}",
+                        "description": "Icon UUID to delete"
+                    }]
                 },
                 "description": "Delete an icon from the library. Cannot delete if icon is being used in existing logos. Automatically cleans up icon category assignments."
             },
@@ -73,35 +68,33 @@
         },
         {
             "name": "Delete Shape",
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "exec": [
-                            "pm.test('Status code is 200 or 404', function () {",
-                            "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
-                            "});",
-                            "",
-                            "if (pm.response.code === 200) {",
-                            "    pm.test('Shape deleted successfully', function () {",
-                            "        const jsonData = pm.response.json();",
-                            "        pm.expect(jsonData.success).to.be.true;",
-                            "        pm.expect(jsonData.message).to.include('deleted');",
-                            "    });",
-                            "}",
-                            "",
-                            "if (pm.response.code === 404) {",
-                            "    pm.test('Shape not found', function () {",
-                            "        const jsonData = pm.response.json();",
-                            "        pm.expect(jsonData.success).to.be.false;",
-                            "        pm.expect(jsonData.message).to.include('not found');",
-                            "    });",
-                            "}"
-                        ],
-                        "type": "text/javascript"
-                    }
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "pm.test('Status code is 200 or 404', function () {",
+                        "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+                        "});",
+                        "",
+                        "if (pm.response.code === 200) {",
+                        "    pm.test('Shape deleted successfully', function () {",
+                        "        const jsonData = pm.response.json();",
+                        "        pm.expect(jsonData.success).to.be.true;",
+                        "        pm.expect(jsonData.message).to.include('deleted');",
+                        "    });",
+                        "}",
+                        "",
+                        "if (pm.response.code === 404) {",
+                        "    pm.test('Shape not found', function () {",
+                        "        const jsonData = pm.response.json();",
+                        "        pm.expect(jsonData.success).to.be.false;",
+                        "        pm.expect(jsonData.message).to.include('not found');",
+                        "    });",
+                        "}"
+                    ],
+                    "type": "text/javascript"
                 }
-            ],
+            }],
             "request": {
                 "method": "DELETE",
                 "header": [],
@@ -116,21 +109,18 @@
                         "shapes",
                         ":id"
                     ],
-                    "variable": [
-                        {
-                            "key": "id",
-                            "value": "{{shapeId}}",
-                            "description": "Shape UUID to delete"
-                        }
-                    ]
+                    "variable": [{
+                        "key": "id",
+                        "value": "{{shapeId}}",
+                        "description": "Shape UUID to delete"
+                    }]
                 },
                 "description": "Delete a shape from the library. Automatically cleans up shape category assignments."
             },
             "response": []
         }
     ],
-    "variable": [
-        {
+    "variable": [{
             "key": "baseUrl",
             "value": "http://localhost:3000",
             "type": "string"
@@ -149,4 +139,3 @@
         }
     ]
 }
-
