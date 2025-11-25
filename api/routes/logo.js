@@ -1913,6 +1913,72 @@ router.post('/shapes', async(req, res) => {
     }
 });
 
+// DELETE /api/logo/shapes/:id - Delete specific shape
+router.delete('/shapes/:id', async(req, res) => {
+    try {
+        const { id } = req.params;
+
+        // First check if the shape exists and is a shape type
+        const shapeCheck = await query(`
+      SELECT id FROM assets 
+      WHERE id = $1 AND kind IN ('vector', 'raster') 
+      AND meta->>'library_type' = 'shape'
+    `, [id]);
+
+        if (shapeCheck.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Shape not found',
+                language: 'en',
+                direction: 'ltr'
+            });
+        }
+
+        // Delete shape category assignments first (if they exist)
+        try {
+            await query(`
+        DELETE FROM shape_category_assignments WHERE shape_id = $1
+      `, [id]);
+        } catch (assignmentError) {
+            // If table doesn't exist or error, continue with deletion
+            console.warn('Warning: Could not delete shape category assignments:', assignmentError.message);
+        }
+
+        // Delete the shape
+        const result = await query(`
+      DELETE FROM assets 
+      WHERE id = $1 AND kind IN ('vector', 'raster') 
+      AND meta->>'library_type' = 'shape'
+      RETURNING *
+    `, [id]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Shape not found',
+                language: 'en',
+                direction: 'ltr'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Shape deleted successfully',
+            data: result.rows[0],
+            language: 'en',
+            direction: 'ltr'
+        });
+    } catch (error) {
+        console.error('Error deleting shape:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to delete shape',
+            language: 'en',
+            direction: 'ltr'
+        });
+    }
+});
+
 // GET /api/logo/backgrounds - Get all background assets
 router.get('/backgrounds', async(req, res) => {
     try {
@@ -2243,7 +2309,23 @@ router.delete('/icons/:id', async(req, res) => {
     try {
         const { id } = req.params;
 
-        // First check if the icon is referenced in any layers
+        // First check if the icon exists and is an icon type
+        const iconCheck = await query(`
+      SELECT id FROM assets 
+      WHERE id = $1 AND kind IN ('vector', 'raster') 
+      AND (meta->>'library_type' = 'icon' OR meta->>'library_type' IS NULL)
+    `, [id]);
+
+        if (iconCheck.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Icon not found',
+                language: 'en',
+                direction: 'ltr'
+            });
+        }
+
+        // Check if the icon is referenced in any layers
         const layerCheck = await query(`
       SELECT COUNT(*) as count FROM layer_icon WHERE asset_id = $1
     `, [id]);
@@ -2257,6 +2339,17 @@ router.delete('/icons/:id', async(req, res) => {
             });
         }
 
+        // Delete icon category assignments first (if they exist)
+        try {
+            await query(`
+        DELETE FROM icon_category_assignments WHERE icon_id = $1
+      `, [id]);
+        } catch (assignmentError) {
+            // If table doesn't exist or error, continue with deletion
+            console.warn('Warning: Could not delete icon category assignments:', assignmentError.message);
+        }
+
+        // Delete the icon
         const result = await query(`
       DELETE FROM assets 
       WHERE id = $1 AND kind IN ('vector', 'raster') 
@@ -2285,6 +2378,7 @@ router.delete('/icons/:id', async(req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to delete icon',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined,
             language: 'en',
             direction: 'ltr'
         });
