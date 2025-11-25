@@ -78,126 +78,212 @@ router.use(localization);
 // STATIC ROUTES FIRST (avoid shadowing by /:id)
 // ==============================================
 
-// GET /api/logo/thumbnails - Get lightweight logo list with thumbnails grouped by category
+// GET /api/logo/thumbnails - Get lightweight logo list with thumbnails
+// Supports two pagination modes:
+// 1. When categoryId is provided: Returns logos for that category with logo pagination
+// 2. When categoryId is NOT provided: Returns paginated categories with limited logos per category
 router.get('/thumbnails', async(req, res) => {
     try {
         const page = Math.max(1, parseInt(req.query.page || '1', 10));
         const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '20', 10)));
-        const categoryId = req.query.category_id;
+        const categoryId = req.query.category_id || req.query.categoryId;
         const lang = req.query.lang || 'en';
+        const logosPerCategory = Math.min(20, Math.max(1, parseInt(req.query.logos_per_category || '10', 10)));
+
+        // MODE 1: Get logos for a specific category (logo pagination)
+        if (categoryId) {
+            const offset = (page - 1) * limit;
+
+            // Get logos for the specific category
+            const logosRes = await query(`
+                SELECT 
+                    l.id,
+                    l.title,
+                    l.title_en,
+                    l.title_ar,
+                    l.description,
+                    l.description_en,
+                    l.description_ar,
+                    l.thumbnail_url,
+                    l.category_id,
+                    c.name as category_name,
+                    c.name_en as category_name_en,
+                    c.name_ar as category_name_ar,
+                    c.description as category_description,
+                    c.description_en as category_description_en,
+                    c.description_ar as category_description_ar,
+                    l.created_at,
+                    l.updated_at
+                FROM logos l
+                LEFT JOIN categories c ON c.id = l.category_id
+                WHERE l.category_id = $3
+                ORDER BY l.created_at DESC
+                LIMIT $1 OFFSET $2
+            `, [limit, offset, categoryId]);
+
+            // Get total count of logos in this category
+            const totalRes = await query(`
+                SELECT COUNT(*)::int AS total 
+                FROM logos l
+                WHERE l.category_id = $1
+            `, [categoryId]);
+            const total = totalRes.rows[0].total;
+
+            // Get category info
+            const categoryRes = await query(`
+                SELECT 
+                    id,
+                    name,
+                    name_en,
+                    name_ar,
+                    description,
+                    description_en,
+                    description_ar
+                FROM categories
+                WHERE id = $1
+            `, [categoryId]);
+
+            const categoryInfo = categoryRes.rows[0] || null;
+
+            // Format logos
+            const formattedLogos = logosRes.rows.map(logo => ({
+                id: logo.id,
+                title: lang === 'ar' ? (logo.title_ar || logo.title_en || logo.title) : (logo.title_en || logo.title),
+                thumbnailUrl: logo.thumbnail_url,
+                description: lang === 'ar' ?
+                    (logo.description_ar || logo.description_en || logo.description) :
+                    (logo.description_en || logo.description),
+                categoryId: logo.category_id,
+                createdAt: new Date(logo.created_at).toISOString(),
+                updatedAt: new Date(logo.updated_at).toISOString(),
+                language: lang,
+                direction: lang === 'ar' ? 'rtl' : 'ltr'
+            }));
+
+            const currentLang = res.locals.lang || "en";
+            return res.json(ok({
+                data: formattedLogos,
+                category: categoryInfo ? {
+                    id: categoryInfo.id,
+                    name: lang === 'ar' ? (categoryInfo.name_ar || categoryInfo.name_en || categoryInfo.name) : (categoryInfo.name_en || categoryInfo.name),
+                    description: lang === 'ar' ?
+                        (categoryInfo.description_ar || categoryInfo.description_en || categoryInfo.description) :
+                        (categoryInfo.description_en || categoryInfo.description)
+                } : null,
+                pagination: {
+                    type: 'logos',
+                    page,
+                    limit,
+                    total,
+                    pages: Math.ceil(total / limit),
+                    hasMore: page < Math.ceil(total / limit)
+                }
+            }, currentLang, currentLang === "ar" ? "تم جلب الشعارات بنجاح" : "Logos fetched successfully"));
+        }
+
+        // MODE 2: Get paginated categories with limited logos per category (category pagination)
         const offset = (page - 1) * limit;
 
-        // Build query with optional category filter
-        let whereClause = '';
-        let queryParams = [limit, offset];
+        // Get paginated categories that have logos
+        const categoriesRes = await query(`
+            SELECT DISTINCT
+                c.id,
+                c.name,
+                c.name_en,
+                c.name_ar,
+                c.description,
+                c.description_en,
+                c.description_ar
+            FROM categories c
+            INNER JOIN logos l ON l.category_id = c.id
+            GROUP BY c.id, c.name, c.name_en, c.name_ar, c.description, c.description_en, c.description_ar
+            ORDER BY c.id ASC
+            LIMIT $1 OFFSET $2
+        `, [limit, offset]);
 
-        if (categoryId) {
-            whereClause = 'WHERE l.category_id = $3';
-            queryParams = [limit, offset, categoryId];
-        }
+        // Get total count of categories that have logos
+        const totalCategoriesRes = await query(`
+            SELECT COUNT(DISTINCT c.id)::int AS total
+            FROM categories c
+            INNER JOIN logos l ON l.category_id = c.id
+        `);
+        const totalCategories = totalCategoriesRes.rows[0].total;
 
-        const logosRes = await query(`
-      SELECT 
-        l.id,
-        l.title,
-        l.title_en,
-        l.title_ar,
-        l.description,
-        l.description_en,
-        l.description_ar,
-        l.thumbnail_url,
-        l.category_id,
-        c.name as category_name,
-        c.name_en as category_name_en,
-        c.name_ar as category_name_ar,
-        c.description as category_description,
-        c.description_en as category_description_en,
-        c.description_ar as category_description_ar,
-        l.created_at,
-        l.updated_at
-      FROM logos l
-      LEFT JOIN categories c ON c.id = l.category_id
-      ${whereClause}
-      ORDER BY l.category_id ASC, l.created_at DESC
-      LIMIT $1 OFFSET $2
-    `, queryParams);
-
-        // Get total count for pagination
-        let countQuery = 'SELECT COUNT(*)::int AS total FROM logos l';
-        let countParams = [];
-
-        if (categoryId) {
-            countQuery += ' WHERE l.category_id = $1';
-            countParams = [categoryId];
-        }
-
-        const totalRes = await query(countQuery, countParams);
-        const total = totalRes.rows[0].total;
-
-        // Format response data with localization
-        const formattedLogos = logosRes.rows.map(logo => ({
-            id: logo.id,
-            title: lang === 'ar' ? (logo.title_ar || logo.title_en || logo.title) : (logo.title_en || logo.title),
-            thumbnailUrl: logo.thumbnail_url,
-            description: lang === 'ar' ?
-                (logo.description_ar || logo.description_en || logo.description) :
-                (logo.description_en || logo.description),
-            categoryId: logo.category_id,
-            categoryName: lang === 'ar' ? (logo.category_name_ar || logo.category_name_en || logo.category_name) : (logo.category_name_en || logo.category_name),
-            categoryDescription: lang === 'ar' ?
-                (logo.category_description_ar || logo.category_description_en || logo.category_description) :
-                (logo.category_description_en || logo.category_description),
-            createdAt: new Date(logo.created_at).toISOString(),
-            updatedAt: new Date(logo.updated_at).toISOString(),
-            // Add language metadata
-            language: lang,
-            direction: lang === 'ar' ? 'rtl' : 'ltr'
-        }));
-
-        // Group logos by category into list of lists
+        // Get logos for each category (limited per category)
         const categoryGroups = [];
-        const categoryMap = new Map();
 
-        formattedLogos.forEach(logo => {
-            const categoryKey = logo.categoryId || 'uncategorized';
-            const categoryName = logo.categoryName || 'Uncategorized';
-            const categoryDescription = logo.categoryDescription || null;
+        for (const category of categoriesRes.rows) {
+            const logosRes = await query(`
+                SELECT 
+                    l.id,
+                    l.title,
+                    l.title_en,
+                    l.title_ar,
+                    l.description,
+                    l.description_en,
+                    l.description_ar,
+                    l.thumbnail_url,
+                    l.category_id,
+                    l.created_at,
+                    l.updated_at
+                FROM logos l
+                WHERE l.category_id = $1
+                ORDER BY l.created_at DESC
+                LIMIT $2
+            `, [category.id, logosPerCategory]);
 
-            if (!categoryMap.has(categoryKey)) {
-                const categoryGroup = {
-                    categoryId: logo.categoryId,
-                    categoryName: categoryName,
-                    categoryDescription,
-                    logos: []
-                };
-                categoryMap.set(categoryKey, categoryGroup);
-                categoryGroups.push(categoryGroup);
-            }
+            // Get total count of logos in this category
+            const categoryTotalRes = await query(`
+                SELECT COUNT(*)::int AS total
+                FROM logos
+                WHERE category_id = $1
+            `, [category.id]);
+            const categoryTotal = categoryTotalRes.rows[0].total;
 
-            categoryMap.get(categoryKey).logos.push(logo);
-        });
+            const formattedLogos = logosRes.rows.map(logo => ({
+                id: logo.id,
+                title: lang === 'ar' ? (logo.title_ar || logo.title_en || logo.title) : (logo.title_en || logo.title),
+                thumbnailUrl: logo.thumbnail_url,
+                description: lang === 'ar' ?
+                    (logo.description_ar || logo.description_en || logo.description) :
+                    (logo.description_en || logo.description),
+                categoryId: logo.category_id,
+                createdAt: new Date(logo.created_at).toISOString(),
+                updatedAt: new Date(logo.updated_at).toISOString(),
+                language: lang,
+                direction: lang === 'ar' ? 'rtl' : 'ltr'
+            }));
 
-        // Convert to list of lists format as requested
-        const groupedData = categoryGroups.map(group => ({
-            category: {
-                id: group.categoryId,
-                name: group.categoryName,
-                description: group.categoryDescription
-            },
-            logos: group.logos
-        }));
+            categoryGroups.push({
+                category: {
+                    id: category.id,
+                    name: lang === 'ar' ? (category.name_ar || category.name_en || category.name) : (category.name_en || category.name),
+                    description: lang === 'ar' ?
+                        (category.description_ar || category.description_en || category.description) :
+                        (category.description_en || category.description)
+                },
+                logos: formattedLogos,
+                logoPagination: {
+                    total: categoryTotal,
+                    returned: formattedLogos.length,
+                    hasMore: categoryTotal > formattedLogos.length
+                }
+            });
+        }
 
         const currentLang = res.locals.lang || "en";
         return res.json(ok({
-            data: groupedData,
+            data: categoryGroups,
             pagination: {
+                type: 'categories',
                 page,
                 limit,
-                total,
-                pages: Math.ceil(total / limit),
-                categoriesCount: categoryGroups.length
+                total: totalCategories,
+                pages: Math.ceil(totalCategories / limit),
+                hasMore: page < Math.ceil(totalCategories / limit),
+                logosPerCategory: logosPerCategory
             }
-        }, currentLang, currentLang === "ar" ? "ØªÙ… Ø¬Ù„Ø¨ Ø§Ù„Ø´Ø¹Ø§Ø±Ø§Øª Ø¨Ù†Ø¬Ø§Ø­" : "Logos fetched successfully"));
+        }, currentLang, currentLang === "ar" ? "تم جلب الفئات والشعارات بنجاح" : "Categories and logos fetched successfully"));
     } catch (err) {
         console.error('Error fetching logo thumbnails:', err);
         res.status(500).json({
