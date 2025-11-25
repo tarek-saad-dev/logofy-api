@@ -6,47 +6,6 @@ const { ok, fail } = require('../utils/envelope');
 const { getLogoMobile } = require('../controllers/logoMobile');
 const { getLogoMobileLegacy, getAllLogosMobileLegacy } = require('../controllers/logoMobileLegacy');
 
-// Import transformation functions for mobile legacy format
-const { transformGradientToLegacy, transformBackgroundToLegacy } = (() => {
-    // These functions are defined in logoMobileLegacy controller
-    // We'll define them here to avoid circular dependencies
-    function transformGradientToLegacy(gradient) {
-        if (!gradient || typeof gradient !== 'object') return null;
-        if (gradient.stops && gradient.stops[0] && gradient.stops[0].color !== undefined) return gradient;
-        if (gradient.stops && Array.isArray(gradient.stops)) {
-            return {
-                angle: gradient.angle || 0.0,
-                stops: gradient.stops.map(stop => ({
-                    color: stop.hex || stop.color || '#000000',
-                    position: stop.offset !== undefined ? stop.offset : (stop.position !== undefined ? stop.position : 0)
-                }))
-            };
-        }
-        return null;
-    }
-
-    function transformBackgroundToLegacy(background) {
-        if (!background || typeof background !== 'object') {
-            return { type: 'solid', gradient: null };
-        }
-        const result = { type: background.type || 'solid' };
-        if (background.gradient) {
-            const legacyGradient = transformGradientToLegacy(background.gradient);
-            if (legacyGradient) result.gradient = legacyGradient;
-        }
-        if (background.image && typeof background.image === 'object') {
-            result.image = {
-                type: background.image.type || 'imported',
-                path: background.image.path || background.image.url || null
-            };
-        }
-        if (background.solidColor) result.solidColor = background.solidColor;
-        return result;
-    }
-
-    return { transformGradientToLegacy, transformBackgroundToLegacy };
-})();
-
 // ==============================================
 // GRADIENT TRANSFORMATION UTILITIES
 // ==============================================
