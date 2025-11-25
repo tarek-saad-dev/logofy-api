@@ -5,52 +5,49 @@
         "description": "Postman collection for searching logos by tags, title, and description",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
-    "item": [
-        {
+    "item": [{
             "name": "Search Logos",
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "exec": [
-                            "pm.test('Status code is 200', function () {",
-                            "    pm.response.to.have.status(200);",
-                            "});",
-                            "",
-                            "pm.test('Response has success field', function () {",
-                            "    const jsonData = pm.response.json();",
-                            "    pm.expect(jsonData).to.have.property('success');",
-                            "    pm.expect(jsonData.success).to.be.true;",
-                            "});",
-                            "",
-                            "pm.test('Response contains logos array', function () {",
-                            "    const jsonData = pm.response.json();",
-                            "    pm.expect(jsonData.data).to.have.property('logos');",
-                            "    pm.expect(jsonData.data.logos).to.be.an('array');",
-                            "});",
-                            "",
-                            "pm.test('Response contains pagination', function () {",
-                            "    const jsonData = pm.response.json();",
-                            "    pm.expect(jsonData.data.pagination).to.have.property('page');",
-                            "    pm.expect(jsonData.data.pagination).to.have.property('limit');",
-                            "    pm.expect(jsonData.data.pagination).to.have.property('total');",
-                            "    pm.expect(jsonData.data.pagination).to.have.property('pages');",
-                            "    pm.expect(jsonData.data.pagination).to.have.property('hasMore');",
-                            "});",
-                            "",
-                            "pm.test('Logos have tags field', function () {",
-                            "    const jsonData = pm.response.json();",
-                            "    if (jsonData.data.logos.length > 0) {",
-                            "        const logo = jsonData.data.logos[0];",
-                            "        pm.expect(logo).to.have.property('tags');",
-                            "        pm.expect(logo.tags).to.be.an('array');",
-                            "    }",
-                            "});"
-                        ],
-                        "type": "text/javascript"
-                    }
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "pm.test('Status code is 200', function () {",
+                        "    pm.response.to.have.status(200);",
+                        "});",
+                        "",
+                        "pm.test('Response has success field', function () {",
+                        "    const jsonData = pm.response.json();",
+                        "    pm.expect(jsonData).to.have.property('success');",
+                        "    pm.expect(jsonData.success).to.be.true;",
+                        "});",
+                        "",
+                        "pm.test('Response contains logos array', function () {",
+                        "    const jsonData = pm.response.json();",
+                        "    pm.expect(jsonData.data).to.have.property('logos');",
+                        "    pm.expect(jsonData.data.logos).to.be.an('array');",
+                        "});",
+                        "",
+                        "pm.test('Response contains pagination', function () {",
+                        "    const jsonData = pm.response.json();",
+                        "    pm.expect(jsonData.data.pagination).to.have.property('page');",
+                        "    pm.expect(jsonData.data.pagination).to.have.property('limit');",
+                        "    pm.expect(jsonData.data.pagination).to.have.property('total');",
+                        "    pm.expect(jsonData.data.pagination).to.have.property('pages');",
+                        "    pm.expect(jsonData.data.pagination).to.have.property('hasMore');",
+                        "});",
+                        "",
+                        "pm.test('Logos have tags field', function () {",
+                        "    const jsonData = pm.response.json();",
+                        "    if (jsonData.data.logos.length > 0) {",
+                        "        const logo = jsonData.data.logos[0];",
+                        "        pm.expect(logo).to.have.property('tags');",
+                        "        pm.expect(logo.tags).to.be.an('array');",
+                        "    }",
+                        "});"
+                    ],
+                    "type": "text/javascript"
                 }
-            ],
+            }],
             "request": {
                 "method": "GET",
                 "header": [],
@@ -64,8 +61,7 @@
                         "logo",
                         "search"
                     ],
-                    "query": [
-                        {
+                    "query": [{
                             "key": "query",
                             "value": "{{searchQuery}}",
                             "description": "Search term to match against tags, title, and description"
@@ -106,8 +102,7 @@
                         "logo",
                         "search"
                     ],
-                    "query": [
-                        {
+                    "query": [{
                             "key": "query",
                             "value": "design",
                             "description": "Search for 'design'"
@@ -145,8 +140,7 @@
                         "logo",
                         "search"
                     ],
-                    "query": [
-                        {
+                    "query": [{
                             "key": "query",
                             "value": "تصميم",
                             "description": "Search for 'تصميم' (design in Arabic)"
@@ -184,8 +178,7 @@
                         "logo",
                         "search"
                     ],
-                    "query": [
-                        {
+                    "query": [{
                             "key": "query",
                             "value": "responsive",
                             "description": "Search for logos with 'responsive' tag"
@@ -223,8 +216,7 @@
                         "logo",
                         "search"
                     ],
-                    "query": [
-                        {
+                    "query": [{
                             "key": "query",
                             "value": "logo",
                             "description": "Search term"
@@ -250,8 +242,7 @@
             "response": []
         }
     ],
-    "variable": [
-        {
+    "variable": [{
             "key": "baseUrl",
             "value": "http://localhost:3000",
             "type": "string"
@@ -282,4 +273,3 @@
         }
     ]
 }
-
