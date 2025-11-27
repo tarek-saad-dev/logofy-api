@@ -295,6 +295,51 @@ router.get('/thumbnails', async(req, res) => {
     }
 });
 
+// GET /api/logo/categories - Get all categories with only id and name
+router.get('/categories', async(req, res) => {
+    try {
+        const lang = req.query.lang || res.locals.lang || 'en';
+
+        // Query categories with localized name
+        const result = await query(`
+            SELECT 
+                id,
+                name,
+                name_en,
+                name_ar
+            FROM categories
+            ORDER BY name ASC
+        `);
+
+        // Format response with localized names
+        const categories = result.rows.map(category => {
+            // Use localized name based on language preference
+            let displayName;
+            if (lang === 'ar') {
+                displayName = category.name_ar || category.name_en || category.name;
+            } else {
+                displayName = category.name_en || category.name;
+            }
+
+            return {
+                id: category.id,
+                name: displayName
+            };
+        });
+
+        res.json({
+            success: true,
+            data: categories
+        });
+    } catch (error) {
+        console.error('Error fetching categories:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch categories'
+        });
+    }
+});
+
 // GET /api/logo/mobile - list all logos in mobile-compatible format (paginated)
 router.get('/mobile', async(req, res) => {
     try {
