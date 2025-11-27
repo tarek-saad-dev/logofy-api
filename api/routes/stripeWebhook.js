@@ -211,7 +211,7 @@ async function handleSubscriptionCreatedOrUpdated(subscription) {
             expand: ['items.data.price']
         });
     }
-    
+
     await upsertSubscription(subscription);
 }
 
@@ -267,12 +267,28 @@ async function upsertSubscription(subscription, userId = null) {
         const status = mapStripeStatusToDb(subscription.status);
 
         // Extract plan_type from subscription items
-        // Get the billing interval from the first subscription item's price
+        // Check both plan.interval (legacy) and price.recurring.interval (modern Stripe API)
+        // Also use interval_count to properly determine plan type
         let planType = null;
         if (subscription.items && subscription.items.data && subscription.items.data.length > 0) {
             const firstItem = subscription.items.data[0];
-            if (firstItem.price && firstItem.price.recurring && firstItem.price.recurring.interval) {
-                const interval = firstItem.price.recurring.interval.toLowerCase();
+            let interval = null;
+            let intervalCount = 1;
+
+            // Try to get interval from plan.interval (legacy/alternative structure)
+            if (firstItem.plan && firstItem.plan.interval) {
+                interval = firstItem.plan.interval.toLowerCase();
+                intervalCount = firstItem.plan.interval_count || 1;
+                console.log(`Found plan.interval for subscription ${stripeSubId}: ${interval}, interval_count: ${intervalCount}`);
+            }
+            // Try to get interval from price.recurring.interval (modern Stripe API)
+            else if (firstItem.price && firstItem.price.recurring && firstItem.price.recurring.interval) {
+                interval = firstItem.price.recurring.interval.toLowerCase();
+                intervalCount = firstItem.price.recurring.interval_count || 1;
+                console.log(`Found price.recurring.interval for subscription ${stripeSubId}: ${interval}, interval_count: ${intervalCount}`);
+            }
+
+            if (interval) {
                 // Map Stripe interval to our plan_type format
                 const intervalMap = {
                     'day': 'daily',
@@ -280,8 +296,16 @@ async function upsertSubscription(subscription, userId = null) {
                     'month': 'monthly',
                     'year': 'yearly'
                 };
-                planType = intervalMap[interval] || interval;
-                console.log(`Extracted plan_type for subscription ${stripeSubId}: ${planType} (from interval: ${interval})`);
+
+                // For standard intervals (interval_count = 1), use simple format
+                if (intervalCount === 1) {
+                    planType = intervalMap[interval] || interval;
+                } else {
+                    // For custom intervals (e.g., 3 months, 6 months), use descriptive format
+                    planType = `${intervalCount}_${interval}`;
+                }
+
+                console.log(`Extracted plan_type for subscription ${stripeSubId}: ${planType} (from interval: ${interval}, interval_count: ${intervalCount})`);
             }
         }
 
@@ -294,12 +318,31 @@ async function upsertSubscription(subscription, userId = null) {
 
         // Parse current_period_end from Stripe timestamp (Unix timestamp in seconds)
         // IMPORTANT: Use Stripe's actual current_period_end, never use created_at
+        // First try subscription.current_period_end (standard location)
+        // Fallback to items.data[0].current_period_end if needed (some webhook payloads may have it there)
         let currentPeriodEnd = null;
+        let periodEndTimestamp = null;
+
+        // Try subscription.current_period_end first (standard Stripe API location)
         if (subscription.current_period_end !== undefined && subscription.current_period_end !== null) {
-            const periodEndTimestamp = typeof subscription.current_period_end === 'number' ?
+            periodEndTimestamp = typeof subscription.current_period_end === 'number' ?
                 subscription.current_period_end :
                 Number(subscription.current_period_end);
+            console.log(`Found current_period_end at subscription level for ${stripeSubId}: ${periodEndTimestamp}`);
+        }
+        // Fallback to items.data[0].current_period_end if not found at subscription level
+        else if (subscription.items && subscription.items.data && subscription.items.data.length > 0) {
+            const firstItem = subscription.items.data[0];
+            if (firstItem.current_period_end !== undefined && firstItem.current_period_end !== null) {
+                periodEndTimestamp = typeof firstItem.current_period_end === 'number' ?
+                    firstItem.current_period_end :
+                    Number(firstItem.current_period_end);
+                console.log(`Found current_period_end at items.data[0] level for ${stripeSubId}: ${periodEndTimestamp}`);
+            }
+        }
 
+        // Convert timestamp to Date if we found one
+        if (periodEndTimestamp !== null) {
             if (!isNaN(periodEndTimestamp) && isFinite(periodEndTimestamp) && periodEndTimestamp > 0) {
                 currentPeriodEnd = new Date(periodEndTimestamp * 1000);
 
@@ -308,7 +351,7 @@ async function upsertSubscription(subscription, userId = null) {
                     console.warn(`Invalid current_period_end Date for subscription ${stripeSubId}, setting to null`);
                     currentPeriodEnd = null;
                 } else {
-                    console.log(`Parsed current_period_end for subscription ${stripeSubId}: ${currentPeriodEnd.toISOString()}`);
+                    console.log(`Parsed current_period_end for subscription ${stripeSubId}: ${currentPeriodEnd.toISOString()} (from timestamp: ${periodEndTimestamp})`);
                     // Verify it's not the same as created_at (which would indicate an error)
                     if (subscription.created) {
                         const createdAt = new Date(subscription.created * 1000);
@@ -323,7 +366,7 @@ async function upsertSubscription(subscription, userId = null) {
                 currentPeriodEnd = null;
             }
         } else {
-            console.warn(`Subscription ${stripeSubId} has no current_period_end, setting to null`);
+            console.warn(`Subscription ${stripeSubId} has no current_period_end at subscription or items level, setting to null`);
         }
 
         // Safely derive canceled_at
