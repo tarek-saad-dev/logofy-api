@@ -287,9 +287,19 @@ router.get('/logo/:id/export', async(req, res) => {
             });
         }
 
+        // Log SVG before cleaning (first 500 chars)
+        console.log('SVG before cleanSVGAttributes (first 500 chars):', svg.substring(0, 500));
+        console.log('SVG before cleanSVGAttributes - starts with:', svg.substring(0, 100));
+        console.log('SVG before cleanSVGAttributes - length:', svg.length);
+
         // CRITICAL: Clean the entire SVG to remove newlines from attribute values
         // This aggressively fixes any attribute formatting issues
         svg = cleanSVGAttributes(svg);
+
+        // Log SVG after cleaning (first 500 chars)
+        console.log('SVG after cleanSVGAttributes (first 500 chars):', svg.substring(0, 500));
+        console.log('SVG after cleanSVGAttributes - starts with:', svg.substring(0, 100));
+        console.log('SVG after cleanSVGAttributes - length:', svg.length);
 
         // Additional SVG validation: Check for common issues that cause resvg parsing errors
         // Check for extremely long data URLs or malformed content
@@ -298,13 +308,30 @@ router.get('/logo/:id/export', async(req, res) => {
         }
 
         // Validate SVG structure - ensure it's well-formed XML
-        if (!svg.trim().startsWith('<svg')) {
-            console.error('SVG does not start with <svg tag');
+        // Check if it starts with XML declaration or <svg tag
+        const trimmedSvg = svg.trim();
+        const startsWithXml = trimmedSvg.startsWith('<?xml');
+        const startsWithSvg = trimmedSvg.startsWith('<svg');
+        const hasSvgTag = trimmedSvg.includes('<svg');
+
+        console.log('SVG validation check:', {
+            startsWithXml,
+            startsWithSvg,
+            hasSvgTag,
+            firstChars: trimmedSvg.substring(0, 200)
+        });
+
+        if (!startsWithXml && !startsWithSvg && !hasSvgTag) {
+            console.error('SVG does not start with <svg tag or <?xml declaration');
+            console.error('SVG first 500 chars:', trimmedSvg.substring(0, 500));
             return res.status(500).json({
                 success: false,
                 message: 'Invalid SVG structure: SVG does not start correctly',
                 error: process.env.NODE_ENV === 'development' ? {
-                    svgPreview: svg.substring(0, 200)
+                    svgPreview: trimmedSvg.substring(0, 500),
+                    startsWithXml,
+                    startsWithSvg,
+                    hasSvgTag
                 } : undefined
             });
         }
@@ -1455,8 +1482,10 @@ async function generateShapeSVG(layer, x, y, scale, rotation, style, defs) {
             // Try to fetch the SVG content
             const svgContent = await fetchSVGContent(shape.meta.src);
             if (svgContent && svgContent.trim().length > 0) {
+                // CRITICAL: Sanitize embedded SVG to remove XML declarations, comments, and <svg> wrapper
+                let processedSvg = sanitizeEmbeddedSVG(svgContent);
+
                 // Apply color transformation to the SVG
-                let processedSvg = svgContent;
                 if (shape.fill_hex) {
                     const fillColor = validateHexColor(shape.fill_hex);
                     // Replace fill colors in the SVG
@@ -1561,6 +1590,10 @@ async function generateIconSVG(layer, x, y, scale, rotation, style, defs) {
     // If it's an SVG asset, use the vector_svg content
     if (icon.asset && icon.asset.vector_svg) {
         let svgContent = icon.asset.vector_svg;
+
+        // CRITICAL: Sanitize embedded SVG to remove XML declarations, comments, and <svg> wrapper
+        svgContent = sanitizeEmbeddedSVG(svgContent);
+
         // Apply tint color
         svgContent = svgContent.replace(/currentColor/g, tintColor);
         svgContent = svgContent.replace(/fill="[^"]*"/g, (match) => {
@@ -1750,6 +1783,54 @@ async function generateImageSVG(layer, x, y, scale, rotation, style, defs) {
     }
 }
 
+// Helper function to sanitize embedded SVG content
+// Removes XML declarations, comments, and extracts only the inner SVG content
+// This prevents embedded SVG assets from breaking the parent SVG with invalid XML
+function sanitizeEmbeddedSVG(svgContent) {
+    if (!svgContent || typeof svgContent !== 'string') return '';
+
+    let cleaned = svgContent.trim();
+
+    // Step 1: Remove ALL XML declarations (<?xml ... ?>) - there should only be one at the top level
+    // Use global flag to catch multiple declarations if they exist (this is the main issue)
+    cleaned = cleaned.replace(/<\?xml[^>]*\?>/gi, '');
+
+    // Step 2: Remove ALL comments (<!-- ... -->) - comments can appear anywhere
+    cleaned = cleaned.replace(/<!--[\s\S]*?-->/g, '');
+
+    // Step 3: Extract inner content from <svg>...</svg> tags if present
+    // This handles cases where the SVG is wrapped in an <svg> tag
+    // Find the first <svg> tag and extract everything between it and the last </svg>
+    const svgOpenIndex = cleaned.search(/<svg[^>]*>/i);
+    if (svgOpenIndex !== -1) {
+        const svgOpenMatch = cleaned.match(/<svg[^>]*>/i);
+        const openTag = svgOpenMatch[0];
+        const afterOpenTag = cleaned.substring(svgOpenIndex + openTag.length);
+
+        // Find the last </svg> tag (in case there are nested SVGs, we want the outermost closing tag)
+        const lastCloseIndex = afterOpenTag.lastIndexOf('</svg>');
+        if (lastCloseIndex !== -1) {
+            // Extract content between opening and closing tags
+            cleaned = afterOpenTag.substring(0, lastCloseIndex).trim();
+        } else {
+            // No closing tag found, just take everything after the opening tag
+            cleaned = afterOpenTag.trim();
+        }
+    }
+
+    // Step 4: Remove any remaining XML declarations that might have been inside the SVG content
+    // (This is critical - embedded SVGs might have their own XML declarations)
+    cleaned = cleaned.replace(/<\?xml[^>]*\?>/gi, '');
+
+    // Step 5: Remove any remaining comments
+    cleaned = cleaned.replace(/<!--[\s\S]*?-->/g, '');
+
+    // Step 6: Clean up any remaining whitespace issues
+    cleaned = cleaned.replace(/\s+/g, ' ').trim();
+
+    return cleaned;
+}
+
 // Helper function to fetch SVG content
 async function fetchSVGContent(src) {
     try {
@@ -1862,7 +1943,49 @@ function clampAlpha(alpha) {
 function cleanSVGAttributes(svg) {
     if (!svg || typeof svg !== 'string') return svg;
 
-    let cleaned = svg;
+    // Preserve XML declaration and opening <svg> tag structure
+    let xmlDeclaration = '';
+    let svgStartTag = '';
+    let svgContent = '';
+    let svgEndTag = '';
+
+    // Extract XML declaration if present
+    const xmlMatch = svg.match(/^<\?xml[^>]*\?>\s*/);
+    if (xmlMatch) {
+        xmlDeclaration = xmlMatch[0];
+        svg = svg.substring(xmlMatch[0].length);
+    }
+
+    // Extract opening <svg> tag (may span multiple lines)
+    // First try single-line match
+    let svgTagMatch = svg.match(/^<svg[^>]*>/);
+    if (!svgTagMatch) {
+        // Try multi-line match (tag might have newlines in attributes)
+        svgTagMatch = svg.match(/^<svg[\s\S]*?>/);
+    }
+    if (svgTagMatch) {
+        svgStartTag = svgTagMatch[0];
+        svg = svg.substring(svgTagMatch[0].length);
+    }
+
+    // Extract closing </svg> tag if present
+    const svgEndMatch = svg.match(/<\/svg>\s*$/);
+    if (svgEndMatch) {
+        svgEndTag = svgEndMatch[0];
+        svgContent = svg.substring(0, svg.length - svgEndMatch[0].length);
+    } else {
+        svgContent = svg;
+    }
+
+    // If we couldn't extract the structure, process the whole thing (fallback)
+    if (!svgStartTag) {
+        console.warn('cleanSVGAttributes: Could not extract <svg> tag, processing entire string');
+        svgContent = svg;
+        svgStartTag = '';
+        svgEndTag = '';
+    }
+
+    let cleaned = svgContent;
 
     // Step 0: Fix potential issues with very long data URLs that might cause parsing errors
     // If a data URL is extremely long (>500KB), it might cause issues - log a warning
@@ -1963,7 +2086,18 @@ function cleanSVGAttributes(svg) {
     cleaned = cleaned.replace(/\s+/g, ' ');
     cleaned = cleaned.replace(/>\s+</g, '><');
 
-    return cleaned;
+    // Reconstruct the SVG with preserved structure
+    if (svgStartTag) {
+        // Clean the opening <svg> tag attributes (remove newlines from attributes)
+        const cleanedSvgTag = svgStartTag.replace(/(\w+)="([^"]*?)[\r\n]+([^"]*?)"/g, '$1="$2 $3"');
+        // Also clean any newlines in the tag itself
+        const cleanedSvgTagFinal = cleanedSvgTag.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+        return xmlDeclaration + cleanedSvgTagFinal + cleaned + svgEndTag;
+    } else {
+        // Fallback: return cleaned content as-is (shouldn't happen if SVG is well-formed)
+        console.warn('cleanSVGAttributes: Returning without <svg> tag structure');
+        return xmlDeclaration + cleaned + svgEndTag;
+    }
 }
 
 module.exports = router;
