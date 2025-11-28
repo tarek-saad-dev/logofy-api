@@ -2596,7 +2596,7 @@ router.delete('/backgrounds/:id', async(req, res) => {
 // GET /api/logo/search - Search logos by tags, title, and description
 // Supports:
 // - query parameter: text search in titles, descriptions, and tags
-// - tags parameter: filter by multiple tags (AND logic - logo must contain ALL tags)
+// - tags parameter: filter by multiple tags (OR logic - logo must contain ANY of the tags)
 //   Can be passed as: tags=Diet,Discipline,Disk-Like or tags[]=Diet&tags[]=Discipline&tags[]=Disk-Like
 router.get('/search', async(req, res) => {
     try {
@@ -2661,7 +2661,7 @@ router.get('/search', async(req, res) => {
             paramIndex++;
         }
 
-        // Tags filter condition (AND logic - logo must contain ALL selected tags)
+        // Tags filter condition (OR logic - logo must contain ANY of the selected tags)
         // We check each tag in the appropriate localized tags array
         if (selectedTags.length > 0) {
             const tagConditions = [];
@@ -2700,8 +2700,8 @@ router.get('/search', async(req, res) => {
                 queryParams.push(tag);
                 paramIndex++;
             }
-            // All tag conditions must be true (AND logic)
-            whereConditions.push(`(${tagConditions.join(' AND ')})`);
+            // Any tag condition can be true (OR logic)
+            whereConditions.push(`(${tagConditions.join(' OR ')})`);
         }
 
         const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
