@@ -2594,31 +2594,119 @@ router.delete('/backgrounds/:id', async(req, res) => {
 // ==============================================
 
 // GET /api/logo/search - Search logos by tags, title, and description
+// Supports:
+// - query parameter: text search in titles, descriptions, and tags
+// - tags parameter: filter by multiple tags (AND logic - logo must contain ALL tags)
+//   Can be passed as: tags=Diet,Discipline,Disk-Like or tags[]=Diet&tags[]=Discipline&tags[]=Disk-Like
 router.get('/search', async(req, res) => {
     try {
-        const { query: searchQuery, lang = 'en', page = 1, limit = 20 } = req.query;
+        const { query: searchQuery, tags: tagsParam, lang = 'en', page = 1, limit = 20 } = req.query;
 
-        // Validate search query
-        if (!searchQuery || searchQuery.trim().length === 0) {
+        // At least one of query or tags must be provided
+        const hasQuery = searchQuery && searchQuery.trim().length > 0;
+        const hasTags = tagsParam && (Array.isArray(tagsParam) ? tagsParam.length > 0 : tagsParam.trim().length > 0);
+
+        if (!hasQuery && !hasTags) {
             const currentLang = res.locals.lang || "en";
-            return res.status(400).json(fail(currentLang, currentLang === "ar" ? "يرجى إدخال نص البحث" : "Search query is required"));
+            return res.status(400).json(fail(currentLang, currentLang === "ar" ? "يرجى إدخال نص البحث أو علامات" : "Search query or tags are required"));
         }
 
-        const searchTerm = searchQuery.trim();
+        const searchTerm = hasQuery ? searchQuery.trim() : null;
         const pageNum = Math.max(1, parseInt(page, 10));
         const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
         const offset = (pageNum - 1) * limitNum;
 
-        // Build search conditions
-        // Search in: title, title_en, title_ar, description, description_en, description_ar
-        // And in tags arrays (tags, tags_en, tags_ar) using JSONB contains or text search
-        const searchPattern = `%${searchTerm}%`;
+        // Parse tags parameter - support both comma-separated string and array format
+        let selectedTags = [];
+        if (hasTags) {
+            if (Array.isArray(tagsParam)) {
+                selectedTags = tagsParam.map(t => t.trim()).filter(Boolean);
+            } else {
+                selectedTags = tagsParam.split(',').map(t => t.trim()).filter(Boolean);
+            }
+        }
+
+        // Build WHERE conditions
+        const whereConditions = [];
+        const queryParams = [];
+        let paramIndex = 1;
+
+        // Text search condition (if query provided)
+        if (hasQuery) {
+            const searchPattern = `%${searchTerm}%`;
+            whereConditions.push(`(
+                -- Search in title fields
+                l.title ILIKE $${paramIndex} OR
+                l.title_en ILIKE $${paramIndex} OR
+                l.title_ar ILIKE $${paramIndex} OR
+                -- Search in description fields
+                l.description ILIKE $${paramIndex} OR
+                l.description_en ILIKE $${paramIndex} OR
+                l.description_ar ILIKE $${paramIndex} OR
+                -- Search in tags (JSONB array) - check if any tag contains the search term
+                EXISTS (
+                    SELECT 1 FROM jsonb_array_elements_text(COALESCE(l.tags, '[]'::jsonb)) AS tag
+                    WHERE tag ILIKE $${paramIndex}
+                ) OR
+                EXISTS (
+                    SELECT 1 FROM jsonb_array_elements_text(COALESCE(l.tags_en, '[]'::jsonb)) AS tag
+                    WHERE tag ILIKE $${paramIndex}
+                ) OR
+                EXISTS (
+                    SELECT 1 FROM jsonb_array_elements_text(COALESCE(l.tags_ar, '[]'::jsonb)) AS tag
+                    WHERE tag ILIKE $${paramIndex}
+                )
+            )`);
+            queryParams.push(searchPattern);
+            paramIndex++;
+        }
+
+        // Tags filter condition (AND logic - logo must contain ALL selected tags)
+        // We check each tag in the appropriate localized tags array
+        if (selectedTags.length > 0) {
+            const tagConditions = [];
+            for (const tag of selectedTags) {
+                // Check if tag exists in any of the localized tag arrays (tags, tags_en, tags_ar)
+                // For the given language, prefer the language-specific tags, then fallback to base tags
+                if (lang === 'ar') {
+                    // For Arabic: check tags_ar first, then tags_en, then tags
+                    tagConditions.push(`(
+                        EXISTS (
+                            SELECT 1 FROM jsonb_array_elements_text(COALESCE(l.tags_ar, '[]'::jsonb)) AS tag
+                            WHERE LOWER(tag) = LOWER($${paramIndex})
+                        ) OR
+                        EXISTS (
+                            SELECT 1 FROM jsonb_array_elements_text(COALESCE(l.tags_en, '[]'::jsonb)) AS tag
+                            WHERE LOWER(tag) = LOWER($${paramIndex})
+                        ) OR
+                        EXISTS (
+                            SELECT 1 FROM jsonb_array_elements_text(COALESCE(l.tags, '[]'::jsonb)) AS tag
+                            WHERE LOWER(tag) = LOWER($${paramIndex})
+                        )
+                    )`);
+                } else {
+                    // For English and other languages: check tags_en first, then tags
+                    tagConditions.push(`(
+                        EXISTS (
+                            SELECT 1 FROM jsonb_array_elements_text(COALESCE(l.tags_en, '[]'::jsonb)) AS tag
+                            WHERE LOWER(tag) = LOWER($${paramIndex})
+                        ) OR
+                        EXISTS (
+                            SELECT 1 FROM jsonb_array_elements_text(COALESCE(l.tags, '[]'::jsonb)) AS tag
+                            WHERE LOWER(tag) = LOWER($${paramIndex})
+                        )
+                    )`);
+                }
+                queryParams.push(tag);
+                paramIndex++;
+            }
+            // All tag conditions must be true (AND logic)
+            whereConditions.push(`(${tagConditions.join(' AND ')})`);
+        }
+
+        const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
         // Query to search logos
-        // We'll search in:
-        // 1. Title fields (title, title_en, title_ar)
-        // 2. Description fields (description, description_en, description_ar)
-        // 3. Tags arrays (tags, tags_en, tags_ar) - using JSONB text search
         const logosRes = await query(`
             SELECT 
                 l.id, l.owner_id, l.title, l.description, l.canvas_w, l.canvas_h, l.dpi,
@@ -2638,61 +2726,17 @@ router.get('/search', async(req, res) => {
                 c.description as category_description, c.description_en as category_description_en, c.description_ar as category_description_ar
             FROM logos l
             LEFT JOIN categories c ON c.id = l.category_id
-            WHERE (
-                -- Search in title fields
-                l.title ILIKE $1 OR
-                l.title_en ILIKE $1 OR
-                l.title_ar ILIKE $1 OR
-                -- Search in description fields
-                l.description ILIKE $1 OR
-                l.description_en ILIKE $1 OR
-                l.description_ar ILIKE $1 OR
-                -- Search in tags (JSONB array) - check if any tag contains the search term
-                EXISTS (
-                    SELECT 1 FROM jsonb_array_elements_text(COALESCE(l.tags, '[]'::jsonb)) AS tag
-                    WHERE tag ILIKE $1
-                ) OR
-                EXISTS (
-                    SELECT 1 FROM jsonb_array_elements_text(COALESCE(l.tags_en, '[]'::jsonb)) AS tag
-                    WHERE tag ILIKE $1
-                ) OR
-                EXISTS (
-                    SELECT 1 FROM jsonb_array_elements_text(COALESCE(l.tags_ar, '[]'::jsonb)) AS tag
-                    WHERE tag ILIKE $1
-                )
-            )
+            ${whereClause}
             ORDER BY l.created_at DESC
-            LIMIT $2 OFFSET $3
-        `, [searchPattern, limitNum, offset]);
+            LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+        `, [...queryParams, limitNum, offset]);
 
         // Get total count for pagination
         const totalRes = await query(`
             SELECT COUNT(*)::int AS total
             FROM logos l
-            WHERE (
-                -- Search in title fields
-                l.title ILIKE $1 OR
-                l.title_en ILIKE $1 OR
-                l.title_ar ILIKE $1 OR
-                -- Search in description fields
-                l.description ILIKE $1 OR
-                l.description_en ILIKE $1 OR
-                l.description_ar ILIKE $1 OR
-                -- Search in tags (JSONB array)
-                EXISTS (
-                    SELECT 1 FROM jsonb_array_elements_text(COALESCE(l.tags, '[]'::jsonb)) AS tag
-                    WHERE tag ILIKE $1
-                ) OR
-                EXISTS (
-                    SELECT 1 FROM jsonb_array_elements_text(COALESCE(l.tags_en, '[]'::jsonb)) AS tag
-                    WHERE tag ILIKE $1
-                ) OR
-                EXISTS (
-                    SELECT 1 FROM jsonb_array_elements_text(COALESCE(l.tags_ar, '[]'::jsonb)) AS tag
-                    WHERE tag ILIKE $1
-                )
-            )
-        `, [searchPattern]);
+            ${whereClause}
+        `, queryParams);
 
         const total = totalRes.rows[0].total;
         const pages = Math.ceil(total / limitNum);
@@ -2943,12 +2987,265 @@ router.get('/search', async(req, res) => {
                 pages,
                 hasMore
             },
-            query: searchTerm
+            query: searchTerm || null,
+            tags: selectedTags.length > 0 ? selectedTags : null
         }, currentLang, currentLang === "ar" ? "تم البحث بنجاح" : "Search completed successfully"));
     } catch (error) {
         console.error('Error searching logos:', error);
         const currentLang = res.locals.lang || "en";
         return res.status(500).json(fail(currentLang, currentLang === "ar" ? "خطأ في البحث" : "Failed to search logos"));
+    }
+});
+
+// ==============================================
+// TAG SUGGESTIONS ENDPOINT
+// ==============================================
+
+// GET /api/logo/tags/suggest - Get tag suggestions for autocomplete and trending tags
+// Query parameters:
+//   - query (optional): Filter tags by text (case-insensitive prefix/contains match)
+//   - lang (optional, default: 'en'): Language for localized tags
+//   - limit (optional, default: 20): Maximum number of tags to return
+// Behavior:
+//   - If query is empty/missing: Returns trending/most used tags (top N)
+//   - If query is provided: Returns tags that match the query, sorted by relevance
+router.get('/tags/suggest', async(req, res) => {
+    try {
+        const { query: searchQuery, lang = 'en', limit = 20 } = req.query;
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
+        const hasQuery = searchQuery && searchQuery.trim().length > 0;
+        const searchTerm = hasQuery ? searchQuery.trim().toLowerCase() : null;
+
+        let result;
+        if (hasQuery) {
+            // Search mode: Find tags that match the query (prefix or contains match)
+            // We'll search across all tag columns and aggregate unique tags with their usage counts
+            // For Arabic: search tags_ar, tags_en, tags
+            // For English/others: search tags_en, tags
+            if (lang === 'ar') {
+                result = await query(`
+                    WITH all_tags AS (
+                        -- Get tags from tags_ar column
+                        SELECT 
+                            LOWER(tag) as tag_lower,
+                            tag as tag_original,
+                            COUNT(*) as usage_count
+                        FROM logos l,
+                        LATERAL jsonb_array_elements_text(COALESCE(l.tags_ar, '[]'::jsonb)) AS tag
+                        WHERE l.tags_ar IS NOT NULL 
+                            AND jsonb_array_length(COALESCE(l.tags_ar, '[]'::jsonb)) > 0
+                            AND (LOWER(tag) LIKE $1 OR LOWER(tag) LIKE $2)
+                        GROUP BY LOWER(tag), tag
+                        
+                        UNION ALL
+                        
+                        -- Get tags from tags_en column
+                        SELECT 
+                            LOWER(tag) as tag_lower,
+                            tag as tag_original,
+                            COUNT(*) as usage_count
+                        FROM logos l,
+                        LATERAL jsonb_array_elements_text(COALESCE(l.tags_en, '[]'::jsonb)) AS tag
+                        WHERE l.tags_en IS NOT NULL 
+                            AND jsonb_array_length(COALESCE(l.tags_en, '[]'::jsonb)) > 0
+                            AND (LOWER(tag) LIKE $1 OR LOWER(tag) LIKE $2)
+                        GROUP BY LOWER(tag), tag
+                        
+                        UNION ALL
+                        
+                        -- Get tags from base tags column
+                        SELECT 
+                            LOWER(tag) as tag_lower,
+                            tag as tag_original,
+                            COUNT(*) as usage_count
+                        FROM logos l,
+                        LATERAL jsonb_array_elements_text(COALESCE(l.tags, '[]'::jsonb)) AS tag
+                        WHERE l.tags IS NOT NULL 
+                            AND jsonb_array_length(COALESCE(l.tags, '[]'::jsonb)) > 0
+                            AND (LOWER(tag) LIKE $1 OR LOWER(tag) LIKE $2)
+                        GROUP BY LOWER(tag), tag
+                    )
+                    SELECT 
+                        tag_original as tag,
+                        SUM(usage_count) as usage_count
+                    FROM all_tags
+                    GROUP BY tag_original
+                    ORDER BY 
+                        -- Prioritize prefix matches (tags starting with query)
+                        CASE WHEN LOWER(tag_original) LIKE $3 THEN 0 ELSE 1 END,
+                        -- Then by usage count (most frequent first)
+                        SUM(usage_count) DESC,
+                        -- Then alphabetically
+                        tag_original ASC
+                    LIMIT $4
+                `, [
+                    `${searchTerm}%`, // Prefix match
+                    `%${searchTerm}%`, // Contains match
+                    `${searchTerm}%`, // For prefix priority
+                    limitNum
+                ]);
+            } else {
+                result = await query(`
+                    WITH all_tags AS (
+                        -- Get tags from tags_en column
+                        SELECT 
+                            LOWER(tag) as tag_lower,
+                            tag as tag_original,
+                            COUNT(*) as usage_count
+                        FROM logos l,
+                        LATERAL jsonb_array_elements_text(COALESCE(l.tags_en, '[]'::jsonb)) AS tag
+                        WHERE l.tags_en IS NOT NULL 
+                            AND jsonb_array_length(COALESCE(l.tags_en, '[]'::jsonb)) > 0
+                            AND (LOWER(tag) LIKE $1 OR LOWER(tag) LIKE $2)
+                        GROUP BY LOWER(tag), tag
+                        
+                        UNION ALL
+                        
+                        -- Get tags from base tags column
+                        SELECT 
+                            LOWER(tag) as tag_lower,
+                            tag as tag_original,
+                            COUNT(*) as usage_count
+                        FROM logos l,
+                        LATERAL jsonb_array_elements_text(COALESCE(l.tags, '[]'::jsonb)) AS tag
+                        WHERE l.tags IS NOT NULL 
+                            AND jsonb_array_length(COALESCE(l.tags, '[]'::jsonb)) > 0
+                            AND (LOWER(tag) LIKE $1 OR LOWER(tag) LIKE $2)
+                        GROUP BY LOWER(tag), tag
+                    )
+                    SELECT 
+                        tag_original as tag,
+                        SUM(usage_count) as usage_count
+                    FROM all_tags
+                    GROUP BY tag_original
+                    ORDER BY 
+                        -- Prioritize prefix matches (tags starting with query)
+                        CASE WHEN LOWER(tag_original) LIKE $3 THEN 0 ELSE 1 END,
+                        -- Then by usage count (most frequent first)
+                        SUM(usage_count) DESC,
+                        -- Then alphabetically
+                        tag_original ASC
+                    LIMIT $4
+                `, [
+                    `${searchTerm}%`, // Prefix match
+                    `%${searchTerm}%`, // Contains match
+                    `${searchTerm}%`, // For prefix priority
+                    limitNum
+                ]);
+            }
+        } else {
+            // Trending mode: Return most used tags (top N)
+            if (lang === 'ar') {
+                result = await query(`
+                    WITH all_tags AS (
+                        -- Get tags from tags_ar column
+                        SELECT 
+                            LOWER(tag) as tag_lower,
+                            tag as tag_original,
+                            COUNT(*) as usage_count
+                        FROM logos l,
+                        LATERAL jsonb_array_elements_text(COALESCE(l.tags_ar, '[]'::jsonb)) AS tag
+                        WHERE l.tags_ar IS NOT NULL 
+                            AND jsonb_array_length(COALESCE(l.tags_ar, '[]'::jsonb)) > 0
+                        GROUP BY LOWER(tag), tag
+                        
+                        UNION ALL
+                        
+                        -- Get tags from tags_en column
+                        SELECT 
+                            LOWER(tag) as tag_lower,
+                            tag as tag_original,
+                            COUNT(*) as usage_count
+                        FROM logos l,
+                        LATERAL jsonb_array_elements_text(COALESCE(l.tags_en, '[]'::jsonb)) AS tag
+                        WHERE l.tags_en IS NOT NULL 
+                            AND jsonb_array_length(COALESCE(l.tags_en, '[]'::jsonb)) > 0
+                        GROUP BY LOWER(tag), tag
+                        
+                        UNION ALL
+                        
+                        -- Get tags from base tags column
+                        SELECT 
+                            LOWER(tag) as tag_lower,
+                            tag as tag_original,
+                            COUNT(*) as usage_count
+                        FROM logos l,
+                        LATERAL jsonb_array_elements_text(COALESCE(l.tags, '[]'::jsonb)) AS tag
+                        WHERE l.tags IS NOT NULL 
+                            AND jsonb_array_length(COALESCE(l.tags, '[]'::jsonb)) > 0
+                        GROUP BY LOWER(tag), tag
+                    )
+                    SELECT 
+                        tag_original as tag,
+                        SUM(usage_count) as usage_count
+                    FROM all_tags
+                    GROUP BY tag_original
+                    ORDER BY 
+                        SUM(usage_count) DESC,  -- Most frequent first
+                        tag_original ASC        -- Then alphabetically
+                    LIMIT $1
+                `, [limitNum]);
+            } else {
+                result = await query(`
+                    WITH all_tags AS (
+                        -- Get tags from tags_en column
+                        SELECT 
+                            LOWER(tag) as tag_lower,
+                            tag as tag_original,
+                            COUNT(*) as usage_count
+                        FROM logos l,
+                        LATERAL jsonb_array_elements_text(COALESCE(l.tags_en, '[]'::jsonb)) AS tag
+                        WHERE l.tags_en IS NOT NULL 
+                            AND jsonb_array_length(COALESCE(l.tags_en, '[]'::jsonb)) > 0
+                        GROUP BY LOWER(tag), tag
+                        
+                        UNION ALL
+                        
+                        -- Get tags from base tags column
+                        SELECT 
+                            LOWER(tag) as tag_lower,
+                            tag as tag_original,
+                            COUNT(*) as usage_count
+                        FROM logos l,
+                        LATERAL jsonb_array_elements_text(COALESCE(l.tags, '[]'::jsonb)) AS tag
+                        WHERE l.tags IS NOT NULL 
+                            AND jsonb_array_length(COALESCE(l.tags, '[]'::jsonb)) > 0
+                        GROUP BY LOWER(tag), tag
+                    )
+                    SELECT 
+                        tag_original as tag,
+                        SUM(usage_count) as usage_count
+                    FROM all_tags
+                    GROUP BY tag_original
+                    ORDER BY 
+                        SUM(usage_count) DESC,  -- Most frequent first
+                        tag_original ASC        -- Then alphabetically
+                    LIMIT $1
+                `, [limitNum]);
+            }
+        }
+
+        // Format response
+        const tags = result.rows.map(row => ({
+            tag: row.tag,
+            usageCount: parseInt(row.usage_count, 10) || 0
+        }));
+
+        const currentLang = res.locals.lang || lang;
+        return res.json({
+            success: true,
+            data: tags,
+            query: searchTerm || null,
+            lang: currentLang
+        });
+    } catch (error) {
+        console.error('Error fetching tag suggestions:', error);
+        const currentLang = res.locals.lang || "en";
+        return res.status(500).json({
+            success: false,
+            message: currentLang === "ar" ? "فشل في جلب اقتراحات العلامات" : "Failed to fetch tag suggestions",
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 });
 

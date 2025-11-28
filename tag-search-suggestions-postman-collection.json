@@ -1,0 +1,713 @@
+{
+    "info": {
+        "_postman_id": "tag-search-suggestions-2025",
+        "name": "Tag Search & Suggestions API",
+        "description": "Postman collection for multi-tag logo search and tag suggestions/autocomplete endpoints",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Tag Suggestions",
+            "item": [
+                {
+                    "name": "Get Trending Tags (No Query)",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "pm.test('Status code is 200', function () {",
+                                "    pm.response.to.have.status(200);",
+                                "});",
+                                "",
+                                "pm.test('Response has success field', function () {",
+                                "    const jsonData = pm.response.json();",
+                                "    pm.expect(jsonData).to.have.property('success');",
+                                "    pm.expect(jsonData.success).to.be.true;",
+                                "});",
+                                "",
+                                "pm.test('Response contains data array', function () {",
+                                "    const jsonData = pm.response.json();",
+                                "    pm.expect(jsonData).to.have.property('data');",
+                                "    pm.expect(jsonData.data).to.be.an('array');",
+                                "});",
+                                "",
+                                "pm.test('Tags have tag and usageCount fields', function () {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.data.length > 0) {",
+                                "        const tag = jsonData.data[0];",
+                                "        pm.expect(tag).to.have.property('tag');",
+                                "        pm.expect(tag).to.have.property('usageCount');",
+                                "        pm.expect(tag.usageCount).to.be.a('number');",
+                                "    }",
+                                "});"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/tags/suggest?lang={{lang}}&limit={{limit}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "tags",
+                                "suggest"
+                            ],
+                            "query": [
+                                {
+                                    "key": "lang",
+                                    "value": "{{lang}}",
+                                    "description": "Language preference: 'en' or 'ar' (default: 'en')"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "{{limit}}",
+                                    "description": "Maximum number of tags to return (default: 20, max: 100)"
+                                }
+                            ]
+                        },
+                        "description": "Get trending/most used tags. Returns top N tags sorted by usage count."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Trending Tags - English",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/tags/suggest?lang=en&limit=20",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "tags",
+                                "suggest"
+                            ],
+                            "query": [
+                                {
+                                    "key": "lang",
+                                    "value": "en"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                }
+                            ]
+                        },
+                        "description": "Example: Get top 20 trending tags in English"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Trending Tags - Arabic",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/tags/suggest?lang=ar&limit=20",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "tags",
+                                "suggest"
+                            ],
+                            "query": [
+                                {
+                                    "key": "lang",
+                                    "value": "ar"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                }
+                            ]
+                        },
+                        "description": "Example: Get top 20 trending tags in Arabic"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Tag Autocomplete - Single Letter",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/tags/suggest?query=d&lang={{lang}}&limit={{limit}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "tags",
+                                "suggest"
+                            ],
+                            "query": [
+                                {
+                                    "key": "query",
+                                    "value": "d",
+                                    "description": "Search query (case-insensitive prefix/contains match)"
+                                },
+                                {
+                                    "key": "lang",
+                                    "value": "{{lang}}"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "{{limit}}"
+                                }
+                            ]
+                        },
+                        "description": "Example: Autocomplete for tags starting with 'd'"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Tag Autocomplete - Multiple Letters",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/tags/suggest?query=di&lang=en&limit=20",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "tags",
+                                "suggest"
+                            ],
+                            "query": [
+                                {
+                                    "key": "query",
+                                    "value": "di",
+                                    "description": "Search for tags containing 'di'"
+                                },
+                                {
+                                    "key": "lang",
+                                    "value": "en"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                }
+                            ]
+                        },
+                        "description": "Example: Autocomplete for tags containing 'di' (e.g., Diet, Discipline, Disk-Like)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Tag Autocomplete - Full Word",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/tags/suggest?query=Diet&lang=en&limit=10",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "tags",
+                                "suggest"
+                            ],
+                            "query": [
+                                {
+                                    "key": "query",
+                                    "value": "Diet"
+                                },
+                                {
+                                    "key": "lang",
+                                    "value": "en"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "10"
+                                }
+                            ]
+                        },
+                        "description": "Example: Search for tags matching 'Diet'"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Tag suggestions and autocomplete endpoints"
+        },
+        {
+            "name": "Multi-Tag Search",
+            "item": [
+                {
+                    "name": "Search by Multiple Tags (Comma-Separated)",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "pm.test('Status code is 200', function () {",
+                                "    pm.response.to.have.status(200);",
+                                "});",
+                                "",
+                                "pm.test('Response has success field', function () {",
+                                "    const jsonData = pm.response.json();",
+                                "    pm.expect(jsonData).to.have.property('success');",
+                                "    pm.expect(jsonData.success).to.be.true;",
+                                "});",
+                                "",
+                                "pm.test('Response contains data array', function () {",
+                                "    const jsonData = pm.response.json();",
+                                "    pm.expect(jsonData).to.have.property('data');",
+                                "    pm.expect(jsonData.data).to.be.an('array');",
+                                "});",
+                                "",
+                                "pm.test('Response contains tags field', function () {",
+                                "    const jsonData = pm.response.json();",
+                                "    pm.expect(jsonData).to.have.property('tags');",
+                                "});",
+                                "",
+                                "pm.test('Response contains pagination', function () {",
+                                "    const jsonData = pm.response.json();",
+                                "    pm.expect(jsonData).to.have.property('pagination');",
+                                "    pm.expect(jsonData.pagination).to.have.property('page');",
+                                "    pm.expect(jsonData.pagination).to.have.property('limit');",
+                                "    pm.expect(jsonData.pagination).to.have.property('total');",
+                                "});"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/search?tags={{tags}}&lang={{lang}}&page={{page}}&limit={{limit}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "search"
+                            ],
+                            "query": [
+                                {
+                                    "key": "tags",
+                                    "value": "{{tags}}",
+                                    "description": "Comma-separated tags: tags=Diet,Discipline,Disk-Like (AND logic - logo must contain ALL tags)"
+                                },
+                                {
+                                    "key": "lang",
+                                    "value": "{{lang}}",
+                                    "description": "Language preference: 'en' or 'ar' (default: 'en')"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "{{page}}",
+                                    "description": "Page number (default: 1)"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "{{limit}}",
+                                    "description": "Results per page (default: 20, max: 100)"
+                                }
+                            ]
+                        },
+                        "description": "Search logos by multiple tags using comma-separated format. Uses AND logic (logo must contain ALL tags)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Search by Tags - Comma-Separated Example",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/search?tags=Diet,Discipline,Disk-Like&lang=en&page=1&limit=20",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "search"
+                            ],
+                            "query": [
+                                {
+                                    "key": "tags",
+                                    "value": "Diet,Discipline,Disk-Like",
+                                    "description": "Multiple tags separated by commas"
+                                },
+                                {
+                                    "key": "lang",
+                                    "value": "en"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                }
+                            ]
+                        },
+                        "description": "Example: Search for logos that contain ALL of these tags: Diet, Discipline, Disk-Like"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Search by Tags - Array Format",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/search?tags[]=Diet&tags[]=Discipline&tags[]=Disk-Like&lang=en&page=1&limit=20",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "search"
+                            ],
+                            "query": [
+                                {
+                                    "key": "tags[]",
+                                    "value": "Diet"
+                                },
+                                {
+                                    "key": "tags[]",
+                                    "value": "Discipline"
+                                },
+                                {
+                                    "key": "tags[]",
+                                    "value": "Disk-Like"
+                                },
+                                {
+                                    "key": "lang",
+                                    "value": "en"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                }
+                            ]
+                        },
+                        "description": "Example: Search using array format tags[]=Diet&tags[]=Discipline&tags[]=Disk-Like"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Search by Single Tag",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/search?tags=Diet&lang=en&page=1&limit=20",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "search"
+                            ],
+                            "query": [
+                                {
+                                    "key": "tags",
+                                    "value": "Diet"
+                                },
+                                {
+                                    "key": "lang",
+                                    "value": "en"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                }
+                            ]
+                        },
+                        "description": "Example: Search for logos with a single tag 'Diet'"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Search by Tags - Arabic",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/search?tags=حمية,انضباط&lang=ar&page=1&limit=20",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "search"
+                            ],
+                            "query": [
+                                {
+                                    "key": "tags",
+                                    "value": "حمية,انضباط",
+                                    "description": "Arabic tags"
+                                },
+                                {
+                                    "key": "lang",
+                                    "value": "ar"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                }
+                            ]
+                        },
+                        "description": "Example: Search for logos with Arabic tags"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Multi-tag search endpoints (AND logic)"
+        },
+        {
+            "name": "Combined Search",
+            "item": [
+                {
+                    "name": "Search by Query AND Tags",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/search?query={{query}}&tags={{tags}}&lang={{lang}}&page={{page}}&limit={{limit}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "search"
+                            ],
+                            "query": [
+                                {
+                                    "key": "query",
+                                    "value": "{{query}}",
+                                    "description": "Text search in titles, descriptions, and tags"
+                                },
+                                {
+                                    "key": "tags",
+                                    "value": "{{tags}}",
+                                    "description": "Comma-separated tags (AND logic)"
+                                },
+                                {
+                                    "key": "lang",
+                                    "value": "{{lang}}"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "{{page}}"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "{{limit}}"
+                                }
+                            ]
+                        },
+                        "description": "Combine text search (query) with tag filtering. Results must match the query AND contain all specified tags."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Search Query + Tags Example",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/search?query=logo&tags=Diet,Discipline&lang=en&page=1&limit=20",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "search"
+                            ],
+                            "query": [
+                                {
+                                    "key": "query",
+                                    "value": "logo",
+                                    "description": "Text search for 'logo'"
+                                },
+                                {
+                                    "key": "tags",
+                                    "value": "Diet,Discipline",
+                                    "description": "Must contain both tags"
+                                },
+                                {
+                                    "key": "lang",
+                                    "value": "en"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                }
+                            ]
+                        },
+                        "description": "Example: Search for 'logo' in text AND logos that contain both 'Diet' and 'Discipline' tags"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Combined text search and tag filtering"
+        },
+        {
+            "name": "Original Search (Backward Compatible)",
+            "item": [
+                {
+                    "name": "Search by Query Only",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/search?query={{query}}&lang={{lang}}&page={{page}}&limit={{limit}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "search"
+                            ],
+                            "query": [
+                                {
+                                    "key": "query",
+                                    "value": "{{query}}",
+                                    "description": "Search term to match against tags, title, and description"
+                                },
+                                {
+                                    "key": "lang",
+                                    "value": "{{lang}}"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "{{page}}"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "{{limit}}"
+                                }
+                            ]
+                        },
+                        "description": "Original search endpoint (backward compatible). Search by text query only."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Search by Query - Example",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/logo/search?query=design&lang=en&page=1&limit=20",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "logo",
+                                "search"
+                            ],
+                            "query": [
+                                {
+                                    "key": "query",
+                                    "value": "design"
+                                },
+                                {
+                                    "key": "lang",
+                                    "value": "en"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                }
+                            ]
+                        },
+                        "description": "Example: Original search functionality (text search only)"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Original search endpoint (backward compatible)"
+        }
+    ],
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "http://localhost:3000",
+            "type": "string",
+            "description": "Base URL for the API (change to production URL when needed)"
+        },
+        {
+            "key": "lang",
+            "value": "en",
+            "type": "string",
+            "description": "Language preference: 'en' or 'ar'"
+        },
+        {
+            "key": "limit",
+            "value": "20",
+            "type": "string",
+            "description": "Results per page (default: 20, max: 100)"
+        },
+        {
+            "key": "page",
+            "value": "1",
+            "type": "string",
+            "description": "Page number (default: 1)"
+        },
+        {
+            "key": "tags",
+            "value": "Diet,Discipline,Disk-Like",
+            "type": "string",
+            "description": "Comma-separated tags for multi-tag search"
+        },
+        {
+            "key": "query",
+            "value": "logo",
+            "type": "string",
+            "description": "Text search query"
+        }
+    ]
+}
+
