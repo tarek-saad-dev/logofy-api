@@ -49,6 +49,7 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/user', require('./routes/user')); // Authenticated user operations
 app.use('/api/users', require('./routes/users'));
 app.use('/api/posts', require('./routes/posts'));
 app.use('/api/upload', require('./routes/upload'));
