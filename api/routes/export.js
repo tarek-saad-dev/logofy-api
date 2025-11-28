@@ -142,7 +142,7 @@ router.get('/logo/:id/export', async(req, res) => {
                             row.asset_url = (meta && meta.url) || (meta && meta.path) || (meta && meta.image && meta.image.path) || null;
                         }
 
-                        console.log(`Fetched missing asset URL for IMAGE layer ${row.id}: ${row.asset_url?.substring(0, 50)}`);
+                        console.log(`Fetched missing asset URL for IMAGE layer ${row.id}: ${(row.asset_url || '').substring(0, 50)}`);
                     } else {
                         console.warn(`Asset ${row.image_asset_id} not found in database for IMAGE layer ${row.id}`);
                     }
@@ -291,9 +291,36 @@ router.get('/logo/:id/export', async(req, res) => {
         // This aggressively fixes any attribute formatting issues
         svg = cleanSVGAttributes(svg);
 
+        // Additional SVG validation: Check for common issues that cause resvg parsing errors
+        // Check for extremely long data URLs or malformed content
+        if (svg.length > 1000000) { // 1MB limit
+            console.warn('SVG is very large:', svg.length, 'characters');
+        }
+
+        // Validate SVG structure - ensure it's well-formed XML
+        if (!svg.trim().startsWith('<svg')) {
+            console.error('SVG does not start with <svg tag');
+            return res.status(500).json({
+                success: false,
+                message: 'Invalid SVG structure: SVG does not start correctly',
+                error: process.env.NODE_ENV === 'development' ? {
+                    svgPreview: svg.substring(0, 200)
+                } : undefined
+            });
+        }
+
+        // Check for unclosed tags or malformed XML
+        const openTags = (svg.match(/<[^/!?][^>]*>/g) || []).length;
+        const closeTags = (svg.match(/<\/[^>]+>/g) || []).length;
+        // Note: This is a rough check - SVG can have self-closing tags
+        if (Math.abs(openTags - closeTags) > 100) {
+            console.warn(`SVG tag mismatch: ${openTags} open tags, ${closeTags} close tags`);
+        }
+
         // Try to convert SVG to PNG using @resvg/resvg-js first
         let pngBuffer;
         let useCloudinary = false;
+        let resvgError = null;
 
         try {
             // Only set background color if it's not an image background
@@ -322,7 +349,27 @@ router.get('/logo/:id/export', async(req, res) => {
             const pngData = resvg.render();
             pngBuffer = pngData.asPng();
         } catch (svgError) {
+            resvgError = svgError;
             console.warn('Resvg failed, falling back to Cloudinary:', svgError.message);
+            if (svgError.message && svgError.message.includes('unknown token')) {
+                // Log the problematic area of the SVG
+                const errorPos = svgError.message.match(/at (\d+):(\d+)/);
+                if (errorPos) {
+                    const lineNum = parseInt(errorPos[1]);
+                    const charNum = parseInt(errorPos[2]);
+                    const lines = svg.split('\n');
+                    if (lines[lineNum - 1]) {
+                        const problemLine = lines[lineNum - 1];
+                        const start = Math.max(0, charNum - 50);
+                        const end = Math.min(problemLine.length, charNum + 50);
+                        console.error('Problematic SVG area:', {
+                            line: lineNum,
+                            char: charNum,
+                            snippet: problemLine.substring(start, end)
+                        });
+                    }
+                }
+            }
             useCloudinary = true;
 
             // Fallback: Use Cloudinary to convert SVG to PNG
@@ -331,17 +378,28 @@ router.get('/logo/:id/export', async(req, res) => {
                 const svgBase64 = Buffer.from(svg).toString('base64');
                 const svgDataUrl = `data:image/svg+xml;base64,${svgBase64}`;
 
-                // Upload SVG to Cloudinary and convert to PNG
-                const uploadResult = await cloudinary.uploader.upload(svgDataUrl, {
+                // Build Cloudinary upload options
+                // NOTE: Cloudinary doesn't support 'transparent' as a flag in upload options
+                // PNG format supports transparency by default, so we just ensure format is PNG
+                const uploadOptions = {
                     resource_type: 'image',
                     format: 'png',
                     width: canvasWidth,
                     height: canvasHeight,
                     dpr: (parseInt(dpi) || 300) / 72, // Convert DPI to device pixel ratio
                     quality: format === 'jpg' || format === 'jpeg' ? parseInt(quality) : 'auto',
-                    fetch_format: format === 'jpg' || format === 'jpeg' ? 'jpg' : 'png',
-                    flags: logo.export_transparent_background ? 'transparent' : undefined
-                });
+                    fetch_format: format === 'jpg' || format === 'jpeg' ? 'jpg' : 'png'
+                };
+
+                // For transparent backgrounds, ensure we use PNG (which supports transparency)
+                // Don't add invalid 'transparent' flag - PNG format handles transparency natively
+                if (logo.export_transparent_background) {
+                    uploadOptions.fetch_format = 'png';
+                    // PNG supports transparency by default, no flag needed
+                }
+
+                // Upload SVG to Cloudinary and convert to PNG
+                const uploadResult = await cloudinary.uploader.upload(svgDataUrl, uploadOptions);
 
                 // Download the converted PNG from Cloudinary
                 const imageResponse = await axios.get(uploadResult.secure_url, {
@@ -360,13 +418,19 @@ router.get('/logo/:id/export', async(req, res) => {
                 }
             } catch (cloudinaryError) {
                 console.error('Cloudinary conversion also failed:', cloudinaryError);
+                // Return proper JSON error instead of 500
                 return res.status(500).json({
                     success: false,
                     message: 'Failed to export logo: Both Resvg and Cloudinary conversion failed',
                     error: process.env.NODE_ENV === 'development' ? {
-                        resvg: svgError.message,
-                        cloudinary: cloudinaryError.message
-                    } : undefined
+                        resvg: resvgError ? resvgError.message : 'Unknown error',
+                        cloudinary: cloudinaryError.message || cloudinaryError.toString(),
+                        svgLength: svg.length,
+                        svgPreview: svg.substring(0, 500) // First 500 chars for debugging
+                    } : {
+                        resvg: resvgError ? 'SVG parsing failed' : 'Unknown error',
+                        cloudinary: 'Image conversion failed'
+                    }
                 });
             }
         }
@@ -571,7 +635,7 @@ router.get('/project/:id/export', authenticate, entitlementMiddleware, requirePr
     try {
         const { id } = req.params;
         const { width, height, dpi = 300, quality = 100, format = 'png' } = req.query;
-        const userId = req.user?.id || req.userId;
+        const userId = (req.user && req.user.id) || req.userId;
 
         if (!userId) {
             return res.status(401).json({
@@ -585,8 +649,7 @@ router.get('/project/:id/export', authenticate, entitlementMiddleware, requirePr
             `SELECT id, user_id, title, json_doc, created_at, updated_at
              FROM projects
              WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
-             LIMIT 1`,
-            [id, userId]
+             LIMIT 1`, [id, userId]
         );
 
         if (projectRes.rows.length === 0) {
@@ -597,9 +660,9 @@ router.get('/project/:id/export', authenticate, entitlementMiddleware, requirePr
         }
 
         const project = projectRes.rows[0];
-        const jsonDoc = typeof project.json_doc === 'string' 
-            ? JSON.parse(project.json_doc) 
-            : project.json_doc;
+        const jsonDoc = typeof project.json_doc === 'string' ?
+            JSON.parse(project.json_doc) :
+            project.json_doc;
 
         // Extract logo data from json_doc
         // Support multiple possible structures
@@ -620,11 +683,11 @@ router.get('/project/:id/export', authenticate, entitlementMiddleware, requirePr
                 canvas_background_gradient: jsonDoc.canvas.gradient || null,
                 canvas_background_image_type: jsonDoc.canvas.backgroundImage ? 'image' : null,
                 canvas_background_image_path: jsonDoc.canvas.backgroundImage || null,
-                export_format: jsonDoc.export?.format || 'png',
-                export_transparent_background: jsonDoc.export?.transparentBackground !== false,
-                export_quality: jsonDoc.export?.quality || 100,
-                export_scalable: jsonDoc.export?.scalable !== false,
-                export_maintain_aspect_ratio: jsonDoc.export?.maintainAspectRatio !== false
+                export_format: (jsonDoc.export && jsonDoc.export.format) || 'png',
+                export_transparent_background: (jsonDoc.export && jsonDoc.export.transparentBackground) !== false,
+                export_quality: (jsonDoc.export && jsonDoc.export.quality) || 100,
+                export_scalable: (jsonDoc.export && jsonDoc.export.scalable) !== false,
+                export_maintain_aspect_ratio: (jsonDoc.export && jsonDoc.export.maintainAspectRatio) !== false
             };
             layersData = jsonDoc.layers || [];
         }
@@ -634,8 +697,8 @@ router.get('/project/:id/export', authenticate, entitlementMiddleware, requirePr
                 id: project.id,
                 owner_id: project.user_id,
                 title: project.title || jsonDoc.logo.title || 'Untitled Project',
-                canvas_w: jsonDoc.logo.canvas_w || jsonDoc.logo.canvas?.width || 1000,
-                canvas_h: jsonDoc.logo.canvas_h || jsonDoc.logo.canvas?.height || 1000,
+                canvas_w: jsonDoc.logo.canvas_w || (jsonDoc.logo.canvas && jsonDoc.logo.canvas.width) || 1000,
+                canvas_h: jsonDoc.logo.canvas_h || (jsonDoc.logo.canvas && jsonDoc.logo.canvas.height) || 1000,
                 dpi: jsonDoc.logo.dpi || 300,
                 canvas_background_type: jsonDoc.logo.canvas_background_type || 'transparent',
                 canvas_background_solid_color: jsonDoc.logo.canvas_background_solid_color || '#ffffff',
@@ -687,7 +750,7 @@ router.get('/project/:id/export', authenticate, entitlementMiddleware, requirePr
             // Normalize layer structure to match database format
             const normalized = {
                 id: layer.id || `layer-${index}`,
-                type: layer.type?.toUpperCase() || 'TEXT',
+                type: (layer.type && layer.type.toUpperCase()) || 'TEXT',
                 z_index: layer.z_index !== undefined ? layer.z_index : (layer.zIndex !== undefined ? layer.zIndex : index),
                 x_norm: layer.x_norm !== undefined ? layer.x_norm : (layer.x !== undefined ? layer.x / logoData.canvas_w : 0),
                 y_norm: layer.y_norm !== undefined ? layer.y_norm : (layer.y !== undefined ? layer.y / logoData.canvas_h : 0),
@@ -755,9 +818,15 @@ router.get('/project/:id/export', authenticate, entitlementMiddleware, requirePr
         // Clean the SVG
         svg = cleanSVGAttributes(svg);
 
+        // Additional SVG validation
+        if (svg.length > 1000000) {
+            console.warn('SVG is very large:', svg.length, 'characters');
+        }
+
         // Convert SVG to PNG using @resvg/resvg-js
         let pngBuffer;
         let useCloudinary = false;
+        let resvgError = null;
 
         try {
             let background = 'rgba(0,0,0,0)';
@@ -783,23 +852,53 @@ router.get('/project/:id/export', authenticate, entitlementMiddleware, requirePr
             const pngData = resvg.render();
             pngBuffer = pngData.asPng();
         } catch (svgError) {
+            resvgError = svgError;
             console.warn('Resvg failed, falling back to Cloudinary:', svgError.message);
+            if (svgError.message && svgError.message.includes('unknown token')) {
+                const errorPos = svgError.message.match(/at (\d+):(\d+)/);
+                if (errorPos) {
+                    const lineNum = parseInt(errorPos[1]);
+                    const charNum = parseInt(errorPos[2]);
+                    const lines = svg.split('\n');
+                    if (lines[lineNum - 1]) {
+                        const problemLine = lines[lineNum - 1];
+                        const start = Math.max(0, charNum - 50);
+                        const end = Math.min(problemLine.length, charNum + 50);
+                        console.error('Problematic SVG area:', {
+                            line: lineNum,
+                            char: charNum,
+                            snippet: problemLine.substring(start, end)
+                        });
+                    }
+                }
+            }
             useCloudinary = true;
 
             try {
                 const svgBase64 = Buffer.from(svg).toString('base64');
                 const svgDataUrl = `data:image/svg+xml;base64,${svgBase64}`;
 
-                const uploadResult = await cloudinary.uploader.upload(svgDataUrl, {
+                // Build Cloudinary upload options
+                // NOTE: Cloudinary doesn't support 'transparent' as a flag in upload options
+                // PNG format supports transparency by default, so we just ensure format is PNG
+                const uploadOptions = {
                     resource_type: 'image',
                     format: 'png',
                     width: canvasWidth,
                     height: canvasHeight,
                     dpr: (parseInt(dpi) || 300) / 72,
                     quality: format === 'jpg' || format === 'jpeg' ? parseInt(quality) : 'auto',
-                    fetch_format: format === 'jpg' || format === 'jpeg' ? 'jpg' : 'png',
-                    flags: logoData.export_transparent_background ? 'transparent' : undefined
-                });
+                    fetch_format: format === 'jpg' || format === 'jpeg' ? 'jpg' : 'png'
+                };
+
+                // For transparent backgrounds, ensure we use PNG (which supports transparency)
+                // Don't add invalid 'transparent' flag - PNG format handles transparency natively
+                if (logoData.export_transparent_background) {
+                    uploadOptions.fetch_format = 'png';
+                    // PNG supports transparency by default, no flag needed
+                }
+
+                const uploadResult = await cloudinary.uploader.upload(svgDataUrl, uploadOptions);
 
                 const imageResponse = await axios.get(uploadResult.secure_url, {
                     responseType: 'arraybuffer',
@@ -819,9 +918,14 @@ router.get('/project/:id/export', authenticate, entitlementMiddleware, requirePr
                     success: false,
                     message: 'Failed to export project: Both Resvg and Cloudinary conversion failed',
                     error: process.env.NODE_ENV === 'development' ? {
-                        resvg: svgError.message,
-                        cloudinary: cloudinaryError.message
-                    } : undefined
+                        resvg: resvgError ? resvgError.message : 'Unknown error',
+                        cloudinary: cloudinaryError.message || cloudinaryError.toString(),
+                        svgLength: svg.length,
+                        svgPreview: svg.substring(0, 500)
+                    } : {
+                        resvg: resvgError ? 'SVG parsing failed' : 'Unknown error',
+                        cloudinary: 'Image conversion failed'
+                    }
                 });
             }
         }
@@ -1754,10 +1858,22 @@ function clampAlpha(alpha) {
 
 // CRITICAL: Clean SVG to remove newlines from attribute values
 // This function aggressively removes newlines and fixes attribute formatting
+// Also handles very long data URLs and other potential parsing issues
 function cleanSVGAttributes(svg) {
     if (!svg || typeof svg !== 'string') return svg;
 
     let cleaned = svg;
+
+    // Step 0: Fix potential issues with very long data URLs that might cause parsing errors
+    // If a data URL is extremely long (>500KB), it might cause issues - log a warning
+    const dataUrlPattern = /data:image\/[^;]+;base64,([A-Za-z0-9+\/=]+)/g;
+    let match;
+    while ((match = dataUrlPattern.exec(cleaned)) !== null) {
+        const dataUrl = match[0];
+        if (dataUrl.length > 500000) { // 500KB limit
+            console.warn(`Very large data URL detected (${dataUrl.length} chars) at position ${match.index}. This may cause parsing issues.`);
+        }
+    }
 
     // Step 1: Remove newlines from within quoted attribute values
     // This regex matches: attribute="...content with\nnewline..." and replaces \n with space
