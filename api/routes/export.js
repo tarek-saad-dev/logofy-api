@@ -1231,9 +1231,12 @@ async function generateSVGFromLogo(logo, layers, width, height) {
             bgImageUrl = String(bgImageUrl).trim();
 
             if (bgImageUrl && (bgImageUrl.startsWith('http://') || bgImageUrl.startsWith('https://') || bgImageUrl.startsWith('data:'))) {
-                // For external URLs, try to download and convert to data URL for better compatibility
-                // This ensures Resvg can render the image even if it can't fetch external URLs
+                // For external URLs, try to download and convert to PNG data URL for better compatibility
+                // This ensures Resvg can render the image (Resvg may not support WebP data URLs)
                 try {
+                    let imageBuffer;
+                    let mimeType = 'image/png'; // Default to PNG
+
                     if (bgImageUrl.startsWith('http://') || bgImageUrl.startsWith('https://')) {
                         const imageResponse = await axios.get(bgImageUrl, {
                             responseType: 'arraybuffer',
@@ -1242,14 +1245,47 @@ async function generateSVGFromLogo(logo, layers, width, height) {
                                 'User-Agent': 'Mozilla/5.0'
                             }
                         });
-                        const imageBuffer = Buffer.from(imageResponse.data);
-                        const mimeType = imageResponse.headers['content-type'] || 'image/jpeg';
+                        imageBuffer = Buffer.from(imageResponse.data);
+                        const originalMimeType = imageResponse.headers['content-type'] || 'image/jpeg';
+
+                        // Convert to PNG if it's WebP or other formats that resvg might not support well
+                        if (originalMimeType === 'image/webp' || originalMimeType === 'image/avif' || originalMimeType === 'image/heic') {
+                            console.log(`Canvas background image: Converting ${originalMimeType} to PNG for resvg compatibility`);
+                            imageBuffer = await sharp(imageBuffer).png().toBuffer();
+                            mimeType = 'image/png';
+                        } else {
+                            mimeType = originalMimeType;
+                        }
+                    } else if (bgImageUrl.startsWith('data:')) {
+                        // Already a data URL - extract the data and convert if needed
+                        const dataUrlMatch = bgImageUrl.match(/^data:([^;]+);base64,(.+)$/);
+                        if (dataUrlMatch) {
+                            const originalMimeType = dataUrlMatch[1];
+                            const base64Data = dataUrlMatch[2];
+                            imageBuffer = Buffer.from(base64Data, 'base64');
+
+                            // Convert to PNG if it's WebP or other formats
+                            if (originalMimeType === 'image/webp' || originalMimeType === 'image/avif' || originalMimeType === 'image/heic') {
+                                console.log(`Canvas background image: Converting data URL ${originalMimeType} to PNG for resvg compatibility`);
+                                imageBuffer = await sharp(imageBuffer).png().toBuffer();
+                                mimeType = 'image/png';
+                            } else {
+                                mimeType = originalMimeType;
+                            }
+                        } else {
+                            // Invalid data URL format, try to use as-is
+                            console.warn('Canvas background image: Invalid data URL format, using as-is');
+                        }
+                    }
+
+                    // Convert to base64 data URL
+                    if (imageBuffer) {
                         const base64Image = imageBuffer.toString('base64');
                         bgImageUrl = `data:${mimeType};base64,${base64Image}`;
-                        console.log('Canvas background image: Converted to data URL');
+                        console.log(`Canvas background image: Converted to ${mimeType} data URL (${Math.round(base64Image.length / 1024)}KB)`);
                     }
                 } catch (downloadError) {
-                    console.warn('Failed to download background image, using URL directly:', downloadError.message);
+                    console.warn('Failed to download/convert background image, using URL directly:', downloadError.message);
                     // Continue with the original URL - Cloudinary conversion should handle it
                 }
 
@@ -1479,11 +1515,23 @@ async function generateShapeSVG(layer, x, y, scale, rotation, style, defs) {
     // Check if shape has a src (local SVG asset)
     if (shape.meta && typeof shape.meta === 'object' && shape.meta.src) {
         try {
+            console.log(`generateShapeSVG: Fetching SVG from ${shape.meta.src}`);
             // Try to fetch the SVG content
             const svgContent = await fetchSVGContent(shape.meta.src);
             if (svgContent && svgContent.trim().length > 0) {
+                console.log(`generateShapeSVG: Fetched SVG content (${svgContent.length} chars), first 200 chars: ${svgContent.substring(0, 200)}`);
+
                 // CRITICAL: Sanitize embedded SVG to remove XML declarations, comments, and <svg> wrapper
                 let processedSvg = sanitizeEmbeddedSVG(svgContent);
+
+                // Verify sanitization worked
+                if (processedSvg.includes('<?xml') || processedSvg.includes('<?XML')) {
+                    console.error('generateShapeSVG: ERROR - XML declaration still present after sanitization!');
+                    // Force remove one more time as emergency fallback
+                    processedSvg = processedSvg.replace(/<\?xml[^>]*\?>/gi, '');
+                }
+
+                console.log(`generateShapeSVG: Sanitized SVG (${processedSvg.length} chars), first 200 chars: ${processedSvg.substring(0, 200)}`);
 
                 // Apply color transformation to the SVG
                 if (shape.fill_hex) {
@@ -1498,7 +1546,12 @@ async function generateShapeSVG(layer, x, y, scale, rotation, style, defs) {
                     processedSvg = processedSvg.replace(/stroke="[^"]*"/g, `stroke="${strokeColor}"`);
                     processedSvg = processedSvg.replace(/stroke='[^']*'/g, `stroke="${strokeColor}"`);
                 }
-                return `<g transform="${transform}" style="${style}">${processedSvg}</g>`;
+
+                const finalSvg = `<g transform="${transform}" style="${style}">${processedSvg}</g>`;
+                console.log(`generateShapeSVG: Final SVG element (${finalSvg.length} chars)`);
+                return finalSvg;
+            } else {
+                console.warn(`generateShapeSVG: Fetched SVG content is empty for ${shape.meta.src}`);
             }
         } catch (error) {
             console.warn(`Failed to load SVG from ${shape.meta.src}, using default shape:`, error.message);
@@ -1787,16 +1840,28 @@ async function generateImageSVG(layer, x, y, scale, rotation, style, defs) {
 // Removes XML declarations, comments, and extracts only the inner SVG content
 // This prevents embedded SVG assets from breaking the parent SVG with invalid XML
 function sanitizeEmbeddedSVG(svgContent) {
-    if (!svgContent || typeof svgContent !== 'string') return '';
+    if (!svgContent || typeof svgContent !== 'string') {
+        console.warn('sanitizeEmbeddedSVG: Invalid input');
+        return '';
+    }
 
     let cleaned = svgContent.trim();
+    const originalLength = cleaned.length;
 
     // Step 1: Remove ALL XML declarations (<?xml ... ?>) - there should only be one at the top level
     // Use global flag to catch multiple declarations if they exist (this is the main issue)
+    const beforeXml = cleaned;
     cleaned = cleaned.replace(/<\?xml[^>]*\?>/gi, '');
+    if (cleaned.length !== beforeXml.length) {
+        console.log('sanitizeEmbeddedSVG: Removed XML declaration(s)');
+    }
 
     // Step 2: Remove ALL comments (<!-- ... -->) - comments can appear anywhere
+    const beforeComments = cleaned;
     cleaned = cleaned.replace(/<!--[\s\S]*?-->/g, '');
+    if (cleaned.length !== beforeComments.length) {
+        console.log('sanitizeEmbeddedSVG: Removed comment(s)');
+    }
 
     // Step 3: Extract inner content from <svg>...</svg> tags if present
     // This handles cases where the SVG is wrapped in an <svg> tag
@@ -1812,21 +1877,40 @@ function sanitizeEmbeddedSVG(svgContent) {
         if (lastCloseIndex !== -1) {
             // Extract content between opening and closing tags
             cleaned = afterOpenTag.substring(0, lastCloseIndex).trim();
+            console.log('sanitizeEmbeddedSVG: Extracted inner content from <svg> wrapper');
         } else {
             // No closing tag found, just take everything after the opening tag
             cleaned = afterOpenTag.trim();
+            console.log('sanitizeEmbeddedSVG: Extracted content after <svg> tag (no closing tag found)');
         }
     }
 
     // Step 4: Remove any remaining XML declarations that might have been inside the SVG content
     // (This is critical - embedded SVGs might have their own XML declarations)
+    const beforeFinalXml = cleaned;
     cleaned = cleaned.replace(/<\?xml[^>]*\?>/gi, '');
+    if (cleaned.length !== beforeFinalXml.length) {
+        console.log('sanitizeEmbeddedSVG: Removed additional XML declaration(s) from inner content');
+    }
 
     // Step 5: Remove any remaining comments
+    const beforeFinalComments = cleaned;
     cleaned = cleaned.replace(/<!--[\s\S]*?-->/g, '');
+    if (cleaned.length !== beforeFinalComments.length) {
+        console.log('sanitizeEmbeddedSVG: Removed additional comment(s) from inner content');
+    }
 
-    // Step 6: Clean up any remaining whitespace issues
+    // Step 6: Verify no XML declarations remain (critical check)
+    if (cleaned.includes('<?xml') || cleaned.includes('<?XML')) {
+        console.error('sanitizeEmbeddedSVG: WARNING - XML declaration still present after sanitization!');
+        // Force remove one more time
+        cleaned = cleaned.replace(/<\?xml[^>]*\?>/gi, '');
+    }
+
+    // Step 7: Clean up any remaining whitespace issues
     cleaned = cleaned.replace(/\s+/g, ' ').trim();
+
+    console.log(`sanitizeEmbeddedSVG: Sanitized ${originalLength} chars to ${cleaned.length} chars`);
 
     return cleaned;
 }
