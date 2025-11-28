@@ -2754,226 +2754,27 @@ router.get('/search', async(req, res) => {
                     pages: 0,
                     hasMore: false
                 },
-                query: searchTerm
+                query: searchTerm || null,
+                tags: selectedTags.length > 0 ? selectedTags : null
             }, currentLang, currentLang === "ar" ? "لم يتم العثور على نتائج" : "No results found"));
         }
 
-        // Get logo IDs to fetch layers
-        const logoIds = logosRes.rows.map(r => r.id);
-
-        // Fetch layers for all logos
-        const layersRes = await query(`
-            SELECT
-                lay.*,
-                lt.content, lt.font_id, lt.font_size, lt.line_height, lt.letter_spacing,
-                lt.align, lt.baseline, lt.fill_hex, lt.fill_alpha, lt.stroke_hex,
-                lt.stroke_alpha, lt.stroke_width, lt.stroke_align, lt.gradient as text_gradient,
-                lt.underline, lt.underline_direction, lt.text_case, lt.font_style, lt.font_weight,
-                lt.text_decoration, lt.text_transform, lt.font_variant,
-                ls.shape_kind, ls.svg_path, ls.points, ls.rx, ls.ry,
-                ls.fill_hex as shape_fill_hex, ls.fill_alpha as shape_fill_alpha,
-                ls.gradient as shape_gradient, ls.stroke_hex as shape_stroke_hex,
-                ls.stroke_alpha as shape_stroke_alpha, ls.stroke_width as shape_stroke_width,
-                ls.stroke_dash, ls.line_cap, ls.line_join, ls.meta as shape_meta,
-                li.asset_id as icon_asset_id, li.tint_hex, li.tint_alpha, li.allow_recolor,
-                lim.asset_id as image_asset_id, lim.crop, lim.fit, lim.rounding, lim.blur, lim.brightness, lim.contrast,
-                lb.mode, lb.fill_hex as bg_fill_hex, lb.fill_alpha as bg_fill_alpha,
-                lb.gradient as bg_gradient, lb.asset_id as bg_asset_id, lb.repeat, lb.position, lb.size,
-                ai.id as asset_id, ai.kind as asset_kind, ai.name as asset_name, ai.url as asset_url,
-                ai.width as asset_width, ai.height as asset_height, ai.has_alpha as asset_has_alpha, ai.vector_svg, ai.meta as asset_meta,
-                f.family as font_family, f.style as default_font_style, f.weight as default_font_weight, f.url as font_url, f.fallbacks as font_fallbacks
-            FROM layers lay
-            LEFT JOIN layer_text lt ON lt.layer_id = lay.id
-            LEFT JOIN layer_shape ls ON ls.layer_id = lay.id
-            LEFT JOIN layer_icon li ON li.layer_id = lay.id
-            LEFT JOIN layer_image lim ON lim.layer_id = lay.id
-            LEFT JOIN layer_background lb ON lb.layer_id = lay.id
-            LEFT JOIN assets ai ON (ai.id = li.asset_id OR ai.id = lim.asset_id OR ai.id = lb.asset_id)
-            LEFT JOIN fonts f ON f.id = lt.font_id
-            WHERE lay.logo_id = ANY($1::uuid[])
-            ORDER BY lay.logo_id, lay.z_index ASC, lay.created_at ASC
-        `, [logoIds]);
-
-        // Group layers by logo_id
-        const byLogo = new Map();
-        for (const row of layersRes.rows) {
-            if (!byLogo.has(row.logo_id)) byLogo.set(row.logo_id, []);
-            byLogo.get(row.logo_id).push(row);
-        }
-
-        // Helper function to parse numeric values
-        const num = v => (v === null || v === undefined ? null : typeof v === 'number' ? v : parseFloat(v));
-
-        // Map layer row to mobile legacy format
-        const mapRowToMobileLegacyLayer = (row) => {
-            const baseLayer = {
-                layerId: row.id.toString(),
-                type: row.type.toLowerCase(),
-                visible: !!row.is_visible,
-                order: row.z_index | 0,
-                position: { x: num(row.x_norm) != null ? num(row.x_norm) : 0.5, y: num(row.y_norm) != null ? num(row.y_norm) : 0.5 },
-                scaleFactor: num(row.scale) != null ? num(row.scale) : 1,
-                rotation: num(row.rotation_deg) != null ? num(row.rotation_deg) : 0,
-                opacity: num(row.opacity) != null ? num(row.opacity) : 1,
-                flip: { horizontal: !!row.flip_horizontal, vertical: !!row.flip_vertical }
-            };
-
-            switch (row.type) {
-                case 'TEXT':
-                    return {
-                        ...baseLayer,
-                        text: {
-                            value: row.content || '',
-                            font: row.font_family || 'Arial',
-                            fontSize: num(row.font_size) != null ? num(row.font_size) : 48,
-                            fontColor: row.fill_hex || '#000000',
-                            fontWeight: row.font_weight || row.default_font_weight || 'normal',
-                            fontStyle: row.font_style || row.default_font_style || 'normal',
-                            alignment: row.align || 'center',
-                            baseline: row.baseline || 'alphabetic',
-                            lineHeight: num(row.line_height) != null ? num(row.line_height) : 1.0,
-                            letterSpacing: num(row.letter_spacing) != null ? num(row.letter_spacing) : 0,
-                            fillAlpha: num(row.fill_alpha) != null ? num(row.fill_alpha) : 1.0,
-                            strokeHex: row.stroke_hex || null,
-                            strokeAlpha: num(row.stroke_alpha) != null ? num(row.stroke_alpha) : null,
-                            strokeWidth: num(row.stroke_width) != null ? num(row.stroke_width) : null,
-                            strokeAlign: row.stroke_align || null,
-                            gradient: row.text_gradient ? transformGradientToLegacy(row.text_gradient) : null,
-                            underline: row.underline || false,
-                            underlineDirection: row.underline_direction || 'horizontal',
-                            textCase: row.text_case || 'normal',
-                            textDecoration: row.text_decoration || 'none',
-                            textTransform: row.text_transform || 'none',
-                            fontVariant: row.font_variant || 'normal'
-                        }
-                    };
-                case 'ICON':
-                    return {
-                        ...baseLayer,
-                        icon: {
-                            src: row.asset_url || row.asset_name || (row.asset_id ? `icon_${row.asset_id}` : ''),
-                            color: row.tint_hex || '#000000'
-                        }
-                    };
-                case 'IMAGE':
-                    return {
-                        ...baseLayer,
-                        image: row.asset_url ? { type: 'imported', path: row.asset_url } : null
-                    };
-                case 'SHAPE':
-                    let shapeSrc = null;
-                    if (row.shape_meta != null) {
-                        try {
-                            let shapeMeta = row.shape_meta;
-                            if (typeof shapeMeta === 'string') shapeMeta = JSON.parse(shapeMeta);
-                            if (shapeMeta && typeof shapeMeta === 'object' && shapeMeta.src != null) {
-                                shapeSrc = shapeMeta.src;
-                            }
-                        } catch (e) {
-                            if (row.shape_meta && typeof row.shape_meta === 'object' && row.shape_meta.src != null) {
-                                shapeSrc = row.shape_meta.src;
-                            }
-                        }
-                    }
-                    return {
-                        ...baseLayer,
-                        shape: {
-                            src: shapeSrc,
-                            type: row.shape_kind || 'rect',
-                            color: row.shape_fill_hex || '#000000',
-                            strokeColor: row.shape_stroke_hex || null,
-                            strokeWidth: num(row.shape_stroke_width) != null ? num(row.shape_stroke_width) : 0
-                        }
-                    };
-                case 'BACKGROUND':
-                    return {
-                        ...baseLayer,
-                        background: {
-                            type: row.mode || 'solid',
-                            color: row.bg_fill_hex || '#ffffff',
-                            image: row.asset_url ? {
-                                type: 'imported',
-                                path: row.asset_url,
-                                src: row.asset_name || row.asset_url
-                            } : null
-                        }
-                    };
-                default:
-                    return baseLayer;
-            }
-        };
-
-        // Transform logos to mobile legacy format
+        // Transform logos to simplified format (id, name, description only)
         const data = logosRes.rows.map(logo => {
-            const rows = byLogo.get(logo.id) || [];
+            // Get localized name (title)
+            const name = lang === 'ar' ?
+                (logo.title_ar || logo.title_en || logo.title) :
+                (logo.title_en || logo.title);
 
-            // Extract colors from layers
-            const colorsUsed = [];
-            for (const r of rows) {
-                if (r.fill_hex && r.type === 'TEXT') colorsUsed.push({ role: 'text', color: r.fill_hex });
-                if (r.tint_hex && (r.type === 'ICON' || r.type === 'IMAGE')) colorsUsed.push({ role: 'icon', color: r.tint_hex });
-                if (r.shape_fill_hex && r.type === 'SHAPE') colorsUsed.push({ role: 'shape', color: r.shape_fill_hex });
-            }
-            const uniqueColors = colorsUsed.filter((c, i, self) => i === self.findIndex(x => x.role === c.role && x.color === c.color));
-            const computedColors = uniqueColors;
-            const dbColors = Array.isArray(logo.colors_used) ? logo.colors_used : null;
-            const colorsUsedFinal = (dbColors && dbColors.length > 0) ? dbColors : computedColors;
-
-            // Parse tags arrays
-            const tags_en = logo.tags_en ? (typeof logo.tags_en === 'string' ? JSON.parse(logo.tags_en) : logo.tags_en) : [];
-            const tags_ar = logo.tags_ar ? (typeof logo.tags_ar === 'string' ? JSON.parse(logo.tags_ar) : logo.tags_ar) : [];
-            const tags = logo.tags ? (typeof logo.tags === 'string' ? JSON.parse(logo.tags) : logo.tags) : [];
-            const localizedTags = lang === 'ar' ? (tags_ar.length > 0 ? tags_ar : tags_en.length > 0 ? tags_en : tags) : (tags_en.length > 0 ? tags_en : tags);
+            // Get localized description
+            const description = lang === 'ar' ?
+                (logo.description_ar || logo.description_en || logo.description) :
+                (logo.description_en || logo.description);
 
             return {
-                logoId: logo.id.toString(),
-                templateId: logo.template_id ? logo.template_id.toString() : null,
-                userId: logo.owner_id || 'current_user',
-                name: lang === 'ar' ? (logo.title_ar || logo.title_en || logo.title) : (logo.title_en || logo.title),
-                description: lang === 'ar' ? (logo.description_ar || logo.description_en || logo.description) : (logo.description_en || logo.description) || `Logo created on ${new Date(logo.created_at).toISOString()}`,
-                canvas: {
-                    aspectRatio: logo.canvas_h ? logo.canvas_w / logo.canvas_h : 1.0,
-                    background: transformBackgroundToLegacy({
-                        type: logo.canvas_background_type || 'solid',
-                        solidColor: logo.canvas_background_solid_color || '#ffffff',
-                        gradient: logo.canvas_background_gradient || null,
-                        image: logo.canvas_background_image_path ? { type: logo.canvas_background_image_type || 'imported', path: logo.canvas_background_image_path } : null
-                    })
-                },
-                layers: rows.map(mapRowToMobileLegacyLayer),
-                colorsUsed: colorsUsedFinal,
-                alignments: {
-                    verticalAlign: logo.vertical_align || 'center',
-                    horizontalAlign: logo.horizontal_align || 'center'
-                },
-                responsive: {
-                    version: logo.responsive_version || '3.0',
-                    description: logo.responsive_description || 'Fully responsive logo data - no absolute sizes stored',
-                    scalingMethod: logo.scaling_method || 'scaleFactor',
-                    positionMethod: logo.position_method || 'relative',
-                    fullyResponsive: logo.fully_responsive != null ? logo.fully_responsive : true
-                },
-                metadata: {
-                    createdAt: new Date(logo.created_at).toISOString(),
-                    updatedAt: new Date(logo.updated_at).toISOString(),
-                    tags: Array.isArray(localizedTags) ? localizedTags : (localizedTags.length > 0 ? localizedTags : ['logo', 'design', 'responsive']),
-                    version: logo.version || 3,
-                    responsive: logo.responsive != null ? logo.responsive : true,
-                    legacyFormat: true,
-                    legacyVersion: '1.0',
-                    mobileOptimized: true
-                },
-                export: {
-                    format: logo.export_format || 'png',
-                    transparentBackground: logo.export_transparent_background != null ? logo.export_transparent_background : true,
-                    quality: logo.export_quality || 100,
-                    responsive: {
-                        scalable: logo.export_scalable != null ? logo.export_scalable : true,
-                        maintainAspectRatio: logo.export_maintain_aspect_ratio != null ? logo.export_maintain_aspect_ratio : true
-                    }
-                },
-                language: lang,
-                direction: lang === 'ar' ? 'rtl' : 'ltr'
+                id: logo.id.toString(),
+                name: name || '',
+                description: description || ''
             };
         });
 
