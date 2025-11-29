@@ -1102,9 +1102,29 @@ async function generateSVGFromLogo(logo, layers, width, height) {
                 if (textSvg) console.log(`  ✓ TEXT layer ${layer.id} rendered`);
                 break;
             case 'SHAPE':
-                const shapeSvg = await generateShapeSVG(layer, x, y, scale, rotation, style, defs);
+                console.log(`Processing SHAPE layer ${layer.id}:`, {
+                    hasShape: !!layer.shape,
+                    shapeKind: layer.shape && layer.shape.shape_kind,
+                    hasMetaSrc: !!(layer.shape && layer.shape.meta && layer.shape.meta.src),
+                    metaSrc: layer.shape && layer.shape.meta && layer.shape.meta.src,
+                    x_norm: layer.x_norm,
+                    y_norm: layer.y_norm,
+                    x: validX,
+                    y: validY,
+                    scale: validScale,
+                    rotation: validRotation,
+                    opacity: opacity,
+                    isVisible: layer.is_visible
+                });
+                const shapeSvg = await generateShapeSVG(layer, x, y, scale, rotation, style, defs, width, height);
                 svgContent += shapeSvg;
-                if (shapeSvg) console.log(`  ✓ SHAPE layer ${layer.id} rendered`);
+                if (shapeSvg) {
+                    console.log(`  ✓ SHAPE layer ${layer.id} rendered (length: ${shapeSvg.length})`);
+                    // Log a snippet of the actual SVG to verify structure
+                    console.log(`  SHAPE SVG snippet: ${shapeSvg.substring(0, Math.min(500, shapeSvg.length))}...`);
+                } else {
+                    console.warn(`  ✗ SHAPE layer ${layer.id} failed to render`);
+                }
                 break;
             case 'ICON':
                 const iconSvg = await generateIconSVG(layer, x, y, scale, rotation, style, defs);
@@ -1474,7 +1494,7 @@ function generateTextSVG(layer, x, y, scale, rotation, style, defs) {
     return `<text x="0" y="0" text-anchor="${textAnchor}" dominant-baseline="${dominantBaseline}" transform="${transform}" style="${textStyle} ${style}">${escapeXml(finalTextContent)}</text>`;
 }
 
-async function generateShapeSVG(layer, x, y, scale, rotation, style, defs) {
+async function generateShapeSVG(layer, x, y, scale, rotation, style, defs, canvasWidth, canvasHeight) {
     const { shape } = layer;
     if (!shape) return '';
 
@@ -1487,15 +1507,19 @@ async function generateShapeSVG(layer, x, y, scale, rotation, style, defs) {
     const validRotation = isNaN(rotation) ? 0 : rotation;
     const validScale = isNaN(scale) ? 1 : scale;
 
-    let transform = `translate(${validX}, ${validY})`;
-    if (validRotation !== 0) {
-        transform += ` rotate(${validRotation})`;
-    }
-    const scaleX = (flipH ? -1 : 1) * validScale;
-    const scaleY = (flipV ? -1 : 1) * validScale;
-    if (scaleX !== 1 || scaleY !== 1) {
-        transform += ` scale(${scaleX}, ${scaleY})`;
-    }
+    // Log transform parameters for debugging
+    console.log(`generateShapeSVG: Layer ${layer.id} transform params:`, {
+        x: validX,
+        y: validY,
+        scale: validScale,
+        rotation: validRotation,
+        flipH: flipH,
+        flipV: flipV,
+        x_norm: layer.x_norm,
+        y_norm: layer.y_norm,
+        canvasWidth: canvasWidth,
+        canvasHeight: canvasHeight
+    });
 
     let shapeElement = '';
     const fillColor = shape.fill_hex ? validateHexColor(shape.fill_hex) : 'none';
@@ -1521,6 +1545,44 @@ async function generateShapeSVG(layer, x, y, scale, rotation, style, defs) {
             if (svgContent && svgContent.trim().length > 0) {
                 console.log(`generateShapeSVG: Fetched SVG content (${svgContent.length} chars), first 200 chars: ${svgContent.substring(0, 200)}`);
 
+                // Extract SVG viewBox and dimensions BEFORE sanitization
+                let svgViewBox = null;
+                let svgWidth = null;
+                let svgHeight = null;
+
+                // Try to extract viewBox from the original SVG
+                const viewBoxMatch = svgContent.match(/viewBox=["']([^"']+)["']/i);
+                if (viewBoxMatch) {
+                    const viewBoxParts = viewBoxMatch[1].split(/\s+/);
+                    if (viewBoxParts.length >= 4) {
+                        svgViewBox = {
+                            x: parseFloat(viewBoxParts[0]) || 0,
+                            y: parseFloat(viewBoxParts[1]) || 0,
+                            width: parseFloat(viewBoxParts[2]) || 0,
+                            height: parseFloat(viewBoxParts[3]) || 0
+                        };
+                        console.log(`generateShapeSVG: Extracted viewBox: ${viewBoxMatch[1]}`);
+                    }
+                }
+
+                // Try to extract width/height from SVG attributes
+                const widthMatch = svgContent.match(/width=["']([^"']+)["']/i);
+                const heightMatch = svgContent.match(/height=["']([^"']+)["']/i);
+                if (widthMatch) {
+                    const widthValue = parseFloat(widthMatch[1]);
+                    if (!isNaN(widthValue)) svgWidth = widthValue;
+                }
+                if (heightMatch) {
+                    const heightValue = parseFloat(heightMatch[1]);
+                    if (!isNaN(heightValue)) svgHeight = heightValue;
+                }
+
+                // Use viewBox dimensions if available, otherwise use width/height
+                const baseSvgWidth = svgViewBox ? svgViewBox.width : (svgWidth || 100);
+                const baseSvgHeight = svgViewBox ? svgViewBox.height : (svgHeight || 100);
+
+                console.log(`generateShapeSVG: SVG base dimensions: ${baseSvgWidth}x${baseSvgHeight}`);
+
                 // CRITICAL: Sanitize embedded SVG to remove XML declarations, comments, and <svg> wrapper
                 let processedSvg = sanitizeEmbeddedSVG(svgContent);
 
@@ -1533,23 +1595,153 @@ async function generateShapeSVG(layer, x, y, scale, rotation, style, defs) {
 
                 console.log(`generateShapeSVG: Sanitized SVG (${processedSvg.length} chars), first 200 chars: ${processedSvg.substring(0, 200)}`);
 
-                // Apply color transformation to the SVG
-                if (shape.fill_hex) {
-                    const fillColor = validateHexColor(shape.fill_hex);
-                    // Replace fill colors in the SVG
-                    processedSvg = processedSvg.replace(/fill="[^"]*"/g, `fill="${fillColor}"`);
-                    processedSvg = processedSvg.replace(/fill='[^']*'/g, `fill="${fillColor}"`);
-                    processedSvg = processedSvg.replace(/fill:\s*[^;]+/g, `fill: ${fillColor}`);
-                }
-                if (shape.stroke_hex) {
-                    const strokeColor = validateHexColor(shape.stroke_hex);
-                    processedSvg = processedSvg.replace(/stroke="[^"]*"/g, `stroke="${strokeColor}"`);
-                    processedSvg = processedSvg.replace(/stroke='[^']*'/g, `stroke="${strokeColor}"`);
-                }
+                // Verify sanitized SVG has actual content (not just whitespace)
+                if (!processedSvg || processedSvg.trim().length === 0) {
+                    console.error(`generateShapeSVG: ERROR - Sanitized SVG is empty! Original was ${svgContent.length} chars`);
+                    // Fall through to use default shape
+                } else {
+                    // Get fill and stroke colors from database
+                    const dbFillColor = shape.fill_hex ? validateHexColor(shape.fill_hex) : null;
+                    const dbFillAlpha = clampAlpha(shape.fill_alpha !== undefined ? shape.fill_alpha : 1);
+                    const dbStrokeColor = shape.stroke_hex ? validateHexColor(shape.stroke_hex) : null;
+                    const dbStrokeWidth = shape.stroke_width && !isNaN(shape.stroke_width) ? shape.stroke_width : 0;
+                    const dbStrokeAlpha = clampAlpha(shape.stroke_alpha !== undefined ? shape.stroke_alpha : 1);
 
-                const finalSvg = `<g transform="${transform}" style="${style}">${processedSvg}</g>`;
-                console.log(`generateShapeSVG: Final SVG element (${finalSvg.length} chars)`);
-                return finalSvg;
+                    console.log(`generateShapeSVG: Applying colors - fill: ${dbFillColor || 'none'}, stroke: ${dbStrokeColor || 'none'}, stroke-width: ${dbStrokeWidth}`);
+
+                    // Step 1: Aggressively replace fill/stroke attributes in the SVG content
+                    // Replace fill in various formats: fill="...", fill='...', fill=..., fill: ...;
+                    if (dbFillColor) {
+                        // Replace fill="..." (double quotes)
+                        processedSvg = processedSvg.replace(/fill="[^"]*"/gi, `fill="${dbFillColor}"`);
+                        // Replace fill='...' (single quotes)
+                        processedSvg = processedSvg.replace(/fill='[^']*'/gi, `fill="${dbFillColor}"`);
+                        // Replace fill=... (no quotes)
+                        processedSvg = processedSvg.replace(/fill=([^\s>]+)/gi, `fill="${dbFillColor}"`);
+                        // Replace fill: ...; in style attributes
+                        processedSvg = processedSvg.replace(/fill:\s*[^;]+/gi, `fill: ${dbFillColor}`);
+                        // Replace currentColor with the fill color
+                        processedSvg = processedSvg.replace(/currentColor/gi, dbFillColor);
+                        // Replace fill="none" only if we want to force a color (but preserve "none" if it's intentional)
+                        // Actually, let's not replace "none" as it might be intentional for holes
+                    }
+
+                    if (dbStrokeColor && dbStrokeWidth > 0) {
+                        // Replace stroke="..." (double quotes)
+                        processedSvg = processedSvg.replace(/stroke="[^"]*"/gi, `stroke="${dbStrokeColor}"`);
+                        // Replace stroke='...' (single quotes)
+                        processedSvg = processedSvg.replace(/stroke='[^']*'/gi, `stroke="${dbStrokeColor}"`);
+                        // Replace stroke=... (no quotes)
+                        processedSvg = processedSvg.replace(/stroke=([^\s>]+)/gi, `stroke="${dbStrokeColor}"`);
+                        // Replace stroke: ...; in style attributes
+                        processedSvg = processedSvg.replace(/stroke:\s*[^;]+/gi, `stroke: ${dbStrokeColor}`);
+                        // Replace stroke-width if it exists
+                        processedSvg = processedSvg.replace(/stroke-width="[^"]*"/gi, `stroke-width="${dbStrokeWidth}"`);
+                        processedSvg = processedSvg.replace(/stroke-width='[^']*'/gi, `stroke-width="${dbStrokeWidth}"`);
+                        processedSvg = processedSvg.replace(/stroke-width:\s*[^;]+/gi, `stroke-width: ${dbStrokeWidth}`);
+                    } else if (dbStrokeWidth === 0) {
+                        // If stroke width is 0, remove stroke attributes
+                        processedSvg = processedSvg.replace(/stroke="[^"]*"/gi, 'stroke="none"');
+                        processedSvg = processedSvg.replace(/stroke='[^']*'/gi, 'stroke="none"');
+                        processedSvg = processedSvg.replace(/stroke:\s*[^;]+/gi, 'stroke: none');
+                    }
+
+                    // Ensure processed SVG doesn't have any remaining problematic content
+                    if (processedSvg.includes('<?xml') || processedSvg.includes('<?XML')) {
+                        console.error('generateShapeSVG: ERROR - XML declaration still in processed SVG!');
+                        processedSvg = processedSvg.replace(/<\?xml[^>]*\?>/gi, '');
+                    }
+
+                    // Step 2: Build inner group style with fill/stroke as fallback
+                    // This ensures that even if some paths don't have explicit fill/stroke, they inherit from the group
+                    let innerGroupStyle = '';
+                    if (dbFillColor) {
+                        innerGroupStyle += `fill: ${dbFillColor}; fill-opacity: ${dbFillAlpha};`;
+                    } else {
+                        innerGroupStyle += 'fill: none;';
+                    }
+                    if (dbStrokeColor && dbStrokeWidth > 0) {
+                        innerGroupStyle += `stroke: ${dbStrokeColor}; stroke-width: ${dbStrokeWidth}; stroke-opacity: ${dbStrokeAlpha};`;
+                    } else {
+                        innerGroupStyle += 'stroke: none; stroke-width: 0;';
+                    }
+                    innerGroupStyle = innerGroupStyle.trim();
+
+                    // Step 3: Calculate proper scale and positioning
+                    // The normalized scale (e.g., 0.2544) needs to be converted to actual pixel scale
+                    // The editor likely scales based on canvas size, so we need to calculate the target size
+                    // Target size = normalized_scale * canvas_size (or some base size)
+                    // Then scale factor = target_size / base_svg_size
+
+                    // Calculate target size based on normalized scale and canvas dimensions
+                    // The normalized scale (0.2544) likely represents a fraction of canvas size
+                    // Try multiple approaches and see which one matches the editor behavior
+                    // Approach 1: scale * canvas_size (most common)
+                    const canvasRefSize = Math.max(canvasWidth, canvasHeight);
+                    const targetSize = validScale * canvasRefSize;
+
+                    // Alternative: if scale seems too small, maybe it's relative to a base size (e.g., 1000)
+                    // For now, use canvas size as reference
+
+                    // Calculate actual SVG scale factor
+                    // The scale factor tells us how much to scale the base SVG to reach target size
+                    const svgScaleFactor = baseSvgWidth > 0 ? targetSize / baseSvgWidth : 1;
+                    const svgScaleFactorY = baseSvgHeight > 0 ? targetSize / baseSvgHeight : 1;
+
+                    console.log(`generateShapeSVG: Scale calculation:`, {
+                        normalizedScale: validScale,
+                        canvasWidth: canvasWidth,
+                        canvasHeight: canvasHeight,
+                        canvasRefSize: canvasRefSize,
+                        targetSize: targetSize,
+                        baseSvgWidth: baseSvgWidth,
+                        baseSvgHeight: baseSvgHeight,
+                        svgScaleFactor: svgScaleFactor,
+                        svgScaleFactorY: svgScaleFactorY
+                    });
+
+                    // Calculate actual dimensions after scaling (for logging)
+                    const scaledWidth = baseSvgWidth * svgScaleFactor;
+                    const scaledHeight = baseSvgHeight * svgScaleFactorY;
+
+                    // Build transform: translate to center position, then rotate, then scale
+                    // Since x_norm/y_norm represent the CENTER of the shape, we need to center the SVG at origin
+                    // before applying the transform (similar to how images work)
+                    let transform = `translate(${validX}, ${validY})`;
+                    if (validRotation !== 0) {
+                        transform += ` rotate(${validRotation})`;
+                    }
+                    // Apply scale and flips together
+                    const scaleX = (flipH ? -1 : 1) * svgScaleFactor;
+                    const scaleY = (flipV ? -1 : 1) * svgScaleFactorY;
+                    if (scaleX !== 1 || scaleY !== 1) {
+                        transform += ` scale(${scaleX}, ${scaleY})`;
+                    }
+
+                    // Clean transform to ensure no newlines or extra spaces
+                    transform = transform.replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
+
+                    console.log(`generateShapeSVG: Final transform string: "${transform}"`);
+                    console.log(`generateShapeSVG: Scaled dimensions: ${scaledWidth}x${scaledHeight}`);
+
+                    // Step 4: Wrap processed SVG in inner group with fill/stroke styles, then wrap in transform group
+                    // Center the SVG at origin before applying transform (like images do)
+                    // Structure: <g transform="..." style="opacity: ..."> <g style="fill: ...; stroke: ...; transform: translate(-w/2, -h/2)"> <inner SVG paths> </g> </g>
+                    const centerTransform = `translate(${-baseSvgWidth / 2}, ${-baseSvgHeight / 2})`;
+                    const innerGroupWithCenter = innerGroupStyle ?
+                        `<g style="${innerGroupStyle}" transform="${centerTransform}">${processedSvg}</g>` :
+                        `<g transform="${centerTransform}">${processedSvg}</g>`;
+                    const finalSvg = `<g transform="${transform}" style="${style}">${innerGroupWithCenter}</g>`;
+
+                    console.log(`generateShapeSVG: Final SVG element (${finalSvg.length} chars)`);
+                    console.log(`generateShapeSVG: Final SVG snippet (first 500 chars): ${finalSvg.substring(0, 500)}`);
+                    console.log(`generateShapeSVG: Transform in final SVG: "${transform}"`);
+                    console.log(`generateShapeSVG: Inner group style: "${innerGroupStyle}"`);
+                    console.log(`generateShapeSVG: Processed SVG content length: ${processedSvg.length} chars`);
+                    console.log(`generateShapeSVG: Processed SVG snippet (first 300 chars): ${processedSvg.substring(0, 300)}`);
+                    console.log(`generateShapeSVG: Processed SVG snippet (last 200 chars): ${processedSvg.substring(Math.max(0, processedSvg.length - 200))}`);
+                    return finalSvg;
+                }
             } else {
                 console.warn(`generateShapeSVG: Fetched SVG content is empty for ${shape.meta.src}`);
             }
