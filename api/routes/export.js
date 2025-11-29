@@ -1036,6 +1036,83 @@ router.get('/logo/:id/export.png', async(req, res) => {
 // HELPER FUNCTIONS
 // ==============================================
 
+/**
+ * Unified transformation builder for all layer types (TEXT, SHAPE, IMAGE, ICON)
+ * Applies transformations in the correct order to match the editor:
+ * 1. Move to canvas position (normalized → absolute)
+ * 2. Apply anchor offsets
+ * 3. Rotate around center
+ * 4. Apply flip (horizontal/vertical)
+ * 5. Apply scale based on normalized scale factor
+ * 
+ * @param {Object} params - Transformation parameters
+ * @param {number} params.x_norm - Normalized X position (0-1)
+ * @param {number} params.y_norm - Normalized Y position (0-1)
+ * @param {number} params.scale - Normalized scale factor
+ * @param {number} params.rotation_deg - Rotation in degrees
+ * @param {boolean} params.flip_horizontal - Flip horizontally
+ * @param {boolean} params.flip_vertical - Flip vertically
+ * @param {number} params.anchor_x - Anchor X offset (-0.5 to 0.5, where 0 is center)
+ * @param {number} params.anchor_y - Anchor Y offset (-0.5 to 0.5, where 0 is center)
+ * @param {number} params.elementWidth - Element width for anchor calculation
+ * @param {number} params.elementHeight - Element height for anchor calculation
+ * @param {number} params.canvasWidth - Canvas width
+ * @param {number} params.canvasHeight - Canvas height
+ * @returns {string} SVG transform string
+ */
+function buildUnifiedTransform(params) {
+    const {
+        x_norm = 0,
+            y_norm = 0,
+            scale = 1,
+            rotation_deg = 0,
+            flip_horizontal = false,
+            flip_vertical = false,
+            anchor_x = 0,
+            anchor_y = 0,
+            elementWidth = 0,
+            elementHeight = 0,
+            canvasWidth = 1000,
+            canvasHeight = 1000
+    } = params;
+
+    // Step 1: Convert normalized position to absolute canvas coordinates
+    const canvasX = (x_norm || 0) * canvasWidth;
+    const canvasY = (y_norm || 0) * canvasHeight;
+
+    // Step 2: Calculate anchor offsets
+    // Anchor is relative to element center (-0.5 = left/top, 0 = center, 0.5 = right/bottom)
+    const anchorOffsetX = (anchor_x || 0) * (elementWidth || 0);
+    const anchorOffsetY = (anchor_y || 0) * (elementHeight || 0);
+
+    // Step 3: Build transform in correct order
+    // Order: translate → rotate → flip → scale
+    // We need to apply anchor offset before rotation, so we combine it with the position
+    const finalX = canvasX - anchorOffsetX;
+    const finalY = canvasY - anchorOffsetY;
+
+    let transform = `translate(${finalX}, ${finalY})`;
+
+    // Step 4: Rotate around center (0,0 after translation)
+    const validRotation = isNaN(rotation_deg) ? 0 : rotation_deg;
+    if (validRotation !== 0) {
+        transform += ` rotate(${validRotation})`;
+    }
+
+    // Step 5: Apply flip (before scale, as per editor logic)
+    const validScale = isNaN(scale) ? 1 : scale;
+    const scaleX = (flip_horizontal ? -1 : 1) * validScale;
+    const scaleY = (flip_vertical ? -1 : 1) * validScale;
+    if (scaleX !== 1 || scaleY !== 1) {
+        transform += ` scale(${scaleX}, ${scaleY})`;
+    }
+
+    // Clean transform
+    transform = transform.replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
+
+    return transform;
+}
+
 async function generateSVGFromLogo(logo, layers, width, height) {
     let svgContent = '';
     const defs = [];
@@ -1051,34 +1128,9 @@ async function generateSVGFromLogo(logo, layers, width, height) {
         console.log(`  - Layer ${layer.id}: type=${layer.type}, z_index=${layer.z_index}`);
     });
 
-    // Process each layer
+    // Process each layer using unified transformation model
     for (const layer of sortedLayers) {
-        const x = (layer.x_norm || 0) * width;
-        const y = (layer.y_norm || 0) * height;
-        const scale = layer.scale || 1;
-        const rotation = layer.rotation_deg || 0;
         const opacity = layer.opacity !== undefined ? layer.opacity : 1;
-        const flipH = layer.flip_horizontal;
-        const flipV = layer.flip_vertical;
-
-        // Build transform string with flip support - ensure all values are valid numbers
-        const validX = isNaN(x) ? 0 : x;
-        const validY = isNaN(y) ? 0 : y;
-        const validRotation = isNaN(rotation) ? 0 : rotation;
-        const validScale = isNaN(scale) ? 1 : scale;
-
-        let transform = `translate(${validX}, ${validY})`;
-        if (validRotation !== 0) {
-            transform += ` rotate(${validRotation})`;
-        }
-        // Apply flip as part of scale transformation
-        const scaleX = (flipH ? -1 : 1) * validScale;
-        const scaleY = (flipV ? -1 : 1) * validScale;
-        if (scaleX !== 1 || scaleY !== 1) {
-            transform += ` scale(${scaleX}, ${scaleY})`;
-        }
-        // Clean transform to ensure no newlines or extra spaces
-        transform = transform.replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
 
         // Build style string - ensure no newlines
         let style = `opacity: ${opacity};`;
@@ -1095,9 +1147,23 @@ async function generateSVGFromLogo(logo, layers, width, height) {
         // Clean style to remove any newlines or extra whitespace
         style = style.replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
 
+        // Common transform parameters for unified transform
+        const transformParams = {
+            x_norm: layer.x_norm || 0,
+            y_norm: layer.y_norm || 0,
+            scale: layer.scale || 1,
+            rotation_deg: layer.rotation_deg || 0,
+            flip_horizontal: layer.flip_horizontal || false,
+            flip_vertical: layer.flip_vertical || false,
+            anchor_x: layer.anchor_x || 0,
+            anchor_y: layer.anchor_y || 0,
+            canvasWidth: width,
+            canvasHeight: height
+        };
+
         switch (layer.type) {
             case 'TEXT':
-                const textSvg = generateTextSVG(layer, x, y, scale, rotation, style, defs);
+                const textSvg = await generateTextSVG(layer, transformParams, style, defs, width, height);
                 svgContent += textSvg;
                 if (textSvg) console.log(`  ✓ TEXT layer ${layer.id} rendered`);
                 break;
@@ -1109,14 +1175,14 @@ async function generateSVGFromLogo(logo, layers, width, height) {
                     metaSrc: layer.shape && layer.shape.meta && layer.shape.meta.src,
                     x_norm: layer.x_norm,
                     y_norm: layer.y_norm,
-                    x: validX,
-                    y: validY,
-                    scale: validScale,
-                    rotation: validRotation,
+                    scale: layer.scale,
+                    rotation: layer.rotation_deg,
+                    anchor_x: layer.anchor_x,
+                    anchor_y: layer.anchor_y,
                     opacity: opacity,
                     isVisible: layer.is_visible
                 });
-                const shapeSvg = await generateShapeSVG(layer, x, y, scale, rotation, style, defs, width, height);
+                const shapeSvg = await generateShapeSVG(layer, transformParams, style, defs, width, height);
                 svgContent += shapeSvg;
                 if (shapeSvg) {
                     console.log(`  ✓ SHAPE layer ${layer.id} rendered (length: ${shapeSvg.length})`);
@@ -1127,7 +1193,7 @@ async function generateSVGFromLogo(logo, layers, width, height) {
                 }
                 break;
             case 'ICON':
-                const iconSvg = await generateIconSVG(layer, x, y, scale, rotation, style, defs);
+                const iconSvg = await generateIconSVG(layer, transformParams, style, defs, width, height);
                 svgContent += iconSvg;
                 if (iconSvg) console.log(`  ✓ ICON layer ${layer.id} rendered`);
                 break;
@@ -1137,13 +1203,15 @@ async function generateSVGFromLogo(logo, layers, width, height) {
                     imagePath: layer.image && layer.image.path,
                     assetUrl: layer.image && layer.image.asset && layer.image.asset.url,
                     assetId: layer.image && layer.image.asset_id,
-                    x: validX,
-                    y: validY,
-                    scale: validScale,
+                    x_norm: layer.x_norm,
+                    y_norm: layer.y_norm,
+                    scale: layer.scale,
+                    anchor_x: layer.anchor_x,
+                    anchor_y: layer.anchor_y,
                     opacity: opacity,
                     isVisible: layer.is_visible
                 });
-                const imageSvg = await generateImageSVG(layer, x, y, scale, rotation, style, defs);
+                const imageSvg = await generateImageSVG(layer, transformParams, style, defs, width, height);
                 svgContent += imageSvg;
                 if (imageSvg) {
                     console.log(`  ✓ IMAGE layer ${layer.id} rendered (length: ${imageSvg.length})`);
@@ -1392,38 +1460,52 @@ async function generateBackgroundSVG(layer, width, height, style, defs) {
     return '';
 }
 
-function generateTextSVG(layer, x, y, scale, rotation, style, defs) {
+async function generateTextSVG(layer, transformParams, style, defs, canvasWidth, canvasHeight) {
     const { text } = layer;
     // Support both content (database) and value (legacy JSON)
     const textContent = text && text.content ? text.content : (text && text.value ? text.value : undefined);
     if (!text || !textContent) return '';
 
     // Support both snake_case and camelCase for font_size
-    // Use fontSize directly from JSON - fontSize is the final size we want
-    const fontSize = parseFloat(text.font_size || text.fontSize || 16);
-    const flipH = layer.flip_horizontal;
-    const flipV = layer.flip_vertical;
+    // The font_size in the database is the base size, which needs to be scaled based on canvas size
+    const baseFontSize = parseFloat(text.font_size || text.fontSize || 16);
 
-    // Build transform with proper order - ensure all values are valid numbers
-    const validX = isNaN(x) ? 0 : x;
-    const validY = isNaN(y) ? 0 : y;
-    const validRotation = isNaN(rotation) ? 0 : rotation;
+    // Calculate actual font size based on canvas size and normalized scale
+    // The editor scales text relative to canvas size, so we need to match that
+    // Formula: actualFontSize = baseFontSize * (canvasRefSize / baseCanvasSize) * normalizedScale
+    // Where baseCanvasSize is typically 1000 (the reference canvas size)
+    const baseCanvasSize = 1000; // Reference canvas size used by editor
+    const canvasRefSize = Math.max(canvasWidth, canvasHeight);
+    const normalizedScale = transformParams.scale || 1;
+    const actualFontSize = baseFontSize * (canvasRefSize / baseCanvasSize) * normalizedScale;
 
-    let transform = `translate(${validX}, ${validY})`;
-    if (validRotation !== 0) {
-        transform += ` rotate(${validRotation})`;
-    }
-    // For text, fontSize is already the final size, so we don't apply scale transform
-    // Scale is only used for flip operations
-    const scaleX = flipH ? -1 : 1;
-    const scaleY = flipV ? -1 : 1;
-    if (scaleX !== 1 || scaleY !== 1) {
-        transform += ` scale(${scaleX}, ${scaleY})`;
-    }
+    console.log(`generateTextSVG: Font size calculation:`, {
+        baseFontSize: baseFontSize,
+        canvasRefSize: canvasRefSize,
+        baseCanvasSize: baseCanvasSize,
+        normalizedScale: normalizedScale,
+        actualFontSize: actualFontSize
+    });
+
+    // Calculate text dimensions for anchor calculation
+    // Estimate text width and height (approximate, but better than nothing)
+    // This is a rough estimate - for precise measurement, we'd need font metrics
+    const letterSpacing = text.letter_spacing !== undefined ? text.letter_spacing : 0;
+    const lineHeight = text.line_height !== undefined ? text.line_height : 1.2;
+    const estimatedTextWidth = textContent.length * (actualFontSize * 0.6) + (textContent.length - 1) * letterSpacing;
+    const estimatedTextHeight = actualFontSize * lineHeight;
+
+    // Build unified transform with text dimensions
+    const unifiedTransform = buildUnifiedTransform({
+        ...transformParams,
+        elementWidth: estimatedTextWidth,
+        elementHeight: estimatedTextHeight
+    });
 
     // Ensure font size is valid
-    const validFontSize = isNaN(fontSize) || fontSize <= 0 ? 16 : fontSize;
-    // Font family - default to Arial if not found, remove quotes since we're already inside a quoted style attribute
+    const validFontSize = isNaN(actualFontSize) || actualFontSize <= 0 ? 16 : actualFontSize;
+
+    // Font family - use the actual font from database (e.g., "Pacifico")
     // Support both snake_case (font_family) and camelCase (font)
     let fontFamilyName = text.font_family || text.font || 'Arial';
     // If font_family is null, undefined, or empty, use Arial
@@ -1431,6 +1513,7 @@ function generateTextSVG(layer, x, y, scale, rotation, style, defs) {
         fontFamilyName = 'Arial';
     }
     fontFamilyName = String(fontFamilyName).replace(/"/g, '').replace(/'/g, '');
+
     // Support both snake_case (fill_hex) and camelCase (fontColor)
     const fillColor = validateHexColor(text.fill_hex || text.fontColor || '#000000');
     // Support both snake_case and camelCase for fill_alpha
@@ -1453,9 +1536,13 @@ function generateTextSVG(layer, x, y, scale, rotation, style, defs) {
         textStyle += `font-style: ${fontStyle};`;
     }
     // Support both snake_case and camelCase for letter_spacing
-    const letterSpacing = text.letter_spacing !== undefined ? text.letter_spacing : text.letterSpacing;
-    if (letterSpacing !== undefined && letterSpacing !== null && !isNaN(letterSpacing) && letterSpacing !== 0) {
-        textStyle += `letter-spacing: ${letterSpacing}px;`;
+    // Letter spacing needs to be scaled too
+    const baseLetterSpacing = text.letter_spacing !== undefined ? text.letter_spacing : text.letterSpacing;
+    const scaledLetterSpacing = baseLetterSpacing !== undefined && baseLetterSpacing !== null && !isNaN(baseLetterSpacing) ?
+        baseLetterSpacing * (canvasRefSize / baseCanvasSize) * normalizedScale :
+        0;
+    if (scaledLetterSpacing !== 0) {
+        textStyle += `letter-spacing: ${scaledLetterSpacing}px;`;
     }
     // Support both snake_case and camelCase for text_decoration
     const textDecoration = text.text_decoration || text.textDecoration;
@@ -1471,7 +1558,9 @@ function generateTextSVG(layer, x, y, scale, rotation, style, defs) {
     if (strokeHex && strokeWidth && !isNaN(strokeWidth)) {
         const strokeColor = validateHexColor(strokeHex);
         const strokeAlpha = clampAlpha((text.stroke_alpha !== undefined ? text.stroke_alpha : text.strokeAlpha) || 1);
-        textStyle += `stroke: ${strokeColor}; stroke-width: ${strokeWidth}; stroke-opacity: ${strokeAlpha};`;
+        // Scale stroke width too
+        const scaledStrokeWidth = strokeWidth * (canvasRefSize / baseCanvasSize) * normalizedScale;
+        textStyle += `stroke: ${strokeColor}; stroke-width: ${scaledStrokeWidth}; stroke-opacity: ${strokeAlpha};`;
     }
 
     // Support both snake_case (align) and camelCase (alignment)
@@ -1491,41 +1580,56 @@ function generateTextSVG(layer, x, y, scale, rotation, style, defs) {
     }
 
     // All attributes must be on the same line to avoid parsing errors
-    return `<text x="0" y="0" text-anchor="${textAnchor}" dominant-baseline="${dominantBaseline}" transform="${transform}" style="${textStyle} ${style}">${escapeXml(finalTextContent)}</text>`;
+    // Text is positioned at origin (0,0) and the transform handles positioning
+    return `<text x="0" y="0" text-anchor="${textAnchor}" dominant-baseline="${dominantBaseline}" transform="${unifiedTransform}" style="${textStyle} ${style}">${escapeXml(finalTextContent)}</text>`;
 }
 
-async function generateShapeSVG(layer, x, y, scale, rotation, style, defs, canvasWidth, canvasHeight) {
+async function generateShapeSVG(layer, transformParams, style, defs, canvasWidth, canvasHeight) {
     const { shape } = layer;
     if (!shape) return '';
 
-    const flipH = layer.flip_horizontal;
-    const flipV = layer.flip_vertical;
+    // Ensure style is always a string
+    // ok here
+    const styleString = typeof style === 'string' ? style : (style ? String(style) : '');
 
-    // Build transform with proper order - ensure all values are valid numbers
-    const validX = isNaN(x) ? 0 : x;
-    const validY = isNaN(y) ? 0 : y;
-    const validRotation = isNaN(rotation) ? 0 : rotation;
-    const validScale = isNaN(scale) ? 1 : scale;
+    // Extract and validate transform parameters from transformParams
+    const x_norm = typeof transformParams.x_norm === 'number' ? transformParams.x_norm : (layer.x_norm || 0);
+    const y_norm = typeof transformParams.y_norm === 'number' ? transformParams.y_norm : (layer.y_norm || 0);
+    const scale = Array.isArray(transformParams.scale) ? transformParams.scale[0] : (typeof transformParams.scale === 'number' ? transformParams.scale : (layer.scale || 1));
+    const rotation_deg = typeof transformParams.rotation_deg === 'number' ? transformParams.rotation_deg : (layer.rotation_deg || 0);
+    const anchor_x = typeof transformParams.anchor_x === 'number' ? transformParams.anchor_x : (layer.anchor_x || 0);
+    const anchor_y = typeof transformParams.anchor_y === 'number' ? transformParams.anchor_y : (layer.anchor_y || 0);
+    const flip_horizontal = transformParams.flip_horizontal !== undefined ? transformParams.flip_horizontal : (layer.flip_horizontal || false);
+    const flip_vertical = transformParams.flip_vertical !== undefined ? transformParams.flip_vertical : (layer.flip_vertical || false);
+
+    // Ensure canvas dimensions are valid
+    const validCanvasWidth = typeof canvasWidth === 'number' && !isNaN(canvasWidth) && canvasWidth > 0 ? canvasWidth : 1000;
+    const validCanvasHeight = typeof canvasHeight === 'number' && !isNaN(canvasHeight) && canvasHeight > 0 ? canvasHeight : 1000;
+
+    // Ensure scale is a single number, not an array
+    const validScale = Array.isArray(scale) ? (scale.length > 0 ? parseFloat(scale[0]) : 1) : (typeof scale === 'number' && !isNaN(scale) ? scale : 1);
+
+    // Ensure rotation comes from rotation_deg
+    const validRotation = typeof rotation_deg === 'number' && !isNaN(rotation_deg) ? rotation_deg : 0;
 
     // Log transform parameters for debugging
     console.log(`generateShapeSVG: Layer ${layer.id} transform params:`, {
-        x: validX,
-        y: validY,
+        x_norm: x_norm,
+        y_norm: y_norm,
         scale: validScale,
-        rotation: validRotation,
-        flipH: flipH,
-        flipV: flipV,
-        x_norm: layer.x_norm,
-        y_norm: layer.y_norm,
-        canvasWidth: canvasWidth,
-        canvasHeight: canvasHeight
+        rotation_deg: validRotation,
+        anchor_x: anchor_x,
+        anchor_y: anchor_y,
+        flip_horizontal: flip_horizontal,
+        flip_vertical: flip_vertical,
+        canvasWidth: validCanvasWidth,
+        canvasHeight: validCanvasHeight
     });
 
     let shapeElement = '';
     const fillColor = shape.fill_hex ? validateHexColor(shape.fill_hex) : 'none';
     const fillAlpha = clampAlpha(shape.fill_alpha !== undefined ? shape.fill_alpha : 1);
     let shapeStyle = `fill: ${fillColor}; fill-opacity: ${fillAlpha};`;
-
     if (shape.stroke_hex && shape.stroke_width && !isNaN(shape.stroke_width)) {
         const strokeColor = validateHexColor(shape.stroke_hex);
         const strokeAlpha = clampAlpha(shape.stroke_alpha !== undefined ? shape.stroke_alpha : 1);
@@ -1533,7 +1637,8 @@ async function generateShapeSVG(layer, x, y, scale, rotation, style, defs, canva
     }
 
     // Clean the style parameter to remove any newlines or extra spaces
-    const cleanStyle = (style || '').replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
+    // Ensure style is a string before calling .replace
+    const cleanStyle = styleString.replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
     const cleanShapeStyle = shapeStyle.replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
 
     // Check if shape has a src (local SVG asset)
@@ -1667,75 +1772,72 @@ async function generateShapeSVG(layer, x, y, scale, rotation, style, defs, canva
                     }
                     innerGroupStyle = innerGroupStyle.trim();
 
-                    // Step 3: Calculate proper scale and positioning
+                    // Step 3: Calculate proper scale and dimensions for unified transform
                     // The normalized scale (e.g., 0.2544) needs to be converted to actual pixel scale
                     // The editor likely scales based on canvas size, so we need to calculate the target size
                     // Target size = normalized_scale * canvas_size (or some base size)
                     // Then scale factor = target_size / base_svg_size
 
                     // Calculate target size based on normalized scale and canvas dimensions
-                    // The normalized scale (0.2544) likely represents a fraction of canvas size
-                    // Try multiple approaches and see which one matches the editor behavior
-                    // Approach 1: scale * canvas_size (most common)
-                    const canvasRefSize = Math.max(canvasWidth, canvasHeight);
+                    const canvasRefSize = Math.max(validCanvasWidth, validCanvasHeight);
                     const targetSize = validScale * canvasRefSize;
-
-                    // Alternative: if scale seems too small, maybe it's relative to a base size (e.g., 1000)
-                    // For now, use canvas size as reference
 
                     // Calculate actual SVG scale factor
                     // The scale factor tells us how much to scale the base SVG to reach target size
                     const svgScaleFactor = baseSvgWidth > 0 ? targetSize / baseSvgWidth : 1;
                     const svgScaleFactorY = baseSvgHeight > 0 ? targetSize / baseSvgHeight : 1;
 
+                    // Calculate scaled dimensions for anchor calculation
+                    const scaledWidth = baseSvgWidth * svgScaleFactor;
+                    const scaledHeight = baseSvgHeight * svgScaleFactorY;
+
                     console.log(`generateShapeSVG: Scale calculation:`, {
                         normalizedScale: validScale,
-                        canvasWidth: canvasWidth,
-                        canvasHeight: canvasHeight,
+                        canvasWidth: validCanvasWidth,
+                        canvasHeight: validCanvasHeight,
                         canvasRefSize: canvasRefSize,
                         targetSize: targetSize,
                         baseSvgWidth: baseSvgWidth,
                         baseSvgHeight: baseSvgHeight,
                         svgScaleFactor: svgScaleFactor,
-                        svgScaleFactorY: svgScaleFactorY
+                        svgScaleFactorY: svgScaleFactorY,
+                        scaledWidth: scaledWidth,
+                        scaledHeight: scaledHeight
                     });
 
-                    // Calculate actual dimensions after scaling (for logging)
-                    const scaledWidth = baseSvgWidth * svgScaleFactor;
-                    const scaledHeight = baseSvgHeight * svgScaleFactorY;
+                    // Build unified transform with shape dimensions
+                    // Note: For SVG assets, we've already scaled the SVG content to the target size,
+                    // so we pass scale=1 to the unified transform (no additional scaling needed)
+                    // The svgScaleFactor already incorporates the normalized scale
+                    const unifiedTransform = buildUnifiedTransform({
+                        x_norm: x_norm,
+                        y_norm: y_norm,
+                        scale: 1, // No additional scale - already applied via svgScaleFactor
+                        rotation_deg: validRotation,
+                        flip_horizontal: flip_horizontal,
+                        flip_vertical: flip_vertical,
+                        anchor_x: anchor_x,
+                        anchor_y: anchor_y,
+                        elementWidth: scaledWidth,
+                        elementHeight: scaledHeight,
+                        canvasWidth: validCanvasWidth,
+                        canvasHeight: validCanvasHeight
+                    });
 
-                    // Build transform: translate to center position, then rotate, then scale
-                    // Since x_norm/y_norm represent the CENTER of the shape, we need to center the SVG at origin
-                    // before applying the transform (similar to how images work)
-                    let transform = `translate(${validX}, ${validY})`;
-                    if (validRotation !== 0) {
-                        transform += ` rotate(${validRotation})`;
-                    }
-                    // Apply scale and flips together
-                    const scaleX = (flipH ? -1 : 1) * svgScaleFactor;
-                    const scaleY = (flipV ? -1 : 1) * svgScaleFactorY;
-                    if (scaleX !== 1 || scaleY !== 1) {
-                        transform += ` scale(${scaleX}, ${scaleY})`;
-                    }
-
-                    // Clean transform to ensure no newlines or extra spaces
-                    transform = transform.replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
-
-                    console.log(`generateShapeSVG: Final transform string: "${transform}"`);
-                    console.log(`generateShapeSVG: Scaled dimensions: ${scaledWidth}x${scaledHeight}`);
+                    console.log(`generateShapeSVG: Final unified transform: "${unifiedTransform}"`);
 
                     // Step 4: Wrap processed SVG in inner group with fill/stroke styles, then wrap in transform group
                     // Center the SVG at origin before applying transform (like images do)
-                    // Structure: <g transform="..." style="opacity: ..."> <g style="fill: ...; stroke: ...; transform: translate(-w/2, -h/2)"> <inner SVG paths> </g> </g>
+                    // Structure: <g transform="[unified transform]" style="opacity: ..."> <g style="fill: ...; stroke: ...; transform: translate(-w/2, -h/2)"> <inner SVG paths> </g> </g>
                     const centerTransform = `translate(${-baseSvgWidth / 2}, ${-baseSvgHeight / 2})`;
                     const innerGroupWithCenter = innerGroupStyle ?
                         `<g style="${innerGroupStyle}" transform="${centerTransform}">${processedSvg}</g>` :
                         `<g transform="${centerTransform}">${processedSvg}</g>`;
-                    const finalSvg = `<g transform="${transform}" style="${style}">${innerGroupWithCenter}</g>`;
+                    const finalSvg = `<g transform="${unifiedTransform}" style="${cleanStyle}">${innerGroupWithCenter}</g>`;
 
                     console.log(`generateShapeSVG: Final SVG element (${finalSvg.length} chars)`);
                     console.log(`generateShapeSVG: Final SVG snippet (first 500 chars): ${finalSvg.substring(0, 500)}`);
-                    console.log(`generateShapeSVG: Transform in final SVG: "${transform}"`);
+                    console.log(`generateShapeSVG: Transform in final SVG: "${unifiedTransform}"`);
                     console.log(`generateShapeSVG: Inner group style: "${innerGroupStyle}"`);
                     console.log(`generateShapeSVG: Processed SVG content length: ${processedSvg.length} chars`);
                     console.log(`generateShapeSVG: Processed SVG snippet (first 300 chars): ${processedSvg.substring(0, 300)}`);
@@ -1757,38 +1859,79 @@ async function generateShapeSVG(layer, x, y, scale, rotation, style, defs, canva
     // Combine styles and clean them
     const combinedStyle = `${cleanShapeStyle} ${cleanStyle}`.trim();
 
+    // Default shape dimensions for anchor calculation (100x100 base size)
+    let baseShapeWidth = 100;
+    let baseShapeHeight = 100;
+
     switch (shape.shape_kind) {
         case 'rect':
             // All attributes on one line to avoid parsing errors
             shapeElement = `<rect x="-50" y="-50" width="100" height="100" rx="${validRx}" ry="${validRy}" style="${combinedStyle}"/>`;
+            baseShapeWidth = 100;
+            baseShapeHeight = 100;
             break;
         case 'circle':
             shapeElement = `<circle cx="0" cy="0" r="50" style="${combinedStyle}"/>`;
+            baseShapeWidth = 100;
+            baseShapeHeight = 100;
             break;
         case 'ellipse':
             shapeElement = `<ellipse cx="0" cy="0" rx="50" ry="50" style="${combinedStyle}"/>`;
+            baseShapeWidth = 100;
+            baseShapeHeight = 100;
             break;
         case 'path':
             if (shape.svg_path && shape.svg_path.trim().length > 0) {
                 // Escape path data
                 const escapedPath = shape.svg_path.replace(/"/g, '&quot;');
                 shapeElement = `<path d="${escapedPath}" style="${combinedStyle}"/>`;
+                // For paths, we can't easily determine dimensions, use default
+                baseShapeWidth = 100;
+                baseShapeHeight = 100;
             } else {
                 // Default to rect if path is invalid
                 shapeElement = `<rect x="-50" y="-50" width="100" height="100" style="${combinedStyle}"/>`;
+                baseShapeWidth = 100;
+                baseShapeHeight = 100;
             }
             break;
         default:
             // Default to rect for any unknown shape type
             shapeElement = `<rect x="-50" y="-50" width="100" height="100" style="${combinedStyle}"/>`;
+            baseShapeWidth = 100;
+            baseShapeHeight = 100;
     }
 
     // Ensure shapeElement is not empty
     if (!shapeElement || shapeElement.trim().length === 0) {
         shapeElement = `<rect x="-50" y="-50" width="100" height="100" style="${combinedStyle}"/>`;
+        baseShapeWidth = 100;
+        baseShapeHeight = 100;
     }
 
-    return `<g transform="${transform}">${shapeElement}</g>`;
+    // Calculate scaled dimensions for anchor calculation
+    const canvasRefSize = Math.max(validCanvasWidth, validCanvasHeight);
+    const targetSize = validScale * canvasRefSize;
+    const scaledWidth = baseShapeWidth * (targetSize / baseShapeWidth);
+    const scaledHeight = baseShapeHeight * (targetSize / baseShapeHeight);
+
+    // Build unified transform for fallback shapes
+    const fallbackTransform = buildUnifiedTransform({
+        x_norm: x_norm,
+        y_norm: y_norm,
+        scale: validScale,
+        rotation_deg: validRotation,
+        flip_horizontal: flip_horizontal,
+        flip_vertical: flip_vertical,
+        anchor_x: anchor_x,
+        anchor_y: anchor_y,
+        elementWidth: scaledWidth,
+        elementHeight: scaledHeight,
+        canvasWidth: validCanvasWidth,
+        canvasHeight: validCanvasHeight
+    });
+
+    return `<g transform="${fallbackTransform}" style="${cleanStyle}">${shapeElement}</g>`;
 }
 
 async function generateIconSVG(layer, x, y, scale, rotation, style, defs) {
@@ -1889,12 +2032,39 @@ async function generateIconSVG(layer, x, y, scale, rotation, style, defs) {
     }
 }
 
-async function generateImageSVG(layer, x, y, scale, rotation, style, defs) {
+async function generateImageSVG(layer, transformParams, style, defs, canvasWidth, canvasHeight) {
     const { image } = layer;
     if (!image) {
         console.warn('generateImageSVG: No image object in layer');
         return '';
     }
+
+    // CRITICAL: Ensure style is always a string before any operations
+    // Build a pure CSS string from layer properties
+    const opacity = layer.opacity !== undefined ? layer.opacity : 1;
+    const imageStyle = typeof style === 'string' ? style : `opacity: ${opacity};`;
+    // Ensure it's a string - if style was an object/array, we've replaced it with opacity string
+    const styleString = typeof imageStyle === 'string' ? imageStyle : (imageStyle ? String(imageStyle) : `opacity: ${opacity};`);
+
+    // Extract and validate transform parameters from transformParams
+    const x_norm = typeof transformParams.x_norm === 'number' ? transformParams.x_norm : (layer.x_norm || 0);
+    const y_norm = typeof transformParams.y_norm === 'number' ? transformParams.y_norm : (layer.y_norm || 0);
+    const scale = Array.isArray(transformParams.scale) ? transformParams.scale[0] : (typeof transformParams.scale === 'number' ? transformParams.scale : (layer.scale || 1));
+    const rotation_deg = typeof transformParams.rotation_deg === 'number' ? transformParams.rotation_deg : (layer.rotation_deg || 0);
+    const anchor_x = typeof transformParams.anchor_x === 'number' ? transformParams.anchor_x : (layer.anchor_x !== undefined ? layer.anchor_x : 0);
+    const anchor_y = typeof transformParams.anchor_y === 'number' ? transformParams.anchor_y : (layer.anchor_y !== undefined ? layer.anchor_y : 0);
+    const flip_horizontal = transformParams.flip_horizontal !== undefined ? transformParams.flip_horizontal : (layer.flip_horizontal || false);
+    const flip_vertical = transformParams.flip_vertical !== undefined ? transformParams.flip_vertical : (layer.flip_vertical || false);
+
+    // Ensure canvas dimensions are valid
+    const validCanvasWidth = typeof canvasWidth === 'number' && !isNaN(canvasWidth) && canvasWidth > 0 ? canvasWidth : 1000;
+    const validCanvasHeight = typeof canvasHeight === 'number' && !isNaN(canvasHeight) && canvasHeight > 0 ? canvasHeight : 1000;
+
+    // Ensure scale is a single number, not an array
+    const validScale = Array.isArray(scale) ? (scale.length > 0 ? parseFloat(scale[0]) : 1) : (typeof scale === 'number' && !isNaN(scale) ? scale : 1);
+
+    // Ensure rotation comes from rotation_deg
+    const validRotation = typeof rotation_deg === 'number' && !isNaN(rotation_deg) ? rotation_deg : 0;
 
     // Support both database format (image.asset.url) and legacy format (image.path)
     // Also check if path might be nested in image.image.path (from JSON structure)
@@ -1920,27 +2090,18 @@ async function generateImageSVG(layer, x, y, scale, rotation, style, defs) {
     }
     console.log('generateImageSVG: Found image URL', imageUrl.substring(0, 100));
 
-    const flipH = layer.flip_horizontal;
-    const flipV = layer.flip_vertical;
-
-    // Build transform with proper order - ensure all values are valid numbers
-    const validX = isNaN(x) ? 0 : x;
-    const validY = isNaN(y) ? 0 : y;
-    const validRotation = isNaN(rotation) ? 0 : rotation;
-    const validScale = isNaN(scale) ? 1 : scale;
-
-    // Calculate base dimensions (unscaled) - we'll apply scale in transform
+    // Calculate base dimensions from asset metadata
     let baseWidth, baseHeight;
     const baseSize = 300; // Default base size
 
     if (image.asset && image.asset.width && image.asset.height) {
         baseWidth = image.asset.width;
         baseHeight = image.asset.height;
-        console.log(`Using actual asset dimensions: ${baseWidth}x${baseHeight}`);
+        console.log(`generateImageSVG: Using actual asset dimensions: ${baseWidth}x${baseHeight}`);
     } else {
         baseWidth = baseSize;
         baseHeight = baseSize;
-        console.log(`Using default dimensions: ${baseSize}x${baseSize}`);
+        console.log(`generateImageSVG: Using default dimensions: ${baseSize}x${baseSize}`);
     }
 
     // Ensure minimum base size
@@ -1954,18 +2115,54 @@ async function generateImageSVG(layer, x, y, scale, rotation, style, defs) {
         baseHeight = minBaseSize;
     }
 
-    // Build transform: translate -> rotate -> scale (including flips)
-    // Position is the center point, so we offset by half dimensions
-    let transform = `translate(${validX}, ${validY})`;
-    if (validRotation !== 0) {
-        transform += ` rotate(${validRotation})`;
+    // Calculate scaled dimensions based on normalized scale and canvas size
+    // Similar to SHAPE layer: target size = normalized_scale * canvas_ref_size
+    const canvasRefSize = Math.max(validCanvasWidth, validCanvasHeight);
+    const targetSize = validScale * canvasRefSize;
+
+    // Calculate scale factors while maintaining aspect ratio
+    const aspectRatio = baseWidth / baseHeight;
+    let scaledWidth, scaledHeight;
+
+    // Scale based on the larger dimension to maintain aspect ratio
+    if (baseWidth >= baseHeight) {
+        scaledWidth = targetSize;
+        scaledHeight = targetSize / aspectRatio;
+    } else {
+        scaledHeight = targetSize;
+        scaledWidth = targetSize * aspectRatio;
     }
-    // Apply scale and flips together
-    const scaleX = (flipH ? -1 : 1) * validScale;
-    const scaleY = (flipV ? -1 : 1) * validScale;
-    if (scaleX !== 1 || scaleY !== 1) {
-        transform += ` scale(${scaleX}, ${scaleY})`;
-    }
+
+    console.log(`generateImageSVG: Scale calculation:`, {
+        normalizedScale: validScale,
+        canvasRefSize: canvasRefSize,
+        targetSize: targetSize,
+        baseWidth: baseWidth,
+        baseHeight: baseHeight,
+        aspectRatio: aspectRatio,
+        scaledWidth: scaledWidth,
+        scaledHeight: scaledHeight
+    });
+
+    // Build unified transform with image dimensions
+    // Note: We're setting image dimensions to scaled size, so we pass scale=1 to avoid double-scaling
+    // The transform only handles position, rotation, flip, and anchor
+    const unifiedTransform = buildUnifiedTransform({
+        x_norm: x_norm,
+        y_norm: y_norm,
+        scale: 1, // No additional scale - already applied via scaledWidth/scaledHeight
+        rotation_deg: validRotation,
+        flip_horizontal: flip_horizontal,
+        flip_vertical: flip_vertical,
+        anchor_x: anchor_x,
+        anchor_y: anchor_y,
+        elementWidth: scaledWidth,
+        elementHeight: scaledHeight,
+        canvasWidth: validCanvasWidth,
+        canvasHeight: validCanvasHeight
+    });
+
+    console.log(`generateImageSVG: Unified transform: "${unifiedTransform}"`);
 
     // Ensure URL is properly formatted for XML/SVG
     let cleanImageUrl = String(imageUrl).trim();
@@ -2006,21 +2203,25 @@ async function generateImageSVG(layer, x, y, scale, rotation, style, defs) {
         // Escape quotes for XML
         cleanImageUrl = cleanImageUrl.replace(/"/g, '&quot;');
 
-        // Ensure style and transform don't have any issues (no newlines, extra spaces)
-        const cleanStyle = (style || '').replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
-        const cleanTransform = (transform || '').replace(/\s+/g, ' ').trim();
+        // Clean style string (now guaranteed to be a string)
+        const cleanStyle = styleString.replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
 
-        // Use base dimensions (scale is applied in transform)
-        const imageWidth = baseWidth;
-        const imageHeight = baseHeight;
+        // Clean transform
+        const cleanTransform = unifiedTransform.replace(/\s+/g, ' ').trim();
 
-        console.log(`Image layer final: ${imageWidth}x${imageHeight} (base), position: (${validX}, ${validY}), scale: ${validScale}, URL length: ${cleanImageUrl.length}`);
+        // Use scaled dimensions (scale is applied via unified transform, but we also need to set the image size)
+        // The unified transform handles position, rotation, flip, and scale
+        // We set the image dimensions to the scaled size, and center it at origin
+        const imageWidth = scaledWidth;
+        const imageHeight = scaledHeight;
 
-        // Wrap image in a group with transform - this is more reliable than transform on image element
+        console.log(`generateImageSVG: Image layer final: ${imageWidth}x${imageHeight} (scaled), position: (${x_norm}, ${y_norm}), scale: ${validScale}, rotation: ${validRotation}, anchor: (${anchor_x}, ${anchor_y}), URL length: ${cleanImageUrl.length}`);
+
+        // Wrap image in a group with unified transform
         // Position image centered at origin, then group transform will move/scale/rotate it
         // Use both href (SVG 2) and xlink:href (SVG 1.1) for maximum compatibility
         const imageElement = `<g transform="${cleanTransform}" style="${cleanStyle}"><image href="${cleanImageUrl}" xlink:href="${cleanImageUrl}" x="${-imageWidth / 2}" y="${-imageHeight / 2}" width="${imageWidth}" height="${imageHeight}"/></g>`;
-        console.log(`Generated image SVG element (first 200 chars): ${imageElement.substring(0, 200)}`);
+        console.log(`generateImageSVG: Generated image SVG element (first 200 chars): ${imageElement.substring(0, 200)}`);
         return imageElement;
     } else {
         console.warn(`Invalid image URL (length: ${cleanImageUrl ? cleanImageUrl.length : 0}): ${cleanImageUrl ? cleanImageUrl.substring(0, 100) : 'null'}...`);
