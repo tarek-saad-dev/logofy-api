@@ -70,22 +70,17 @@ app.use('/billing', require('./routes/billing'));
 // API endpoints are at /api/billing/*
 app.use('/api/billing', require('./routes/billing'));
 
+// Import error handler
+const { notFound, errorHandler, ERROR_CODES } = require('./utils/errorHandler');
+
 // 404 handler
 app.use('*', (req, res) => {
-    res.status(404).json({
-        error: 'Route not found',
-        message: `Cannot ${req.method} ${req.originalUrl}`
-    });
+    return notFound(res, ERROR_CODES.GENERAL.NOT_FOUND, 
+        `Route not found: Cannot ${req.method} ${req.originalUrl}`);
 });
 
 // Error handling middleware
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({
-        error: 'Something went wrong!',
-        message: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message
-    });
-});
+app.use(errorHandler);
 
 // Initialize database and start server
 const startServer = async() => {

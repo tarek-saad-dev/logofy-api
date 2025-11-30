@@ -2,6 +2,7 @@ const express = require('express');
 const Stripe = require('stripe');
 const { authenticate } = require('../middleware/auth');
 const { query } = require('../config/database');
+const { badRequest, internalError, forbidden, ERROR_CODES } = require('../utils/errorHandler');
 
 const router = express.Router();
 
@@ -36,18 +37,13 @@ router.post('/create-checkout-session', authenticate, async(req, res) => {
 
         // Validate plan
         if (!plan || !['weekly', 'monthly', 'yearly'].includes(plan)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid plan. Must be "weekly", "monthly", or "yearly"'
-            });
+            return badRequest(res, ERROR_CODES.BILLING.INVALID_PLAN, 
+                'Invalid plan. Must be "weekly", "monthly", or "yearly"');
         }
 
         // Validate user (should not happen if authenticate middleware worked)
         if (!userId || !userEmail) {
-            return res.status(500).json({
-                success: false,
-                message: 'Authentication error'
-            });
+            return forbidden(res, ERROR_CODES.AUTH.UNAUTHORIZED, 'Authentication error');
         }
 
         // Map plan to Stripe price ID from environment variables
@@ -60,10 +56,8 @@ router.post('/create-checkout-session', authenticate, async(req, res) => {
         const priceId = priceIdMap[plan];
 
         if (!priceId) {
-            return res.status(500).json({
-                success: false,
-                message: `Stripe price ID not configured for plan: ${plan}`
-            });
+            return internalError(res, ERROR_CODES.BILLING.STRIPE_ERROR, 
+                `Stripe price ID not configured for plan: ${plan}`);
         }
 
         // Get public API URL for success/cancel redirects
@@ -99,11 +93,8 @@ router.post('/create-checkout-session', authenticate, async(req, res) => {
         });
     } catch (error) {
         console.error('Error creating checkout session:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to create checkout session',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        return internalError(res, ERROR_CODES.BILLING.CHECKOUT_FAILED, 
+            'Failed to create checkout session');
     }
 });
 

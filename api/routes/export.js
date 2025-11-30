@@ -3,6 +3,7 @@ const router = express.Router();
 const { query } = require('../config/database');
 const { authenticate } = require('../middleware/auth');
 const { entitlementMiddleware, requirePro } = require('../middleware/entitlement');
+const { notFound, badRequest, forbidden, unprocessableEntity, internalError, ERROR_CODES } = require('../utils/errorHandler');
 const cloudinary = require('cloudinary').v2;
 const sharp = require('sharp');
 const { Resvg } = require('@resvg/resvg-js');
@@ -41,7 +42,7 @@ router.get('/logo/:id/export', async(req, res) => {
     `, [id]);
 
         if (logoRes.rows.length === 0) {
-            return res.status(404).json({ success: false, message: 'Logo not found' });
+            return notFound(res, ERROR_CODES.LOGO.NOT_FOUND, 'Logo not found');
         }
 
         const logo = logoRes.rows[0];
@@ -281,10 +282,8 @@ router.get('/logo/:id/export', async(req, res) => {
 
         // Validate SVG before processing
         if (!svg || typeof svg !== 'string' || svg.trim().length === 0) {
-            return res.status(500).json({
-                success: false,
-                message: 'Failed to generate SVG from logo data'
-            });
+            return internalError(res, ERROR_CODES.EXPORT.EXPORT_FAILED,
+                'Failed to generate SVG from logo data');
         }
 
         // Log SVG before cleaning (first 500 chars)
@@ -324,16 +323,14 @@ router.get('/logo/:id/export', async(req, res) => {
         if (!startsWithXml && !startsWithSvg && !hasSvgTag) {
             console.error('SVG does not start with <svg tag or <?xml declaration');
             console.error('SVG first 500 chars:', trimmedSvg.substring(0, 500));
-            return res.status(500).json({
-                success: false,
-                message: 'Invalid SVG structure: SVG does not start correctly',
-                error: process.env.NODE_ENV === 'development' ? {
+            return internalError(res, ERROR_CODES.EXPORT.EXPORT_FAILED,
+                'Invalid SVG structure: SVG does not start correctly',
+                process.env.NODE_ENV === 'development' ? {
                     svgPreview: trimmedSvg.substring(0, 500),
                     startsWithXml,
                     startsWithSvg,
                     hasSvgTag
-                } : undefined
-            });
+                } : null);
         }
 
         // Check for unclosed tags or malformed XML
@@ -446,10 +443,9 @@ router.get('/logo/:id/export', async(req, res) => {
             } catch (cloudinaryError) {
                 console.error('Cloudinary conversion also failed:', cloudinaryError);
                 // Return proper JSON error instead of 500
-                return res.status(500).json({
-                    success: false,
-                    message: 'Failed to export logo: Both Resvg and Cloudinary conversion failed',
-                    error: process.env.NODE_ENV === 'development' ? {
+                return internalError(res, ERROR_CODES.EXPORT.EXPORT_FAILED,
+                    'Failed to export logo: Both Resvg and Cloudinary conversion failed',
+                    process.env.NODE_ENV === 'development' ? {
                         resvg: resvgError ? resvgError.message : 'Unknown error',
                         cloudinary: cloudinaryError.message || cloudinaryError.toString(),
                         svgLength: svg.length,
@@ -457,8 +453,7 @@ router.get('/logo/:id/export', async(req, res) => {
                     } : {
                         resvg: resvgError ? 'SVG parsing failed' : 'Unknown error',
                         cloudinary: 'Image conversion failed'
-                    }
-                });
+                    });
             }
         }
 
@@ -516,19 +511,15 @@ router.get('/logo/:id/export', async(req, res) => {
             });
         } catch (uploadError) {
             console.error('Error uploading to Cloudinary:', uploadError);
-            return res.status(500).json({
-                success: false,
-                message: 'Failed to upload logo to Cloudinary',
-                error: process.env.NODE_ENV === 'development' ? uploadError.message : undefined
-            });
+            return internalError(res, ERROR_CODES.EXPORT.UPLOAD_FAILED,
+                'Failed to upload logo to Cloudinary',
+                process.env.NODE_ENV === 'development' ? { error: uploadError.message } : null);
         }
     } catch (error) {
         console.error('Error exporting logo:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to export logo',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        return internalError(res, ERROR_CODES.EXPORT.EXPORT_FAILED,
+            'Failed to export logo',
+            process.env.NODE_ENV === 'development' ? { error: error.message } : null);
     }
 });
 
@@ -561,10 +552,9 @@ router.get('/logo/:id/export/layers-debug', async(req, res) => {
             }))
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+        return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR,
+            'Failed to fetch layer data',
+            process.env.NODE_ENV === 'development' ? { error: error.message } : null);
     }
 });
 
@@ -584,7 +574,7 @@ router.get('/logo/:id/export/debug', async(req, res) => {
         `, [id]);
 
         if (logoRes.rows.length === 0) {
-            return res.status(404).json({ success: false, message: 'Logo not found' });
+            return notFound(res, ERROR_CODES.LOGO.NOT_FOUND, 'Logo not found');
         }
 
         const logo = logoRes.rows[0];
@@ -665,10 +655,7 @@ router.get('/project/:id/export', authenticate, entitlementMiddleware, requirePr
         const userId = (req.user && req.user.id) || req.userId;
 
         if (!userId) {
-            return res.status(401).json({
-                success: false,
-                message: 'Authentication required'
-            });
+            return forbidden(res, ERROR_CODES.AUTH.UNAUTHORIZED, 'Authentication required');
         }
 
         // Fetch project from database
@@ -680,10 +667,7 @@ router.get('/project/:id/export', authenticate, entitlementMiddleware, requirePr
         );
 
         if (projectRes.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Project not found or access denied'
-            });
+            return notFound(res, ERROR_CODES.PROJECT.NOT_FOUND, 'Project not found or access denied');
         }
 
         const project = projectRes.rows[0];
@@ -765,10 +749,8 @@ router.get('/project/:id/export', authenticate, entitlementMiddleware, requirePr
         }
 
         if (!logoData || !layersData || layersData.length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid project structure. Project must contain canvas and layers data.'
-            });
+            return badRequest(res, ERROR_CODES.VALIDATION.INVALID_INPUT,
+                'Invalid project structure. Project must contain canvas and layers data.');
         }
 
         // Convert layers to the format expected by generateSVGFromLogo
@@ -836,10 +818,8 @@ router.get('/project/:id/export', authenticate, entitlementMiddleware, requirePr
 
         // Validate SVG before processing
         if (!svg || typeof svg !== 'string' || svg.trim().length === 0) {
-            return res.status(500).json({
-                success: false,
-                message: 'Failed to generate SVG from project data'
-            });
+            return internalError(res, ERROR_CODES.EXPORT.EXPORT_FAILED,
+                'Failed to generate SVG from project data');
         }
 
         // Clean the SVG
@@ -941,10 +921,9 @@ router.get('/project/:id/export', authenticate, entitlementMiddleware, requirePr
                 }
             } catch (cloudinaryError) {
                 console.error('Cloudinary conversion also failed:', cloudinaryError);
-                return res.status(500).json({
-                    success: false,
-                    message: 'Failed to export project: Both Resvg and Cloudinary conversion failed',
-                    error: process.env.NODE_ENV === 'development' ? {
+                return internalError(res, ERROR_CODES.EXPORT.EXPORT_FAILED,
+                    'Failed to export project: Both Resvg and Cloudinary conversion failed',
+                    process.env.NODE_ENV === 'development' ? {
                         resvg: resvgError ? resvgError.message : 'Unknown error',
                         cloudinary: cloudinaryError.message || cloudinaryError.toString(),
                         svgLength: svg.length,
@@ -952,8 +931,7 @@ router.get('/project/:id/export', authenticate, entitlementMiddleware, requirePr
                     } : {
                         resvg: resvgError ? 'SVG parsing failed' : 'Unknown error',
                         cloudinary: 'Image conversion failed'
-                    }
-                });
+                    });
             }
         }
 
@@ -1009,19 +987,15 @@ router.get('/project/:id/export', authenticate, entitlementMiddleware, requirePr
             });
         } catch (uploadError) {
             console.error('Error uploading to Cloudinary:', uploadError);
-            return res.status(500).json({
-                success: false,
-                message: 'Failed to upload project to Cloudinary',
-                error: process.env.NODE_ENV === 'development' ? uploadError.message : undefined
-            });
+            return internalError(res, ERROR_CODES.EXPORT.UPLOAD_FAILED,
+                'Failed to upload project to Cloudinary',
+                process.env.NODE_ENV === 'development' ? { error: uploadError.message } : null);
         }
     } catch (error) {
         console.error('Error exporting project:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to export project',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        return internalError(res, ERROR_CODES.EXPORT.EXPORT_FAILED,
+            'Failed to export project',
+            process.env.NODE_ENV === 'development' ? { error: error.message } : null);
     }
 });
 

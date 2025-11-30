@@ -1,8 +1,12 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { unauthorized, notFound, internalError, ERROR_CODES } = require('../utils/errorHandler');
 
 /**
  * Middleware to verify JWT token and attach user to request
+ * 
+ * IMPORTANT: This middleware returns 401 ONLY when the access token is expired/invalid
+ * and requires using the refresh token. This is the ONLY place 401 should be returned.
  */
 const authenticate = async (req, res, next) => {
   try {
@@ -10,20 +14,16 @@ const authenticate = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        success: false,
-        message: 'No token provided. Please include a Bearer token in the Authorization header.'
-      });
+      return unauthorized(res, ERROR_CODES.AUTH.TOKEN_MISSING, 
+        'No token provided. Please include a Bearer token in the Authorization header.');
     }
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
     if (!process.env.JWT_SECRET) {
       console.error('JWT_SECRET is not set in environment variables');
-      return res.status(500).json({
-        success: false,
-        message: 'Server configuration error'
-      });
+      return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR, 
+        'Server configuration error');
     }
 
     // Verify token
@@ -32,28 +32,21 @@ const authenticate = async (req, res, next) => {
     // Verify token type (must be access token)
     // If type is not set, it's an old token format - reject it for security
     if (decoded.type && decoded.type !== 'access') {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid token type. Access token required.'
-      });
+      return unauthorized(res, ERROR_CODES.AUTH.TOKEN_TYPE_INVALID, 
+        'Invalid token type. Access token required.');
     }
     
     // Reject tokens without type (old format) - they need to refresh
     if (!decoded.type) {
-      return res.status(401).json({
-        success: false,
-        message: 'Token format invalid. Please refresh your token.'
-      });
+      return unauthorized(res, ERROR_CODES.AUTH.TOKEN_INVALID, 
+        'Token format invalid. Please refresh your token.');
     }
     
     // Get user from database
     const user = await User.findById(decoded.userId);
     
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
+      return notFound(res, ERROR_CODES.USER.NOT_FOUND, 'User not found');
     }
 
     // Attach user to request object
@@ -63,24 +56,17 @@ const authenticate = async (req, res, next) => {
     next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid token'
-      });
+      return unauthorized(res, ERROR_CODES.AUTH.TOKEN_INVALID, 'Invalid token');
     }
     
     if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Token expired'
-      });
+      return unauthorized(res, ERROR_CODES.AUTH.TOKEN_EXPIRED, 
+        'Access token expired. Please refresh your token.');
     }
 
     console.error('Auth middleware error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Authentication error'
-    });
+    return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR, 
+      'Authentication error');
   }
 };
 

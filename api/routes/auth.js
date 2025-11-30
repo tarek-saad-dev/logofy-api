@@ -7,6 +7,7 @@ const { generateOTP, storeOTP, verifyOTP, getOTPWithMetadata, getOTPAttempts, ch
 const { sendLoginOTP, sendPasswordResetOTP, sendRegistrationOTP, isValidEmail, isValidGmail } = require('../services/emailService');
 const { query } = require('../config/database');
 const { getEntitlementForUser } = require('../services/entitlementService');
+const { badRequest, conflict, tooManyRequests, notFound, internalError, forbidden, ERROR_CODES } = require('../utils/errorHandler');
 
 /**
  * Generate short-lived access token for user (15 minutes to 1 hour)
@@ -249,44 +250,33 @@ router.post('/register', async(req, res) => {
 
         // Validation
         if (!email || !password || !name) {
-            return res.status(400).json({
-                success: false,
-                message: 'Name, email, and password are required'
-            });
+            return badRequest(res, ERROR_CODES.VALIDATION.MISSING_REQUIRED_FIELD, 
+                'Name, email, and password are required');
         }
 
         // Validate email format
         if (!isValidEmail(email)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid email format'
-            });
+            return badRequest(res, ERROR_CODES.USER.INVALID_EMAIL, 'Invalid email format');
         }
 
         // Password validation
         if (password.length < 6) {
-            return res.status(400).json({
-                success: false,
-                message: 'Password must be at least 6 characters long'
-            });
+            return badRequest(res, ERROR_CODES.USER.PASSWORD_TOO_WEAK, 
+                'Password must be at least 6 characters long');
         }
 
         // Check if user already exists
         const existingUser = await User.findByEmail(email);
         if (existingUser) {
-            return res.status(409).json({
-                success: false,
-                message: 'User with this email already exists'
-            });
+            return conflict(res, ERROR_CODES.USER.EMAIL_ALREADY_IN_USE, 
+                'User with this email already exists');
         }
 
         // Check rate limiting (max 5 OTP requests per hour)
         const attempts = await getOTPAttempts(email, 'register');
         if (attempts >= 5) {
-            return res.status(429).json({
-                success: false,
-                message: 'Too many registration attempts. Please try again later.'
-            });
+            return tooManyRequests(res, ERROR_CODES.AUTH.OTP_RATE_LIMIT, 
+                'Too many registration attempts. Please try again later.');
         }
 
         // Generate and store OTP with registration data in metadata
@@ -306,18 +296,12 @@ router.post('/register', async(req, res) => {
 
             // Check if it's a configuration error
             if (emailError.message && emailError.message.includes('not configured')) {
-                return res.status(500).json({
-                    success: false,
-                    message: 'Email service not configured. Please contact administrator.',
-                    error: process.env.NODE_ENV === 'development' ? emailError.message : undefined
-                });
+                return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR, 
+                    'Email service not configured. Please contact administrator.');
             }
 
-            return res.status(500).json({
-                success: false,
-                message: 'Failed to send verification code. Please try again later.',
-                error: process.env.NODE_ENV === 'development' ? emailError.message : undefined
-            });
+            return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR, 
+                'Failed to send verification code. Please try again later.');
         }
 
         res.json({
@@ -326,11 +310,8 @@ router.post('/register', async(req, res) => {
         });
     } catch (error) {
         console.error('Error registering user:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to send verification code',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR, 
+            'Failed to send verification code');
     }
 });
 
@@ -345,45 +326,34 @@ router.post('/register/verify-otp', async(req, res) => {
 
         // Validation
         if (!email || !code) {
-            return res.status(400).json({
-                success: false,
-                message: 'Email and verification code are required'
-            });
+            return badRequest(res, ERROR_CODES.VALIDATION.MISSING_REQUIRED_FIELD, 
+                'Email and verification code are required');
         }
 
         // Validate email format
         if (!isValidEmail(email)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid email format'
-            });
+            return badRequest(res, ERROR_CODES.USER.INVALID_EMAIL, 'Invalid email format');
         }
 
         // Validate OTP format
         if (!/^\d{6}$/.test(code)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid verification code format. Code must be 6 digits.'
-            });
+            return badRequest(res, ERROR_CODES.VALIDATION.INVALID_FORMAT, 
+                'Invalid verification code format. Code must be 6 digits.');
         }
 
         // Get OTP with metadata (before deletion)
         const otpRecord = await getOTPWithMetadata(email, code, 'register');
 
         if (!otpRecord) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid or expired verification code'
-            });
+            return badRequest(res, ERROR_CODES.AUTH.OTP_INVALID, 
+                'Invalid or expired verification code');
         }
 
         // Extract registration data from metadata
         const registrationData = otpRecord.metadata;
         if (!registrationData || !registrationData.name || !registrationData.email || !registrationData.password) {
-            return res.status(400).json({
-                success: false,
-                message: 'Registration data not found. Please start the registration process again.'
-            });
+            return badRequest(res, ERROR_CODES.VALIDATION.INVALID_INPUT, 
+                'Registration data not found. Please start the registration process again.');
         }
 
         const { name, password } = registrationData;
@@ -391,19 +361,15 @@ router.post('/register/verify-otp', async(req, res) => {
         // Verify OTP (this will delete it)
         const isValid = await verifyOTP(email, code, 'register');
         if (!isValid) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid or expired verification code'
-            });
+            return badRequest(res, ERROR_CODES.AUTH.OTP_INVALID, 
+                'Invalid or expired verification code');
         }
 
         // Check if user already exists (double check)
         const existingUser = await User.findByEmail(email);
         if (existingUser) {
-            return res.status(409).json({
-                success: false,
-                message: 'User with this email already exists'
-            });
+            return conflict(res, ERROR_CODES.USER.EMAIL_ALREADY_IN_USE, 
+                'User with this email already exists');
         }
 
         // Create new user
@@ -432,11 +398,8 @@ router.post('/register/verify-otp', async(req, res) => {
         });
     } catch (error) {
         console.error('Error verifying registration OTP:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to complete registration',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR, 
+            'Failed to complete registration');
     }
 });
 
@@ -467,19 +430,15 @@ router.post('/login', async(req, res) => {
         // Find user
         const user = await User.findByEmail(email);
         if (!user) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid email or password'
-            });
+            return badRequest(res, ERROR_CODES.AUTH.INVALID_CREDENTIALS, 
+                'Invalid email or password');
         }
 
         // Verify password
         const isPasswordValid = await user.verifyPassword(password);
         if (!isPasswordValid) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid email or password'
-            });
+            return badRequest(res, ERROR_CODES.AUTH.INVALID_CREDENTIALS, 
+                'Invalid email or password');
         }
 
         // Generate token pair
@@ -500,11 +459,7 @@ router.post('/login', async(req, res) => {
         });
     } catch (error) {
         console.error('Error logging in:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to login',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR, 'Failed to login');
     }
 });
 
@@ -564,18 +519,12 @@ router.post('/login/request-otp', async(req, res) => {
 
             // Check if it's a configuration error
             if (emailError.message && emailError.message.includes('not configured')) {
-                return res.status(500).json({
-                    success: false,
-                    message: 'Email service not configured. Please contact administrator.',
-                    error: process.env.NODE_ENV === 'development' ? emailError.message : undefined
-                });
+                return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR, 
+                    'Email service not configured. Please contact administrator.');
             }
 
-            return res.status(500).json({
-                success: false,
-                message: 'Failed to send verification code. Please try again later.',
-                error: process.env.NODE_ENV === 'development' ? emailError.message : undefined
-            });
+            return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR, 
+                'Failed to send verification code. Please try again later.');
         }
 
         res.json({
@@ -584,11 +533,8 @@ router.post('/login/request-otp', async(req, res) => {
         });
     } catch (error) {
         console.error('Error requesting login OTP:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to send verification code',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR, 
+            'Failed to send verification code');
     }
 });
 
@@ -628,19 +574,14 @@ router.post('/login/verify-otp', async(req, res) => {
         const isValid = await verifyOTP(email, code, 'login');
 
         if (!isValid) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid or expired verification code'
-            });
+            return badRequest(res, ERROR_CODES.AUTH.OTP_INVALID, 
+                'Invalid or expired verification code');
         }
 
         // Find user
         const user = await User.findByEmail(email);
         if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
-            });
+            return notFound(res, ERROR_CODES.USER.NOT_FOUND, 'User not found');
         }
 
         // Generate token pair
@@ -661,11 +602,7 @@ router.post('/login/verify-otp', async(req, res) => {
         });
     } catch (error) {
         console.error('Error verifying login OTP:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to verify code',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR, 'Failed to verify code');
     }
 });
 
@@ -680,10 +617,7 @@ router.get('/me', authenticate, async(req, res) => {
         const userWithStatus = await getUserWithSubscriptionStatus(req.user.id);
 
         if (!userWithStatus) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
-            });
+            return notFound(res, ERROR_CODES.USER.NOT_FOUND, 'User not found');
         }
 
         res.json({
@@ -694,11 +628,8 @@ router.get('/me', authenticate, async(req, res) => {
         });
     } catch (error) {
         console.error('Error fetching current user:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch user information',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR, 
+            'Failed to fetch user information');
     }
 });
 
@@ -714,20 +645,16 @@ router.post('/refresh', async(req, res) => {
 
         // Validation
         if (!refresh_token) {
-            return res.status(400).json({
-                success: false,
-                message: 'Refresh token is required'
-            });
+            return badRequest(res, ERROR_CODES.VALIDATION.MISSING_REQUIRED_FIELD, 
+                'Refresh token is required');
         }
 
         // Verify refresh token from database
         const tokenRecord = await verifyRefreshToken(refresh_token);
 
         if (!tokenRecord) {
-            return res.status(401).json({
-                success: false,
-                message: 'Invalid or expired refresh token'
-            });
+            return badRequest(res, ERROR_CODES.AUTH.REFRESH_TOKEN_INVALID, 
+                'Invalid or expired refresh token');
         }
 
         // Revoke the old refresh token (token rotation for security)
@@ -746,11 +673,7 @@ router.post('/refresh', async(req, res) => {
         });
     } catch (error) {
         console.error('Error refreshing token:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to refresh token',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR, 'Failed to refresh token');
     }
 });
 
@@ -809,18 +732,12 @@ router.post('/reset-password/request-otp', async(req, res) => {
 
             // Check if it's a configuration error
             if (emailError.message && emailError.message.includes('not configured')) {
-                return res.status(500).json({
-                    success: false,
-                    message: 'Email service not configured. Please contact administrator.',
-                    error: process.env.NODE_ENV === 'development' ? emailError.message : undefined
-                });
+                return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR, 
+                    'Email service not configured. Please contact administrator.');
             }
 
-            return res.status(500).json({
-                success: false,
-                message: 'Failed to send verification code. Please try again later.',
-                error: process.env.NODE_ENV === 'development' ? emailError.message : undefined
-            });
+            return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR, 
+                'Failed to send verification code. Please try again later.');
         }
 
         res.json({
@@ -829,11 +746,8 @@ router.post('/reset-password/request-otp', async(req, res) => {
         });
     } catch (error) {
         console.error('Error requesting password reset OTP:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to send password reset code',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR, 
+            'Failed to send password reset code');
     }
 });
 
@@ -900,11 +814,8 @@ router.post('/verify-reset-code', async(req, res) => {
         });
     } catch (error) {
         console.error('Error verifying reset code:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to verify reset code',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR, 
+            'Failed to verify reset code');
     }
 });
 
@@ -941,26 +852,20 @@ router.post('/reset-password', async(req, res) => {
             decoded = jwt.verify(token, process.env.JWT_SECRET);
         } catch (tokenError) {
             if (tokenError.name === 'TokenExpiredError') {
-                return res.status(401).json({
-                    success: false,
-                    message: 'Reset token has expired. Please verify your code again.'
-                });
+                return badRequest(res, ERROR_CODES.AUTH.OTP_EXPIRED, 
+                    'Reset token has expired. Please verify your code again.');
             }
             if (tokenError.name === 'JsonWebTokenError') {
-                return res.status(401).json({
-                    success: false,
-                    message: 'Invalid reset token'
-                });
+                return badRequest(res, ERROR_CODES.VALIDATION.INVALID_INPUT, 
+                    'Invalid reset token');
             }
             throw tokenError;
         }
 
         // Verify token type
         if (decoded.type !== 'password_reset') {
-            return res.status(401).json({
-                success: false,
-                message: 'Invalid token type'
-            });
+            return badRequest(res, ERROR_CODES.VALIDATION.INVALID_INPUT, 
+                'Invalid token type');
         }
 
         const email = decoded.email;
@@ -968,10 +873,7 @@ router.post('/reset-password', async(req, res) => {
         // Find user
         const user = await User.findByEmail(email);
         if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
-            });
+            return notFound(res, ERROR_CODES.USER.NOT_FOUND, 'User not found');
         }
 
         // Verify that a valid OTP still exists for this email (to ensure it wasn't already used)
@@ -984,10 +886,8 @@ router.post('/reset-password', async(req, res) => {
         );
 
         if (otpCheck.rows.length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'Reset code has already been used or expired. Please request a new code.'
-            });
+            return badRequest(res, ERROR_CODES.AUTH.OTP_EXPIRED, 
+                'Reset code has already been used or expired. Please request a new code.');
         }
 
         // Delete all OTPs for this email and type (consume the OTP)
@@ -1004,11 +904,8 @@ router.post('/reset-password', async(req, res) => {
         });
     } catch (error) {
         console.error('Error resetting password:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to reset password',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR, 
+            'Failed to reset password');
     }
 });
 
@@ -1081,11 +978,8 @@ router.post('/reset-password/verify-otp', async(req, res) => {
         });
     } catch (error) {
         console.error('Error resetting password:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to reset password',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR, 
+            'Failed to reset password');
     }
 });
 
@@ -1115,10 +1009,8 @@ router.post('/change-password', authenticate, async(req, res) => {
         const isPasswordValid = await req.user.verifyPassword(currentPassword);
 
         if (!isPasswordValid) {
-            return res.status(400).json({
-                success: false,
-                message: 'Current password is incorrect'
-            });
+            return badRequest(res, ERROR_CODES.AUTH.INVALID_CREDENTIALS, 
+                'Current password is incorrect');
         }
 
         // Update password
@@ -1130,10 +1022,8 @@ router.post('/change-password', authenticate, async(req, res) => {
         });
     } catch (error) {
         console.error('Error changing password:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to change password'
-        });
+        return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR, 
+            'Failed to change password');
     }
 });
 
@@ -1186,11 +1076,7 @@ router.post('/logout', authenticate, async(req, res) => {
         });
     } catch (error) {
         console.error('Error logging out:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to logout',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        return internalError(res, ERROR_CODES.GENERAL.INTERNAL_ERROR, 'Failed to logout');
     }
 });
 
