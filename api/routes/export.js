@@ -1524,18 +1524,19 @@ async function generateTextSVG(layer, transformParams, style, defs, canvasWidth,
     // NOTE: Include normalizedScale in dimension calculation since scale is baked into font-size
     const baseLetterSpacing = text.letter_spacing !== undefined ? text.letter_spacing : (text.letterSpacing !== undefined ? text.letterSpacing : 0);
     const scaledLetterSpacingForDims = baseLetterSpacing !== undefined && baseLetterSpacing !== null && !isNaN(baseLetterSpacing) ?
-        baseLetterSpacing * normalizedScale * (canvasRefSize / baseCanvasSize) : 0;
+        baseLetterSpacing * validNormalizedScale * (canvasRefSize / baseCanvasSize) : 0;
     const lineHeight = text.line_height !== undefined ? text.line_height : 1.2;
     const estimatedTextWidth = textContent.length * (actualFontSize * 0.6) + (textContent.length - 1) * scaledLetterSpacingForDims;
     const estimatedTextHeight = actualFontSize * lineHeight;
 
     // Build unified transform with text dimensions
-    // For TEXT layers, scale is baked into font-size for sizing, but we still need to apply
-    // the scale in the transform to match editor behavior (especially for flips and positioning)
-    // The actual scale value from transformParams should be used
+    // For TEXT layers, scale is already baked into font-size, so we should NOT apply scale again in transform
+    // This prevents double-scaling which makes text invisible (e.g., 6.84px * 0.1267 ≈ 0.86px)
+    // We still need to handle position, rotation, and flips, but scale should be 1
+    // Flips will work correctly as scale(-1, 1) or scale(1, -1) when scale=1
     const unifiedTransform = buildUnifiedTransform({
         ...transformParams,
-        scale: normalizedScale, // Use the actual normalized scale value
+        scale: 1, // Scale is baked into font-size, so use 1 here to avoid double-scaling
         elementWidth: estimatedTextWidth,
         elementHeight: estimatedTextHeight
     });
@@ -1626,7 +1627,7 @@ async function generateTextSVG(layer, transformParams, style, defs, canvasWidth,
     // For TEXT layers, scale is baked into font-size, so we bake it into letter-spacing too
     // Reuse baseLetterSpacing from dimension calculation above
     const scaledLetterSpacing = baseLetterSpacing !== undefined && baseLetterSpacing !== null && !isNaN(baseLetterSpacing) ?
-        baseLetterSpacing * normalizedScale * (canvasRefSize / baseCanvasSize) :
+        baseLetterSpacing * validNormalizedScale * (canvasRefSize / baseCanvasSize) :
         0;
     if (scaledLetterSpacing !== 0) {
         textStyle += `letter-spacing: ${scaledLetterSpacing}px;`;
