@@ -197,7 +197,9 @@ router.get('/logo/:id/export', async(req, res) => {
                             letter_spacing: row.letter_spacing !== undefined ? row.letter_spacing : (row.letterSpacing !== undefined ? row.letterSpacing : 0),
                             text_decoration: row.text_decoration || row.textDecoration,
                             text_transform: row.text_transform || row.textTransform,
-                            text_case: row.text_case || row.textCase
+                            text_case: row.text_case || row.textCase,
+                            underline: row.underline, // Add underline field from database
+                            underline_direction: row.underline_direction
                         }
                     };
                 case 'SHAPE':
@@ -299,6 +301,39 @@ router.get('/logo/:id/export', async(req, res) => {
         console.log('SVG after cleanSVGAttributes (first 500 chars):', svg.substring(0, 500));
         console.log('SVG after cleanSVGAttributes - starts with:', svg.substring(0, 100));
         console.log('SVG after cleanSVGAttributes - length:', svg.length);
+
+        // Validate font-family strings in the SVG to catch any issues early
+        const fontFamilyMatches = svg.match(/font-family:\s*([^;]+)/g);
+        if (fontFamilyMatches) {
+            fontFamilyMatches.forEach((match, idx) => {
+                // Check for problematic patterns: nested double quotes
+                if (match.includes('"') && match.includes('style=')) {
+                    console.warn(`Potential font-family issue at match ${idx + 1}: ${match.substring(0, 100)}`);
+                }
+            });
+        }
+
+        // DEBUG: For specific logo, dump final SVG to temp file
+        if (id === 'b1ebda84-b153-4e49-ab2a-4e5f91369ff5') {
+            try {
+                const tempDir = path.join(__dirname, '../../temp');
+                await fs.mkdir(tempDir, { recursive: true });
+                const svgPath = path.join(tempDir, `logo-${id}-final.svg`);
+                await fs.writeFile(svgPath, svg, 'utf8');
+                console.log(`DEBUG: Final SVG dumped to ${svgPath}`);
+
+                // Also count text elements
+                const textMatches = svg.match(/<text[^>]*>/g);
+                console.log(`DEBUG: Found ${textMatches ? textMatches.length : 0} <text> elements in final SVG`);
+                if (textMatches) {
+                    textMatches.forEach((match, idx) => {
+                        console.log(`DEBUG: Text element ${idx + 1}: ${match.substring(0, 200)}`);
+                    });
+                }
+            } catch (debugError) {
+                console.warn('DEBUG: Failed to dump SVG:', debugError.message);
+            }
+        }
 
         // Additional SVG validation: Check for common issues that cause resvg parsing errors
         // Check for extremely long data URLs or malformed content
@@ -1444,14 +1479,16 @@ async function generateTextSVG(layer, transformParams, style, defs, canvasWidth,
     // The font_size in the database is the base size, which needs to be scaled based on canvas size
     const baseFontSize = parseFloat(text.font_size || text.fontSize || 16);
 
-    // Calculate actual font size based on canvas size and normalized scale
-    // The editor scales text relative to canvas size, so we need to match that
-    // Formula: actualFontSize = baseFontSize * (canvasRefSize / baseCanvasSize) * normalizedScale
+    // Calculate actual font size based on canvas size and scale
+    // For TEXT layers, the editor bakes the scaleFactor into the font-size directly
+    // rather than applying it via transform, so we do the same to match editor behavior
+    // Formula: actualFontSize = baseFontSize * normalizedScale * (canvasRefSize / baseCanvasSize)
     // Where baseCanvasSize is typically 1000 (the reference canvas size)
     const baseCanvasSize = 1000; // Reference canvas size used by editor
     const canvasRefSize = Math.max(canvasWidth, canvasHeight);
     const normalizedScale = transformParams.scale || 1;
-    const actualFontSize = baseFontSize * (canvasRefSize / baseCanvasSize) * normalizedScale;
+    // Bake scale into font-size for TEXT layers to match editor preview
+    const actualFontSize = baseFontSize * normalizedScale * (canvasRefSize / baseCanvasSize);
 
     console.log(`generateTextSVG: Font size calculation:`, {
         baseFontSize: baseFontSize,
@@ -1464,16 +1501,37 @@ async function generateTextSVG(layer, transformParams, style, defs, canvasWidth,
     // Calculate text dimensions for anchor calculation
     // Estimate text width and height (approximate, but better than nothing)
     // This is a rough estimate - for precise measurement, we'd need font metrics
-    const letterSpacing = text.letter_spacing !== undefined ? text.letter_spacing : 0;
+    // NOTE: Include normalizedScale in dimension calculation since scale is baked into font-size
+    const baseLetterSpacing = text.letter_spacing !== undefined ? text.letter_spacing : (text.letterSpacing !== undefined ? text.letterSpacing : 0);
+    const scaledLetterSpacingForDims = baseLetterSpacing !== undefined && baseLetterSpacing !== null && !isNaN(baseLetterSpacing) ?
+        baseLetterSpacing * normalizedScale * (canvasRefSize / baseCanvasSize) : 0;
     const lineHeight = text.line_height !== undefined ? text.line_height : 1.2;
-    const estimatedTextWidth = textContent.length * (actualFontSize * 0.6) + (textContent.length - 1) * letterSpacing;
+    const estimatedTextWidth = textContent.length * (actualFontSize * 0.6) + (textContent.length - 1) * scaledLetterSpacingForDims;
     const estimatedTextHeight = actualFontSize * lineHeight;
 
     // Build unified transform with text dimensions
+    // For TEXT layers, set scale to 1 since scale is already baked into font-size
+    // This ensures the exported PNG matches the editor preview
     const unifiedTransform = buildUnifiedTransform({
         ...transformParams,
+        scale: 1, // Scale is baked into font-size, so use 1 here
         elementWidth: estimatedTextWidth,
         elementHeight: estimatedTextHeight
+    });
+
+    // Log transform for debugging (especially for the problematic logo)
+    console.log(`generateTextSVG: Layer ${layer.id} transform:`, {
+        x_norm: transformParams.x_norm,
+        y_norm: transformParams.y_norm,
+        scale: transformParams.scale,
+        rotation_deg: transformParams.rotation_deg,
+        anchor_x: transformParams.anchor_x,
+        anchor_y: transformParams.anchor_y,
+        elementWidth: estimatedTextWidth,
+        elementHeight: estimatedTextHeight,
+        canvasWidth: canvasWidth,
+        canvasHeight: canvasHeight,
+        unifiedTransform: unifiedTransform
     });
 
     // Ensure font size is valid
@@ -1493,11 +1551,44 @@ async function generateTextSVG(layer, transformParams, style, defs, canvasWidth,
     // Support both snake_case and camelCase for fill_alpha
     const fillAlpha = clampAlpha(text.fill_alpha !== undefined ? text.fill_alpha : (text.fillAlpha !== undefined ? text.fillAlpha : 1));
 
-    // Build style without nested quotes - font-family should NOT have quotes inside style attribute
-    // Escape any special characters in font name, but don't add quotes
+    // Sanitize font name - remove problematic characters but preserve the name
     const safeFontFamily = fontFamilyName.replace(/[;:]/g, ' ').trim() || 'Arial';
-    let textStyle = `font-size: ${validFontSize}px; font-family: ${safeFontFamily}, sans-serif;`;
+
+    // Build font-family with proper fallbacks for Arabic and other fonts
+    // For Arabic fonts, add Arabic font fallbacks; for others, add generic fallbacks
+    // Always include safe renderer-safe defaults to ensure text renders even if primary font fails
+    const isArabicFont = /arabic|naskh|ruqaa|farsan|noto.*arabic/i.test(safeFontFamily);
+
+    // Use the safe font-family builder to create a properly formatted CSS string
+    let fallbackFonts = [];
+    if (isArabicFont) {
+        // Add Arabic font fallbacks with safe renderer-safe defaults
+        fallbackFonts = ['Noto Sans Arabic', 'Arial Unicode MS', 'Tahoma', 'sans-serif'];
+    } else {
+        // Standard fallbacks - always include safe defaults for better compatibility
+        // Use renderer-safe fonts that are widely available
+        fallbackFonts = ['Arial', 'Helvetica', 'sans-serif'];
+    }
+
+    // Build safe font-family string using the helper function
+    // This ensures proper quoting (single quotes for names with spaces, inside double-quoted style)
+    let fontFamilyString = buildFontFamilyString(safeFontFamily, fallbackFonts);
+
+    // Validate the generated font-family string
+    if (!validateFontFamilyString(fontFamilyString)) {
+        console.warn(`generateTextSVG: Invalid font-family string generated for layer ${layer.id}, using fallback`);
+        // Use a safe fallback
+        fontFamilyString = buildFontFamilyString('Arial', ['sans-serif']);
+    }
+
+    let textStyle = `font-size: ${validFontSize}px; font-family: ${fontFamilyString};`;
     textStyle += `fill: ${fillColor}; fill-opacity: ${fillAlpha};`;
+
+    // CRITICAL: Ensure fill is never 'none' or transparent for text
+    if (!fillColor || fillColor === 'none' || fillColor === 'transparent') {
+        textStyle = textStyle.replace(/fill:[^;]+;?/g, '');
+        textStyle += `fill: #000000;`; // Fallback to black if invalid
+    }
 
     // Handle font weight - support both font_weight and fontWeight
     const fontWeight = text.font_weight || text.fontWeight;
@@ -1510,20 +1601,31 @@ async function generateTextSVG(layer, transformParams, style, defs, canvasWidth,
         textStyle += `font-style: ${fontStyle};`;
     }
     // Support both snake_case and camelCase for letter_spacing
-    // Letter spacing needs to be scaled too
-    const baseLetterSpacing = text.letter_spacing !== undefined ? text.letter_spacing : text.letterSpacing;
+    // Letter spacing needs to be scaled based on canvas size and normalizedScale
+    // For TEXT layers, scale is baked into font-size, so we bake it into letter-spacing too
+    // Reuse baseLetterSpacing from dimension calculation above
     const scaledLetterSpacing = baseLetterSpacing !== undefined && baseLetterSpacing !== null && !isNaN(baseLetterSpacing) ?
-        baseLetterSpacing * (canvasRefSize / baseCanvasSize) * normalizedScale :
+        baseLetterSpacing * normalizedScale * (canvasRefSize / baseCanvasSize) :
         0;
     if (scaledLetterSpacing !== 0) {
         textStyle += `letter-spacing: ${scaledLetterSpacing}px;`;
     }
     // Support both snake_case and camelCase for text_decoration
+    // Also check the underline field directly (boolean or string)
     const textDecoration = text.text_decoration || text.textDecoration;
-    if (textDecoration === 'underline') {
+    const underline = text.underline;
+
+    // Handle text-decoration: can be 'underline', 'overline', 'line-through', or combination
+    if (textDecoration) {
+        if (textDecoration === 'underline' || textDecoration === 'overline' || textDecoration === 'line-through') {
+            textStyle += `text-decoration: ${textDecoration};`;
+        } else if (textDecoration.includes('underline') || textDecoration.includes('overline') || textDecoration.includes('line-through')) {
+            // Handle combinations like "underline overline"
+            textStyle += `text-decoration: ${textDecoration};`;
+        }
+    } else if (underline === true || underline === 'true' || underline === 'underline') {
+        // Fallback: if underline field is set but text_decoration is not
         textStyle += `text-decoration: underline;`;
-    } else if (textDecoration === 'line-through') {
-        textStyle += `text-decoration: line-through;`;
     }
 
     // Support both snake_case and camelCase for stroke
@@ -1532,8 +1634,9 @@ async function generateTextSVG(layer, transformParams, style, defs, canvasWidth,
     if (strokeHex && strokeWidth && !isNaN(strokeWidth)) {
         const strokeColor = validateHexColor(strokeHex);
         const strokeAlpha = clampAlpha((text.stroke_alpha !== undefined ? text.stroke_alpha : text.strokeAlpha) || 1);
-        // Scale stroke width too
-        const scaledStrokeWidth = strokeWidth * (canvasRefSize / baseCanvasSize) * normalizedScale;
+        // Scale stroke width based on canvas size and normalizedScale
+        // For TEXT layers, scale is baked into font-size, so we bake it into stroke-width too
+        const scaledStrokeWidth = strokeWidth * normalizedScale * (canvasRefSize / baseCanvasSize);
         textStyle += `stroke: ${strokeColor}; stroke-width: ${scaledStrokeWidth}; stroke-opacity: ${strokeAlpha};`;
     }
 
@@ -1553,9 +1656,22 @@ async function generateTextSVG(layer, transformParams, style, defs, canvasWidth,
         finalTextContent = finalTextContent.replace(/\b\w/g, l => l.toUpperCase());
     }
 
+    // Detect Arabic text and set direction attribute for proper RTL rendering
+    // Check if text contains Arabic characters (Unicode range: \u0600-\u06FF)
+    // Use finalTextContent after transforms are applied
+    const hasArabicChars = /[\u0600-\u06FF]/.test(finalTextContent);
+    const textDirection = hasArabicChars ? 'rtl' : 'ltr';
+
     // All attributes must be on the same line to avoid parsing errors
     // Text is positioned at origin (0,0) and the transform handles positioning
-    return `<text x="0" y="0" text-anchor="${textAnchor}" dominant-baseline="${dominantBaseline}" transform="${unifiedTransform}" style="${textStyle} ${style}">${escapeXml(finalTextContent)}</text>`;
+    // CRITICAL FIX: Wrap text in <g> tag with transform, similar to SHAPE/IMAGE layers
+    // This ensures consistent transform handling and prevents issues with resvg
+    // Add direction attribute for RTL text (Arabic)
+    const textElement = `<text x="0" y="0" text-anchor="${textAnchor}" dominant-baseline="${dominantBaseline}" direction="${textDirection}" style="${textStyle} ${style}">${escapeXml(finalTextContent)}</text>`;
+
+    // Wrap in <g> with transform for consistency with other layer types
+    // This also helps resvg properly apply transforms
+    return `<g transform="${unifiedTransform}">${textElement}</g>`;
 }
 
 async function generateShapeSVG(layer, transformParams, style, defs, canvasWidth, canvasHeight) {
@@ -2369,6 +2485,119 @@ function escapeCssString(str) {
     return `"${str}"`;
 }
 
+/**
+ * Builds a safe CSS font-family string for use inside SVG style attributes
+ * 
+ * Rules:
+ * - Font names with spaces or special chars are wrapped in single quotes (not double)
+ * - Single quotes are used because the style attribute itself is double-quoted
+ * - Commas are followed by spaces
+ * - Generic families (sans-serif, serif, monospace) are never quoted
+ * - Ensures no invalid XML characters that would break SVG parsing
+ * 
+ * @param {string|string[]} fonts - Font name(s) or array of font names
+ * @param {string[]} fallbacks - Optional array of fallback fonts
+ * @returns {string} Safe CSS font-family string
+ * 
+ * @example
+ * buildFontFamilyString('Noto Naskh Arabic', ['Arial Unicode MS', 'Tahoma', 'sans-serif'])
+ * // Returns: 'Noto Naskh Arabic', 'Arial Unicode MS', Tahoma, sans-serif
+ */
+function buildFontFamilyString(fonts, fallbacks = []) {
+    const genericFamilies = ['sans-serif', 'serif', 'monospace', 'cursive', 'fantasy'];
+
+    // Normalize input to array
+    const fontArray = Array.isArray(fonts) ? fonts : [fonts];
+
+    // Combine fonts and fallbacks, filter out invalid entries
+    const allFonts = [...fontArray, ...fallbacks]
+        .filter(f => f && typeof f === 'string' && f.trim().length > 0)
+        .map(f => f.trim());
+
+    if (allFonts.length === 0) {
+        return 'sans-serif';
+    }
+
+    // Process each font name
+    const processedFonts = allFonts.map(font => {
+        // Remove any existing quotes to avoid double-quoting
+        let trimmed = font.replace(/^["']|["']$/g, '').trim();
+
+        // Remove any characters that could break XML/SVG parsing
+        // Keep alphanumeric, spaces, hyphens, and common punctuation
+        trimmed = trimmed.replace(/[<>]/g, ''); // Remove XML-breaking chars
+
+        if (trimmed.length === 0) {
+            return null; // Skip empty fonts after cleaning
+        }
+
+        // Generic families are never quoted
+        if (genericFamilies.includes(trimmed.toLowerCase())) {
+            return trimmed;
+        }
+
+        // Font names with spaces, commas, parentheses, or quotes need single quotes
+        // Single quotes because they'll be inside a double-quoted style attribute
+        if (/[\s,()]/.test(trimmed) || trimmed.includes("'") || trimmed.includes('"')) {
+            // Escape single quotes by doubling them (CSS escaping: ' becomes '')
+            const escaped = trimmed.replace(/'/g, "''");
+            return `'${escaped}'`;
+        }
+
+        // Simple font names without spaces don't need quotes
+        return trimmed;
+    }).filter(f => f !== null); // Remove any null entries
+
+    if (processedFonts.length === 0) {
+        return 'sans-serif'; // Fallback if all fonts were invalid
+    }
+
+    // Join with comma-space and ensure no double spaces
+    const result = processedFonts.join(', ').replace(/\s+/g, ' ').trim();
+
+    // Final validation: ensure no double quotes (which would break XML)
+    if (result.includes('"')) {
+        console.warn('buildFontFamilyString: Warning - double quotes detected in result, replacing with single quotes');
+        return result.replace(/"/g, "'");
+    }
+
+    return result;
+}
+
+/**
+ * Validates that a font-family string is safe for use in SVG style attributes
+ * Checks for common issues that would break XML/SVG parsing
+ * 
+ * @param {string} fontFamilyString - The font-family CSS string to validate
+ * @returns {boolean} True if valid, false otherwise
+ */
+function validateFontFamilyString(fontFamilyString) {
+    if (!fontFamilyString || typeof fontFamilyString !== 'string') {
+        return false;
+    }
+
+    // Check for double quotes (should use single quotes inside double-quoted style)
+    if (fontFamilyString.includes('"')) {
+        console.warn('validateFontFamilyString: Double quotes found in font-family string');
+        return false;
+    }
+
+    // Check for unclosed quotes
+    const singleQuotes = (fontFamilyString.match(/'/g) || []).length;
+    if (singleQuotes % 2 !== 0) {
+        console.warn('validateFontFamilyString: Unclosed single quotes in font-family string');
+        return false;
+    }
+
+    // Check for XML-breaking characters
+    if (/[<>]/.test(fontFamilyString)) {
+        console.warn('validateFontFamilyString: XML-breaking characters found');
+        return false;
+    }
+
+    return true;
+}
+
 // Helper function to validate hex colors
 function validateHexColor(hex) {
     if (!hex || typeof hex !== 'string') return '#000000';
@@ -2510,20 +2739,27 @@ function cleanSVGAttributes(svg) {
 
     cleaned = result.join('\n');
 
-    // Step 5: Fix nested quotes in style attributes (e.g., font-family:"Arial" should be font-family: Arial)
-    // This is critical - nested quotes break SVG parsing
+    // Step 5: Fix nested quotes in style attributes
+    // NOTE: New code uses buildFontFamilyString() which generates correct single quotes
+    // This step is kept for backward compatibility with legacy SVGs or edge cases
     cleaned = cleaned.replace(/style="([^"]*?)"/g, (match, content) => {
-        // Remove ALL nested quotes from font-family values (both double and single)
-        let fixed = content.replace(/font-family:\s*["']([^"']+)["']\s*,/g, 'font-family: $1,');
-        fixed = fixed.replace(/font-family:\s*"([^"]+)"\s*,/g, 'font-family: $1,');
-        fixed = fixed.replace(/font-family:\s*'([^']+)'\s*,/g, "font-family: $1,");
-        // Also fix any other nested quotes in the style
-        fixed = fixed.replace(/:\s*"([^"]+)"\s*;/g, ': $1;');
-        fixed = fixed.replace(/:\s*'([^']+)'\s*;/g, ": $1;");
+        let fixed = content;
+
+        // Fix double quotes inside font-family (legacy issue)
+        // Pattern: font-family: "Font Name" -> font-family: 'Font Name'
+        fixed = fixed.replace(/font-family:\s*"([^"]+)"\s*,/g, "font-family: '$1',");
+
+        // Ensure single quotes are properly escaped if they appear in font names
+        // CSS escaping: single quote in single-quoted string is doubled ('')
+        // But we don't want to break valid CSS, so only fix obvious issues
+
         // Remove any newlines
         fixed = fixed.replace(/[\r\n]+/g, ' ');
-        // Clean up multiple spaces
+        // Clean up multiple spaces but preserve single spaces
         fixed = fixed.replace(/\s+/g, ' ').trim();
+        // Ensure semicolons are followed by spaces (if not already)
+        fixed = fixed.replace(/;([^\s])/g, '; $1');
+
         return `style="${fixed}"`;
     });
 
@@ -2537,13 +2773,29 @@ function cleanSVGAttributes(svg) {
     cleaned = cleaned.replace(/\s+/g, ' ');
     cleaned = cleaned.replace(/>\s+</g, '><');
 
+    // Safety check: Verify that text elements are preserved
+    // Count <text> elements before and after (rough check)
+    const textElementsBefore = (svgContent.match(/<text[^>]*>/gi) || []).length;
+    const textElementsAfter = (cleaned.match(/<text[^>]*>/gi) || []).length;
+    if (textElementsBefore > 0 && textElementsAfter !== textElementsBefore) {
+        console.warn(`cleanSVGAttributes: Text element count changed! Before: ${textElementsBefore}, After: ${textElementsAfter}`);
+    }
+
     // Reconstruct the SVG with preserved structure
     if (svgStartTag) {
         // Clean the opening <svg> tag attributes (remove newlines from attributes)
         const cleanedSvgTag = svgStartTag.replace(/(\w+)="([^"]*?)[\r\n]+([^"]*?)"/g, '$1="$2 $3"');
         // Also clean any newlines in the tag itself
         const cleanedSvgTagFinal = cleanedSvgTag.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
-        return xmlDeclaration + cleanedSvgTagFinal + cleaned + svgEndTag;
+        const finalSvg = xmlDeclaration + cleanedSvgTagFinal + cleaned + svgEndTag;
+
+        // Final verification: ensure text elements are still present
+        const finalTextCount = (finalSvg.match(/<text[^>]*>/gi) || []).length;
+        if (textElementsBefore > 0 && finalTextCount !== textElementsBefore) {
+            console.error(`cleanSVGAttributes: CRITICAL - Text elements lost! Before: ${textElementsBefore}, Final: ${finalTextCount}`);
+        }
+
+        return finalSvg;
     } else {
         // Fallback: return cleaned content as-is (shouldn't happen if SVG is well-formed)
         console.warn('cleanSVGAttributes: Returning without <svg> tag structure');
