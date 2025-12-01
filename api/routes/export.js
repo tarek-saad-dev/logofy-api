@@ -1156,11 +1156,27 @@ async function generateSVGFromLogo(logo, layers, width, height) {
         // Clean style to remove any newlines or extra whitespace
         style = style.replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
 
+        // Parse scale from layer - handle string values from database
+        let parsedScale = 1;
+        if (layer.scale !== undefined && layer.scale !== null) {
+            if (Array.isArray(layer.scale)) {
+                parsedScale = layer.scale.length > 0 ? parseFloat(layer.scale[0]) : 1;
+            } else if (typeof layer.scale === 'number' && !isNaN(layer.scale)) {
+                parsedScale = layer.scale;
+            } else if (typeof layer.scale === 'string' && layer.scale.trim() !== '') {
+                parsedScale = parseFloat(layer.scale);
+            }
+        }
+        // Ensure parsedScale is valid
+        if (isNaN(parsedScale) || parsedScale <= 0) {
+            parsedScale = 1;
+        }
+
         // Common transform parameters for unified transform
         const transformParams = {
             x_norm: layer.x_norm || 0,
             y_norm: layer.y_norm || 0,
-            scale: layer.scale || 1,
+            scale: parsedScale,
             rotation_deg: layer.rotation_deg || 0,
             flip_horizontal: layer.flip_horizontal || false,
             flip_vertical: layer.flip_vertical || false,
@@ -1486,15 +1502,19 @@ async function generateTextSVG(layer, transformParams, style, defs, canvasWidth,
     // Where baseCanvasSize is typically 1000 (the reference canvas size)
     const baseCanvasSize = 1000; // Reference canvas size used by editor
     const canvasRefSize = Math.max(canvasWidth, canvasHeight);
-    const normalizedScale = transformParams.scale || 1;
+    // Parse scale value (may be string from database)
+    const rawScale = transformParams.scale || 1;
+    const normalizedScale = typeof rawScale === 'string' ? parseFloat(rawScale) : (typeof rawScale === 'number' && !isNaN(rawScale) ? rawScale : 1);
+    // Ensure normalizedScale is valid
+    const validNormalizedScale = isNaN(normalizedScale) || normalizedScale <= 0 ? 1 : normalizedScale;
     // Bake scale into font-size for TEXT layers to match editor preview
-    const actualFontSize = baseFontSize * normalizedScale * (canvasRefSize / baseCanvasSize);
+    const actualFontSize = baseFontSize * validNormalizedScale * (canvasRefSize / baseCanvasSize);
 
     console.log(`generateTextSVG: Font size calculation:`, {
         baseFontSize: baseFontSize,
         canvasRefSize: canvasRefSize,
         baseCanvasSize: baseCanvasSize,
-        normalizedScale: normalizedScale,
+        normalizedScale: validNormalizedScale,
         actualFontSize: actualFontSize
     });
 
@@ -1510,11 +1530,12 @@ async function generateTextSVG(layer, transformParams, style, defs, canvasWidth,
     const estimatedTextHeight = actualFontSize * lineHeight;
 
     // Build unified transform with text dimensions
-    // For TEXT layers, set scale to 1 since scale is already baked into font-size
-    // This ensures the exported PNG matches the editor preview
+    // For TEXT layers, scale is baked into font-size for sizing, but we still need to apply
+    // the scale in the transform to match editor behavior (especially for flips and positioning)
+    // The actual scale value from transformParams should be used
     const unifiedTransform = buildUnifiedTransform({
         ...transformParams,
-        scale: 1, // Scale is baked into font-size, so use 1 here
+        scale: normalizedScale, // Use the actual normalized scale value
         elementWidth: estimatedTextWidth,
         elementHeight: estimatedTextHeight
     });
@@ -1636,7 +1657,7 @@ async function generateTextSVG(layer, transformParams, style, defs, canvasWidth,
         const strokeAlpha = clampAlpha((text.stroke_alpha !== undefined ? text.stroke_alpha : text.strokeAlpha) || 1);
         // Scale stroke width based on canvas size and normalizedScale
         // For TEXT layers, scale is baked into font-size, so we bake it into stroke-width too
-        const scaledStrokeWidth = strokeWidth * normalizedScale * (canvasRefSize / baseCanvasSize);
+        const scaledStrokeWidth = strokeWidth * validNormalizedScale * (canvasRefSize / baseCanvasSize);
         textStyle += `stroke: ${strokeColor}; stroke-width: ${scaledStrokeWidth}; stroke-opacity: ${strokeAlpha};`;
     }
 
@@ -1697,7 +1718,19 @@ async function generateShapeSVG(layer, transformParams, style, defs, canvasWidth
     const validCanvasHeight = typeof canvasHeight === 'number' && !isNaN(canvasHeight) && canvasHeight > 0 ? canvasHeight : 1000;
 
     // Ensure scale is a single number, not an array
-    const validScale = Array.isArray(scale) ? (scale.length > 0 ? parseFloat(scale[0]) : 1) : (typeof scale === 'number' && !isNaN(scale) ? scale : 1);
+    // Handle string values from database by parsing them
+    let validScale = 1;
+    if (Array.isArray(scale)) {
+        validScale = scale.length > 0 ? parseFloat(scale[0]) : 1;
+    } else if (typeof scale === 'number' && !isNaN(scale)) {
+        validScale = scale;
+    } else if (typeof scale === 'string' && scale.trim() !== '') {
+        validScale = parseFloat(scale);
+    }
+    // Ensure validScale is a valid number
+    if (isNaN(validScale) || validScale <= 0) {
+        validScale = 1;
+    }
 
     // Ensure rotation comes from rotation_deg
     const validRotation = typeof rotation_deg === 'number' && !isNaN(rotation_deg) ? rotation_deg : 0;
@@ -1896,23 +1929,29 @@ async function generateShapeSVG(layer, transformParams, style, defs, canvasWidth
                     });
 
                     // Build unified transform with shape dimensions
-                    // Note: For SVG assets, we've already scaled the SVG content to the target size,
-                    // so we pass scale=1 to the unified transform (no additional scaling needed)
-                    // The svgScaleFactor already incorporates the normalized scale
-                    const unifiedTransform = buildUnifiedTransform({
-                        x_norm: x_norm,
-                        y_norm: y_norm,
-                        scale: 1, // No additional scale - already applied via svgScaleFactor
-                        rotation_deg: validRotation,
-                        flip_horizontal: flip_horizontal,
-                        flip_vertical: flip_vertical,
-                        anchor_x: anchor_x,
-                        anchor_y: anchor_y,
-                        elementWidth: scaledWidth,
-                        elementHeight: scaledHeight,
-                        canvasWidth: validCanvasWidth,
-                        canvasHeight: validCanvasHeight
-                    });
+                    // The svgScaleFactor is the actual scale multiplier needed to scale the base SVG to target size
+                    // We need to apply this scale in the transform, combined with flips
+                    // The scale in buildUnifiedTransform is a multiplier, so we use svgScaleFactor directly
+                    // Apply flips by negating the scale factor
+                    const scaleX = flip_horizontal ? -svgScaleFactor : svgScaleFactor;
+                    const scaleY = flip_vertical ? -svgScaleFactorY : svgScaleFactorY;
+
+                    // Build transform manually to apply the correct scale factor
+                    // Order: translate → rotate → scale (with flips)
+                    const canvasX = (x_norm || 0) * validCanvasWidth;
+                    const canvasY = (y_norm || 0) * validCanvasHeight;
+                    const anchorOffsetX = (anchor_x || 0) * scaledWidth;
+                    const anchorOffsetY = (anchor_y || 0) * scaledHeight;
+                    const finalX = canvasX - anchorOffsetX;
+                    const finalY = canvasY - anchorOffsetY;
+
+                    let transform = `translate(${finalX}, ${finalY})`;
+                    if (validRotation !== 0) {
+                        transform += ` rotate(${validRotation})`;
+                    }
+                    // Always apply scale (even if 1) to ensure consistent behavior
+                    transform += ` scale(${scaleX}, ${scaleY})`;
+                    const unifiedTransform = transform.replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\s+/g, ' ').trim();
 
                     console.log(`generateShapeSVG: Final unified transform: "${unifiedTransform}"`);
 
@@ -2151,7 +2190,19 @@ async function generateImageSVG(layer, transformParams, style, defs, canvasWidth
     const validCanvasHeight = typeof canvasHeight === 'number' && !isNaN(canvasHeight) && canvasHeight > 0 ? canvasHeight : 1000;
 
     // Ensure scale is a single number, not an array
-    const validScale = Array.isArray(scale) ? (scale.length > 0 ? parseFloat(scale[0]) : 1) : (typeof scale === 'number' && !isNaN(scale) ? scale : 1);
+    // Handle string values from database by parsing them
+    let validScale = 1;
+    if (Array.isArray(scale)) {
+        validScale = scale.length > 0 ? parseFloat(scale[0]) : 1;
+    } else if (typeof scale === 'number' && !isNaN(scale)) {
+        validScale = scale;
+    } else if (typeof scale === 'string' && scale.trim() !== '') {
+        validScale = parseFloat(scale);
+    }
+    // Ensure validScale is a valid number
+    if (isNaN(validScale) || validScale <= 0) {
+        validScale = 1;
+    }
 
     // Ensure rotation comes from rotation_deg
     const validRotation = typeof rotation_deg === 'number' && !isNaN(rotation_deg) ? rotation_deg : 0;
@@ -2235,12 +2286,13 @@ async function generateImageSVG(layer, transformParams, style, defs, canvasWidth
     });
 
     // Build unified transform with image dimensions
-    // Note: We're setting image dimensions to scaled size, so we pass scale=1 to avoid double-scaling
-    // The transform only handles position, rotation, flip, and anchor
+    // Scale is already applied via scaledWidth/scaledHeight in the <image> tag
+    // So we use scale=1 in transform to avoid double-scaling
+    // The scaledWidth/scaledHeight are used for both image size and anchor calculation
     const unifiedTransform = buildUnifiedTransform({
         x_norm: x_norm,
         y_norm: y_norm,
-        scale: 1, // No additional scale - already applied via scaledWidth/scaledHeight
+        scale: 1, // Scale already applied via width/height attributes
         rotation_deg: validRotation,
         flip_horizontal: flip_horizontal,
         flip_vertical: flip_vertical,
