@@ -3826,6 +3826,493 @@ router.get('/:id/mobile', getLogoMobile);
 // GET /api/logo/:id/mobile/legacy - Get logo in mobile legacy format
 router.get('/:id/mobile/legacy', getLogoMobileLegacy);
 
+// PATCH /api/logo/:id/mobile/legacy - Update logo using legacy mobile format
+router.patch('/:id/mobile/legacy', async(req, res) => {
+    const client = await getClient();
+    try {
+        const { id } = req.params;
+        const {
+            name,
+            description,
+            // Multilingual fields
+            name_en,
+            name_ar,
+            description_en,
+            description_ar,
+            tags_en,
+            tags_ar,
+            canvas,
+            layers = [],
+            colorsUsed = [],
+            alignments,
+            responsive,
+            metadata,
+            export: exportSettings,
+            categoryId
+        } = req.body;
+
+        // Validate logo ID format
+        if (!id || !id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            const lang = res.locals.lang || "en";
+            return res.status(400).json({
+                success: false,
+                message: lang === "ar" ? "معرف الشعار غير صحيح" : "Invalid logo ID format",
+                language: lang,
+                direction: lang === "ar" ? "rtl" : "ltr"
+            });
+        }
+
+        // Validate logo exists
+        const logoCheck = await client.query('SELECT id FROM logos WHERE id = $1', [id]);
+        if (logoCheck.rows.length === 0) {
+            const lang = res.locals.lang || "en";
+            return res.status(404).json({
+                success: false,
+                message: lang === "ar" ? "الشعار غير موجود" : "Logo not found",
+                language: lang,
+                direction: lang === "ar" ? "rtl" : "ltr"
+            });
+        }
+
+        // Validate categoryId if provided
+        if (categoryId && !categoryId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            const lang = res.locals.lang || "en";
+            return res.status(400).json({
+                success: false,
+                message: lang === "ar" ? "معرف الفئة غير صحيح" : "Invalid categoryId format",
+                language: lang,
+                direction: lang === "ar" ? "rtl" : "ltr"
+            });
+        }
+
+        await client.query('BEGIN');
+
+        // Build update query dynamically based on provided fields
+        const updateFields = [];
+        const updateValues = [];
+        let paramCount = 0;
+
+        // Update logo fields
+        if (name !== undefined) {
+            paramCount++;
+            updateFields.push(`title = $${paramCount}`);
+            updateValues.push(name);
+        }
+        if (name_en !== undefined) {
+            paramCount++;
+            updateFields.push(`title_en = $${paramCount}`);
+            updateValues.push(name_en);
+        }
+        if (name_ar !== undefined) {
+            paramCount++;
+            updateFields.push(`title_ar = $${paramCount}`);
+            updateValues.push(name_ar);
+        }
+        if (description !== undefined) {
+            paramCount++;
+            updateFields.push(`description = $${paramCount}`);
+            updateValues.push(description);
+        }
+        if (description_en !== undefined) {
+            paramCount++;
+            updateFields.push(`description_en = $${paramCount}`);
+            updateValues.push(description_en);
+        }
+        if (description_ar !== undefined) {
+            paramCount++;
+            updateFields.push(`description_ar = $${paramCount}`);
+            updateValues.push(description_ar);
+        }
+        if (tags_en !== undefined) {
+            paramCount++;
+            updateFields.push(`tags_en = $${paramCount}`);
+            updateValues.push(tags_en ? JSON.stringify(tags_en) : null);
+        }
+        if (tags_ar !== undefined) {
+            paramCount++;
+            updateFields.push(`tags_ar = $${paramCount}`);
+            updateValues.push(tags_ar ? JSON.stringify(tags_ar) : null);
+        }
+        if (categoryId !== undefined) {
+            paramCount++;
+            updateFields.push(`category_id = $${paramCount}`);
+            updateValues.push(categoryId || null);
+        }
+        if (canvas !== undefined) {
+            if (canvas.aspectRatio !== undefined) {
+                paramCount++;
+                updateFields.push(`canvas_w = $${paramCount}`);
+                updateValues.push(canvas.aspectRatio ? 1080 : 1080);
+                paramCount++;
+                updateFields.push(`canvas_h = $${paramCount}`);
+                updateValues.push(canvas.aspectRatio ? Math.round(1080 / canvas.aspectRatio) : 1080);
+            }
+            if (canvas.background !== undefined) {
+                paramCount++;
+                updateFields.push(`canvas_background_type = $${paramCount}`);
+                updateValues.push(canvas.background.type || 'solid');
+                paramCount++;
+                updateFields.push(`canvas_background_solid_color = $${paramCount}`);
+                updateValues.push(canvas.background.solidColor || '#ffffff');
+                paramCount++;
+                updateFields.push(`canvas_background_gradient = $${paramCount}`);
+                updateValues.push(canvas.background.gradient ? JSON.stringify(canvas.background.gradient) : null);
+                paramCount++;
+                updateFields.push(`canvas_background_image_type = $${paramCount}`);
+                updateValues.push(canvas.background.image && canvas.background.image.type ? canvas.background.image.type : null);
+                paramCount++;
+                updateFields.push(`canvas_background_image_path = $${paramCount}`);
+                updateValues.push(canvas.background.image && canvas.background.image.path ? canvas.background.image.path : null);
+            }
+        }
+        if (colorsUsed !== undefined) {
+            paramCount++;
+            updateFields.push(`colors_used = $${paramCount}`);
+            updateValues.push(JSON.stringify(colorsUsed));
+        }
+        if (alignments !== undefined) {
+            paramCount++;
+            updateFields.push(`vertical_align = $${paramCount}`);
+            updateValues.push(alignments.verticalAlign || 'center');
+            paramCount++;
+            updateFields.push(`horizontal_align = $${paramCount}`);
+            updateValues.push(alignments.horizontalAlign || 'center');
+        }
+        if (responsive !== undefined) {
+            paramCount++;
+            updateFields.push(`responsive_version = $${paramCount}`);
+            updateValues.push(responsive.version || '3.0');
+            paramCount++;
+            updateFields.push(`responsive_description = $${paramCount}`);
+            updateValues.push(responsive.description || 'Fully responsive logo data - no absolute sizes stored');
+            paramCount++;
+            updateFields.push(`scaling_method = $${paramCount}`);
+            updateValues.push(responsive.scalingMethod || 'scaleFactor');
+            paramCount++;
+            updateFields.push(`position_method = $${paramCount}`);
+            updateValues.push(responsive.positionMethod || 'relative');
+            paramCount++;
+            updateFields.push(`fully_responsive = $${paramCount}`);
+            updateValues.push(responsive.fullyResponsive !== undefined ? responsive.fullyResponsive : true);
+        }
+        if (metadata !== undefined) {
+            paramCount++;
+            updateFields.push(`tags = $${paramCount}`);
+            updateValues.push(JSON.stringify(metadata.tags || ['logo', 'design', 'responsive']));
+            paramCount++;
+            updateFields.push(`version = $${paramCount}`);
+            updateValues.push(metadata.version || 3);
+            paramCount++;
+            updateFields.push(`responsive = $${paramCount}`);
+            updateValues.push(metadata.responsive !== undefined ? metadata.responsive : true);
+        }
+        if (exportSettings !== undefined) {
+            paramCount++;
+            updateFields.push(`export_format = $${paramCount}`);
+            updateValues.push(exportSettings.format || 'png');
+            paramCount++;
+            updateFields.push(`export_transparent_background = $${paramCount}`);
+            updateValues.push(exportSettings.transparentBackground !== undefined ? exportSettings.transparentBackground : true);
+            paramCount++;
+            updateFields.push(`export_quality = $${paramCount}`);
+            updateValues.push(exportSettings.quality || 100);
+            paramCount++;
+            updateFields.push(`export_scalable = $${paramCount}`);
+            updateValues.push(exportSettings.responsive && exportSettings.responsive.scalable !== undefined ? exportSettings.responsive.scalable : true);
+            paramCount++;
+            updateFields.push(`export_maintain_aspect_ratio = $${paramCount}`);
+            updateValues.push(exportSettings.responsive && exportSettings.responsive.maintainAspectRatio !== undefined ? exportSettings.responsive.maintainAspectRatio : true);
+        }
+
+        // Always update updated_at
+        paramCount++;
+        updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+
+        // Update logo if there are fields to update
+        if (updateFields.length > 0) {
+            paramCount++;
+            updateValues.push(id);
+            await client.query(`
+                UPDATE logos 
+                SET ${updateFields.join(', ')}
+                WHERE id = $${paramCount}
+            `, updateValues);
+        }
+
+        // If layers are provided, replace all existing layers
+        if (layers !== undefined && Array.isArray(layers)) {
+            // Delete all existing layers (cascade will handle layer-specific tables)
+            await client.query('DELETE FROM layers WHERE logo_id = $1', [id]);
+
+            // Create new layers (same logic as POST /mobile)
+            for (const layerData of layers) {
+                const { layerId, type, visible = true, order = 0, position = { x: 0.5, y: 0.5 }, scaleFactor = 1, rotation = 0, opacity = 1, flip = { horizontal: false, vertical: false }, text, icon, image, shape, background } = layerData;
+                const dbType = type.toUpperCase();
+
+                let layerRes;
+                if (layerId && layerId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                    layerRes = await client.query(`
+                        INSERT INTO layers (
+                            id, logo_id, type, name, z_index, x_norm, y_norm, scale, rotation_deg,
+                            anchor_x, anchor_y, opacity, blend_mode, is_visible, is_locked,
+                            flip_horizontal, flip_vertical
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+                        RETURNING *
+                    `, [layerId, id, dbType, `${type}_layer_${order}`, order, position.x, position.y, scaleFactor, rotation, 0.5, 0.5, opacity, 'normal', visible, false, flip.horizontal, flip.vertical]);
+                } else {
+                    layerRes = await client.query(`
+                        INSERT INTO layers (
+                            logo_id, type, name, z_index, x_norm, y_norm, scale, rotation_deg,
+                            anchor_x, anchor_y, opacity, blend_mode, is_visible, is_locked,
+                            flip_horizontal, flip_vertical
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+                        RETURNING *
+                    `, [id, dbType, `${type}_layer_${order}`, order, position.x, position.y, scaleFactor, rotation, 0.5, 0.5, opacity, 'normal', visible, false, flip.horizontal, flip.vertical]);
+                }
+
+                const layer = layerRes.rows[0];
+                // Handle layer-specific data (same as POST /mobile)
+                switch (dbType) {
+                    case 'TEXT':
+                        if (text) {
+                            let fontId = null;
+                            if (text.font) {
+                                try {
+                                    let fontRes = await client.query(`SELECT id FROM fonts WHERE family = $1 AND weight = $2 LIMIT 1`, [text.font, text.fontWeight === 'bold' ? 700 : 400]);
+                                    if (fontRes.rows.length > 0) {
+                                        fontId = fontRes.rows[0].id;
+                                    } else {
+                                        fontRes = await client.query(`SELECT id FROM fonts WHERE family = $1 LIMIT 1`, [text.font]);
+                                        if (fontRes.rows.length > 0) {
+                                            fontId = fontRes.rows[0].id;
+                                        } else {
+                                            const fontUrl = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(text.font)}:wght@400&display=swap`;
+                                            const newFontRes = await client.query(`
+                                                INSERT INTO fonts (family, style, weight, url, fallbacks, meta)
+                                                VALUES ($1, $2, $3, $4, $5, $6)
+                                                ON CONFLICT (family, weight, style) DO UPDATE SET family = EXCLUDED.family
+                                                RETURNING id
+                                            `, [text.font, 'Regular', 400, fontUrl, ['sans-serif'], { source: 'auto_created', created_at: new Date().toISOString() }]);
+                                            fontId = newFontRes.rows[0].id;
+                                        }
+                                    }
+                                } catch (fontError) {
+                                    console.log('Could not look up or create font:', fontError.message);
+                                }
+                            }
+                            await client.query(`
+                                INSERT INTO layer_text (
+                                    layer_id, content, font_id, font_size, line_height, letter_spacing,
+                                    align, baseline, fill_hex, fill_alpha, stroke_hex, stroke_alpha,
+                                    stroke_width, stroke_align, gradient, underline, underline_direction,
+                                    text_case, font_style, font_weight, text_decoration, text_transform, font_variant
+                                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+                            `, [layer.id, text.value || '', fontId, text.fontSize || 48, text.lineHeight || 1.0, text.letterSpacing || 0, text.alignment || 'center', text.baseline || 'alphabetic', text.fontColor || '#000000', text.fillAlpha || 1.0, text.strokeHex || null, text.strokeAlpha || null, text.strokeWidth || null, text.strokeAlign || null, text.gradient || null, text.underline || false, text.underlineDirection || 'horizontal', text.textCase || 'normal', text.fontStyle || 'normal', text.fontWeight || 'normal', text.textDecoration || 'none', text.textTransform || 'none', text.fontVariant || 'normal']);
+                        }
+                        break;
+                    case 'ICON':
+                        if (icon) {
+                            const assetRes = await client.query(`SELECT id FROM assets WHERE name = $1 LIMIT 1`, [icon.src]);
+                            let assetId = (assetRes.rows[0] && assetRes.rows[0].id);
+                            if (!assetId) {
+                                const iconUrl = icon.url || `https://example.com/icons/${icon.src}`;
+                                const newAssetRes = await client.query(`
+                                    INSERT INTO assets (kind, name, storage, url, mime_type, width, height, has_alpha) 
+                                    VALUES ('vector', $1, 'local', $2, 'image/svg+xml', 100, 100, true) 
+                                    RETURNING id
+                                `, [icon.src, iconUrl]);
+                                assetId = newAssetRes.rows[0].id;
+                            }
+                            await client.query(`INSERT INTO layer_icon (layer_id, asset_id, tint_hex, tint_alpha) VALUES ($1, $2, $3, $4)`, [layer.id, assetId, icon.color || '#000000', 1.0]);
+                        }
+                        break;
+                    case 'IMAGE':
+                        if (image) {
+                            const assetRes = await client.query(`SELECT id FROM assets WHERE url = $1 LIMIT 1`, [image.src]);
+                            let assetId = (assetRes.rows[0] && assetRes.rows[0].id);
+                            if (!assetId) {
+                                const newAssetRes = await client.query(`INSERT INTO assets (kind, name, url, width, height, has_alpha) VALUES ('raster', $1, $2, 100, 100, true) RETURNING id`, [image.src, image.src]);
+                                assetId = newAssetRes.rows[0].id;
+                            }
+                            await client.query(`INSERT INTO layer_image (layer_id, asset_id, fit) VALUES ($1, $2, $3)`, [layer.id, assetId, 'contain']);
+                        }
+                        break;
+                    case 'SHAPE':
+                        if (shape) {
+                            const shapeMeta = shape.src ? { src: shape.src } : null;
+                            await client.query(`
+                                INSERT INTO layer_shape (
+                                    layer_id, shape_kind, fill_hex, fill_alpha, stroke_hex, stroke_width, meta
+                                ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+                            `, [layer.id, shape.type || 'rect', shape.color || '#000000', 1.0, shape.strokeColor || null, shape.strokeWidth || 0, JSON.stringify(shapeMeta)]);
+                        }
+                        break;
+                    case 'BACKGROUND':
+                        if (background) {
+                            let assetId = null;
+                            if (background.image && background.image.src) {
+                                const assetRes = await client.query(`
+                                    SELECT id FROM assets WHERE name = $1 OR url = $2 LIMIT 1
+                                `, [background.image.src, background.image.path || background.image.src]);
+                                if (assetRes.rows.length > 0) {
+                                    assetId = assetRes.rows[0].id;
+                                } else {
+                                    const backgroundUrl = background.image.url || background.image.path || `https://example.com/backgrounds/${background.image.src}`;
+                                    const newAssetRes = await client.query(`
+                                        INSERT INTO assets (kind, name, storage, url, mime_type, width, height, has_alpha) 
+                                        VALUES ('raster', $1, 'local', $2, 'image/jpeg', 1920, 1080, false) 
+                                        RETURNING id
+                                    `, [background.image.src, backgroundUrl]);
+                                    assetId = newAssetRes.rows[0].id;
+                                }
+                            }
+                            await client.query(`
+                                INSERT INTO layer_background (
+                                    layer_id, mode, fill_hex, fill_alpha, asset_id, repeat, position, size
+                                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                            `, [layer.id, background.type || 'solid', background.color || '#ffffff', 1.0, assetId, background.repeat || 'no-repeat', background.position || 'center', background.size || 'cover']);
+                        }
+                        break;
+                }
+            }
+        }
+
+        await client.query('COMMIT');
+
+        // Fetch updated logo
+        const updatedLogoRes = await client.query('SELECT * FROM logos WHERE id = $1', [id]);
+        const updatedLogo = updatedLogoRes.rows[0];
+
+        const lang = res.locals.lang || "en";
+        res.json({
+            success: true,
+            message: lang === "ar" ? "تم تحديث الشعار بنجاح" : "Logo updated successfully",
+            data: {
+                logoId: updatedLogo.id.toString(),
+                templateId: updatedLogo.template_id ? updatedLogo.template_id.toString() : null,
+                userId: updatedLogo.owner_id,
+                name: updatedLogo.title,
+                description: updatedLogo.description,
+                categoryId: updatedLogo.category_id,
+                canvas: {
+                    aspectRatio: updatedLogo.canvas_h ? updatedLogo.canvas_w / updatedLogo.canvas_h : 1.0,
+                    background: {
+                        type: updatedLogo.canvas_background_type || 'solid',
+                        solidColor: updatedLogo.canvas_background_solid_color || '#ffffff',
+                        gradient: updatedLogo.canvas_background_gradient || null,
+                        image: updatedLogo.canvas_background_image_path ? { type: updatedLogo.canvas_background_image_type || 'imported', path: updatedLogo.canvas_background_image_path } : null
+                    }
+                },
+                colorsUsed: updatedLogo.colors_used ? JSON.parse(updatedLogo.colors_used) : [],
+                alignments: {
+                    verticalAlign: updatedLogo.vertical_align || 'center',
+                    horizontalAlign: updatedLogo.horizontal_align || 'center'
+                },
+                responsive: {
+                    version: updatedLogo.responsive_version || '3.0',
+                    description: updatedLogo.responsive_description || 'Fully responsive logo data - no absolute sizes stored',
+                    scalingMethod: updatedLogo.scaling_method || 'scaleFactor',
+                    positionMethod: updatedLogo.position_method || 'relative',
+                    fullyResponsive: updatedLogo.fully_responsive || true
+                },
+                metadata: {
+                    createdAt: new Date(updatedLogo.created_at).toISOString(),
+                    updatedAt: new Date(updatedLogo.updated_at).toISOString(),
+                    tags: updatedLogo.tags ? JSON.parse(updatedLogo.tags) : ['logo', 'design', 'responsive'],
+                    version: updatedLogo.version || 3,
+                    responsive: updatedLogo.responsive || true
+                },
+                export: {
+                    format: updatedLogo.export_format || 'png',
+                    transparentBackground: updatedLogo.export_transparent_background !== undefined ? updatedLogo.export_transparent_background : true,
+                    quality: updatedLogo.export_quality || 100,
+                    responsive: {
+                        scalable: updatedLogo.export_scalable !== undefined ? updatedLogo.export_scalable : true,
+                        maintainAspectRatio: updatedLogo.export_maintain_aspect_ratio !== undefined ? updatedLogo.export_maintain_aspect_ratio : true
+                    }
+                }
+            },
+            language: lang,
+            direction: lang === "ar" ? "rtl" : "ltr"
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error updating logo from mobile legacy format:', error);
+        const lang = res.locals.lang || "en";
+        res.status(500).json({
+            success: false,
+            message: lang === "ar" ? "فشل في تحديث الشعار" : "Failed to update logo",
+            language: lang,
+            direction: lang === "ar" ? "rtl" : "ltr",
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    } finally {
+        client.release();
+    }
+});
+
+// DELETE /api/logo/:id/mobile/legacy - Delete logo
+router.delete('/:id/mobile/legacy', async(req, res) => {
+    const client = await getClient();
+    try {
+        const { id } = req.params;
+
+        // Validate logo ID format
+        if (!id || !id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            const lang = res.locals.lang || "en";
+            return res.status(400).json({
+                success: false,
+                message: lang === "ar" ? "معرف الشعار غير صحيح" : "Invalid logo ID format",
+                language: lang,
+                direction: lang === "ar" ? "rtl" : "ltr"
+            });
+        }
+
+        // Check if logo exists
+        const logoCheck = await client.query('SELECT id, title FROM logos WHERE id = $1', [id]);
+        if (logoCheck.rows.length === 0) {
+            const lang = res.locals.lang || "en";
+            return res.status(404).json({
+                success: false,
+                message: lang === "ar" ? "الشعار غير موجود" : "Logo not found",
+                language: lang,
+                direction: lang === "ar" ? "rtl" : "ltr"
+            });
+        }
+
+        await client.query('BEGIN');
+
+        // Delete logo (cascade will handle layers and related data)
+        const deleteResult = await client.query('DELETE FROM logos WHERE id = $1 RETURNING id, title', [id]);
+
+        await client.query('COMMIT');
+
+        const lang = res.locals.lang || "en";
+        res.json({
+            success: true,
+            message: lang === "ar" ? "تم حذف الشعار بنجاح" : "Logo deleted successfully",
+            data: {
+                logoId: deleteResult.rows[0].id.toString(),
+                name: deleteResult.rows[0].title
+            },
+            language: lang,
+            direction: lang === "ar" ? "rtl" : "ltr"
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error deleting logo:', error);
+        const lang = res.locals.lang || "en";
+        res.status(500).json({
+            success: false,
+            message: lang === "ar" ? "فشل في حذف الشعار" : "Failed to delete logo",
+            language: lang,
+            direction: lang === "ar" ? "rtl" : "ltr",
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    } finally {
+        client.release();
+    }
+});
 
 // GET /api/logo/:id/mobile-structured - Return exact mobile JSON structure as requested
 router.get('/:id/mobile-structured', async(req, res) => {

@@ -1,0 +1,121 @@
+{
+  "name": "My Updated Logo",
+  "description": "A comprehensive logo update example",
+  "name_en": "My Updated Logo",
+  "name_ar": "شعاري المحدث",
+  "description_en": "A comprehensive logo update example",
+  "description_ar": "مثال شامل لتحديث الشعار",
+  "tags_en": ["updated", "modern", "design"],
+  "tags_ar": ["محدث", "حديث", "تصميم"],
+  "categoryId": "e8a45f2f-0c09-43dd-9741-fca53a074be8",
+  "canvas": {
+    "aspectRatio": 1.0,
+    "background": {
+      "type": "solid",
+      "solidColor": "#ffffff",
+      "gradient": null,
+      "image": null
+    }
+  },
+  "layers": [
+    {
+      "layerId": "text-layer-1",
+      "type": "text",
+      "visible": true,
+      "order": 0,
+      "position": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "scaleFactor": 1.0,
+      "rotation": 0,
+      "opacity": 1.0,
+      "flip": {
+        "horizontal": false,
+        "vertical": false
+      },
+      "text": {
+        "value": "Updated Text",
+        "font": "Arial",
+        "fontSize": 48,
+        "fontColor": "#333333",
+        "fontWeight": "bold",
+        "fontStyle": "normal",
+        "alignment": "center",
+        "baseline": "alphabetic",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "fillAlpha": 1.0,
+        "strokeHex": null,
+        "strokeAlpha": null,
+        "strokeWidth": null,
+        "strokeAlign": null,
+        "gradient": null,
+        "underline": false,
+        "underlineDirection": "horizontal",
+        "textCase": "normal",
+        "textDecoration": "none",
+        "textTransform": "none",
+        "fontVariant": "normal"
+      }
+    },
+    {
+      "layerId": "icon-layer-1",
+      "type": "icon",
+      "visible": true,
+      "order": 1,
+      "position": {
+        "x": 0.5,
+        "y": 0.3
+      },
+      "scaleFactor": 0.8,
+      "rotation": 0,
+      "opacity": 1.0,
+      "flip": {
+        "horizontal": false,
+        "vertical": false
+      },
+      "icon": {
+        "src": "star_icon",
+        "url": "https://example.com/icons/star.svg",
+        "color": "#ffc107"
+      }
+    }
+  ],
+  "colorsUsed": [
+    {
+      "role": "text",
+      "color": "#333333"
+    },
+    {
+      "role": "icon",
+      "color": "#ffc107"
+    }
+  ],
+  "alignments": {
+    "verticalAlign": "center",
+    "horizontalAlign": "center"
+  },
+  "responsive": {
+    "version": "3.0",
+    "description": "Fully responsive logo data - no absolute sizes stored",
+    "scalingMethod": "scaleFactor",
+    "positionMethod": "relative",
+    "fullyResponsive": true
+  },
+  "metadata": {
+    "tags": ["updated", "modern", "design", "responsive"],
+    "version": 3,
+    "responsive": true
+  },
+  "export": {
+    "format": "png",
+    "transparentBackground": true,
+    "quality": 100,
+    "responsive": {
+      "scalable": true,
+      "maintainAspectRatio": true
+    }
+  }
+}
+

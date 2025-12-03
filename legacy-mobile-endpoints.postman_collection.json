@@ -1,0 +1,417 @@
+{
+	"info": {
+		"_postman_id": "legacy-mobile-endpoints-001",
+		"name": "Logo Maker - Legacy Mobile Format Endpoints",
+		"description": "Postman collection for PATCH and DELETE endpoints using legacy mobile format\n\n## Endpoints Included:\n- PATCH /api/logo/:id/mobile/legacy - Update logo with legacy mobile format\n- DELETE /api/logo/:id/mobile/legacy - Delete logo\n\n## Features:\n- Multiple request examples for different update scenarios\n- Complete layer examples (text, icon, image, shape, background)\n- Multilingual support examples\n- Partial and complete update examples",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "legacy-mobile-endpoints"
+	},
+	"item": [
+		{
+			"name": "PATCH - Update Logo (Legacy Mobile Format)",
+			"item": [
+				{
+					"name": "1. Basic Update (Name & Description Only)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has success field\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('success');",
+									"    pm.expect(jsonData.success).to.eql(true);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.logoId) {",
+									"        pm.collectionVariables.set('logoId', jsonData.data.logoId);",
+									"        console.log('Logo ID saved:', jsonData.data.logoId);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Logo Name\",\n  \"description\": \"Updated description for the logo\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/logo/{{logoId}}/mobile/legacy",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"logo",
+								"{{logoId}}",
+								"mobile",
+								"legacy"
+							]
+						},
+						"description": "Basic update example - only updates name and description fields"
+					},
+					"response": []
+				},
+				{
+					"name": "2. Partial Update (Specific Fields)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has success field\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('success');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"New Name Only\",\n  \"categoryId\": \"e8a45f2f-0c09-43dd-9741-fca53a074be8\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/logo/{{logoId}}/mobile/legacy",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"logo",
+								"{{logoId}}",
+								"mobile",
+								"legacy"
+							]
+						},
+						"description": "Update only specific fields - name and categoryId"
+					},
+					"response": []
+				},
+				{
+					"name": "3. Multilingual Update",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"My Updated Logo\",\n  \"name_en\": \"My Updated Logo\",\n  \"name_ar\": \"شعاري المحدث\",\n  \"description\": \"A comprehensive logo update example\",\n  \"description_en\": \"A comprehensive logo update example\",\n  \"description_ar\": \"مثال شامل لتحديث الشعار\",\n  \"tags_en\": [\"updated\", \"modern\", \"design\"],\n  \"tags_ar\": [\"محدث\", \"حديث\", \"تصميم\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/logo/{{logoId}}/mobile/legacy",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"logo",
+								"{{logoId}}",
+								"mobile",
+								"legacy"
+							]
+						},
+						"description": "Update logo with multilingual fields (English and Arabic)"
+					},
+					"response": []
+				},
+				{
+					"name": "4. Update Canvas Background",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"canvas\": {\n    \"aspectRatio\": 1.0,\n    \"background\": {\n      \"type\": \"solid\",\n      \"solidColor\": \"#ffffff\",\n      \"gradient\": null,\n      \"image\": null\n    }\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/logo/{{logoId}}/mobile/legacy",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"logo",
+								"{{logoId}}",
+								"mobile",
+								"legacy"
+							]
+						},
+						"description": "Update canvas background with solid color"
+					},
+					"response": []
+				},
+				{
+					"name": "5. Update with Gradient Background",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"canvas\": {\n    \"aspectRatio\": 1.0,\n    \"background\": {\n      \"type\": \"gradient\",\n      \"solidColor\": null,\n      \"gradient\": {\n        \"angle\": 90,\n        \"stops\": [\n          {\n            \"color\": \"#ff0000\",\n            \"position\": 0\n          },\n          {\n            \"color\": \"#0000ff\",\n            \"position\": 1\n          }\n        ]\n      },\n      \"image\": null\n    }\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/logo/{{logoId}}/mobile/legacy",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"logo",
+								"{{logoId}}",
+								"mobile",
+								"legacy"
+							]
+						},
+						"description": "Update canvas with gradient background"
+					},
+					"response": []
+				},
+				{
+					"name": "6. Update Layers Only (Replace All Layers)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"layers\": [\n    {\n      \"type\": \"text\",\n      \"visible\": true,\n      \"order\": 0,\n      \"position\": {\n        \"x\": 0.5,\n        \"y\": 0.5\n      },\n      \"scaleFactor\": 1.0,\n      \"rotation\": 0,\n      \"opacity\": 1.0,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": false\n      },\n      \"text\": {\n        \"value\": \"New Text Layer\",\n        \"font\": \"Helvetica\",\n        \"fontSize\": 36,\n        \"fontColor\": \"#000000\",\n        \"fontWeight\": \"normal\",\n        \"fontStyle\": \"normal\",\n        \"alignment\": \"center\",\n        \"baseline\": \"alphabetic\",\n        \"lineHeight\": 1.0,\n        \"letterSpacing\": 0,\n        \"fillAlpha\": 1.0\n      }\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/logo/{{logoId}}/mobile/legacy",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"logo",
+								"{{logoId}}",
+								"mobile",
+								"legacy"
+							]
+						},
+						"description": "Replace all existing layers with new layers. Note: Providing a layers array will delete all existing layers and create new ones."
+					},
+					"response": []
+				},
+				{
+					"name": "7. Complete Update (All Fields + Layers)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"My Updated Logo\",\n  \"description\": \"A comprehensive logo update example\",\n  \"name_en\": \"My Updated Logo\",\n  \"name_ar\": \"شعاري المحدث\",\n  \"description_en\": \"A comprehensive logo update example\",\n  \"description_ar\": \"مثال شامل لتحديث الشعار\",\n  \"tags_en\": [\"updated\", \"modern\", \"design\"],\n  \"tags_ar\": [\"محدث\", \"حديث\", \"تصميم\"],\n  \"categoryId\": \"e8a45f2f-0c09-43dd-9741-fca53a074be8\",\n  \"canvas\": {\n    \"aspectRatio\": 1.0,\n    \"background\": {\n      \"type\": \"solid\",\n      \"solidColor\": \"#ffffff\",\n      \"gradient\": null,\n      \"image\": null\n    }\n  },\n  \"layers\": [\n    {\n      \"layerId\": \"text-layer-1\",\n      \"type\": \"text\",\n      \"visible\": true,\n      \"order\": 0,\n      \"position\": {\n        \"x\": 0.5,\n        \"y\": 0.5\n      },\n      \"scaleFactor\": 1.0,\n      \"rotation\": 0,\n      \"opacity\": 1.0,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": false\n      },\n      \"text\": {\n        \"value\": \"Updated Text\",\n        \"font\": \"Arial\",\n        \"fontSize\": 48,\n        \"fontColor\": \"#333333\",\n        \"fontWeight\": \"bold\",\n        \"fontStyle\": \"normal\",\n        \"alignment\": \"center\",\n        \"baseline\": \"alphabetic\",\n        \"lineHeight\": 1.2,\n        \"letterSpacing\": 0,\n        \"fillAlpha\": 1.0,\n        \"strokeHex\": null,\n        \"strokeAlpha\": null,\n        \"strokeWidth\": null,\n        \"strokeAlign\": null,\n        \"gradient\": null,\n        \"underline\": false,\n        \"underlineDirection\": \"horizontal\",\n        \"textCase\": \"normal\",\n        \"textDecoration\": \"none\",\n        \"textTransform\": \"none\",\n        \"fontVariant\": \"normal\"\n      }\n    },\n    {\n      \"layerId\": \"icon-layer-1\",\n      \"type\": \"icon\",\n      \"visible\": true,\n      \"order\": 1,\n      \"position\": {\n        \"x\": 0.5,\n        \"y\": 0.3\n      },\n      \"scaleFactor\": 0.8,\n      \"rotation\": 0,\n      \"opacity\": 1.0,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": false\n      },\n      \"icon\": {\n        \"src\": \"star_icon\",\n        \"url\": \"https://example.com/icons/star.svg\",\n        \"color\": \"#ffc107\"\n      }\n    },\n    {\n      \"layerId\": \"image-layer-1\",\n      \"type\": \"image\",\n      \"visible\": true,\n      \"order\": 2,\n      \"position\": {\n        \"x\": 0.5,\n        \"y\": 0.7\n      },\n      \"scaleFactor\": 0.6,\n      \"rotation\": 0,\n      \"opacity\": 1.0,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": false\n      },\n      \"image\": {\n        \"src\": \"https://example.com/images/logo-image.png\",\n        \"type\": \"imported\",\n        \"path\": \"https://example.com/images/logo-image.png\"\n      }\n    },\n    {\n      \"layerId\": \"shape-layer-1\",\n      \"type\": \"shape\",\n      \"visible\": true,\n      \"order\": 3,\n      \"position\": {\n        \"x\": 0.5,\n        \"y\": 0.5\n      },\n      \"scaleFactor\": 1.0,\n      \"rotation\": 0,\n      \"opacity\": 1.0,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": false\n      },\n      \"shape\": {\n        \"src\": \"assets/local/Basic/13.svg\",\n        \"type\": \"rect\",\n        \"color\": \"#000000\",\n        \"strokeColor\": \"#ffffff\",\n        \"strokeWidth\": 2\n      }\n    },\n    {\n      \"layerId\": \"background-layer-1\",\n      \"type\": \"background\",\n      \"visible\": true,\n      \"order\": -1,\n      \"position\": {\n        \"x\": 0.5,\n        \"y\": 0.5\n      },\n      \"scaleFactor\": 1.0,\n      \"rotation\": 0,\n      \"opacity\": 1.0,\n      \"flip\": {\n        \"horizontal\": false,\n        \"vertical\": false\n      },\n      \"background\": {\n        \"type\": \"solid\",\n        \"color\": \"#f0f0f0\",\n        \"image\": null,\n        \"repeat\": \"no-repeat\",\n        \"position\": \"center\",\n        \"size\": \"cover\"\n      }\n    }\n  ],\n  \"colorsUsed\": [\n    {\n      \"role\": \"text\",\n      \"color\": \"#333333\"\n    },\n    {\n      \"role\": \"icon\",\n      \"color\": \"#ffc107\"\n    },\n    {\n      \"role\": \"background\",\n      \"color\": \"#f0f0f0\"\n    }\n  ],\n  \"alignments\": {\n    \"verticalAlign\": \"center\",\n    \"horizontalAlign\": \"center\"\n  },\n  \"responsive\": {\n    \"version\": \"3.0\",\n    \"description\": \"Fully responsive logo data - no absolute sizes stored\",\n    \"scalingMethod\": \"scaleFactor\",\n    \"positionMethod\": \"relative\",\n    \"fullyResponsive\": true\n  },\n  \"metadata\": {\n    \"tags\": [\"updated\", \"modern\", \"design\", \"responsive\"],\n    \"version\": 3,\n    \"responsive\": true\n  },\n  \"export\": {\n    \"format\": \"png\",\n    \"transparentBackground\": true,\n    \"quality\": 100,\n    \"responsive\": {\n      \"scalable\": true,\n      \"maintainAspectRatio\": true\n    }\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/logo/{{logoId}}/mobile/legacy",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"logo",
+								"{{logoId}}",
+								"mobile",
+								"legacy"
+							]
+						},
+						"description": "Complete update example with all fields including multiple layer types (text, icon, image, shape, background)"
+					},
+					"response": []
+				},
+				{
+					"name": "8. Update Responsive Settings",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"responsive\": {\n    \"version\": \"3.0\",\n    \"description\": \"Fully responsive logo data - no absolute sizes stored\",\n    \"scalingMethod\": \"scaleFactor\",\n    \"positionMethod\": \"relative\",\n    \"fullyResponsive\": true\n  },\n  \"metadata\": {\n    \"tags\": [\"responsive\", \"mobile\"],\n    \"version\": 3,\n    \"responsive\": true\n  },\n  \"export\": {\n    \"format\": \"png\",\n    \"transparentBackground\": true,\n    \"quality\": 100,\n    \"responsive\": {\n      \"scalable\": true,\n      \"maintainAspectRatio\": true\n    }\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/logo/{{logoId}}/mobile/legacy",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"logo",
+								"{{logoId}}",
+								"mobile",
+								"legacy"
+							]
+						},
+						"description": "Update responsive settings, metadata, and export options"
+					},
+					"response": []
+				}
+			],
+			"description": "PATCH endpoint to update logos using legacy mobile format. Supports partial updates - only include fields you want to update."
+		},
+		{
+			"name": "DELETE - Delete Logo",
+			"item": [
+				{
+					"name": "Delete Logo",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has success field\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('success');",
+									"    pm.expect(jsonData.success).to.eql(true);",
+									"});",
+									"",
+									"pm.test(\"Response contains deleted logo info\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property('logoId');",
+									"    pm.expect(jsonData.data).to.have.property('name');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/logo/{{logoId}}/mobile/legacy",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"logo",
+								"{{logoId}}",
+								"mobile",
+								"legacy"
+							]
+						},
+						"description": "Delete a logo and all associated layers. Note: This action cannot be undone. All layers will be automatically deleted via CASCADE."
+					},
+					"response": []
+				}
+			],
+			"description": "DELETE endpoint to remove logos. All associated layers are automatically deleted."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Set baseUrl if not already set",
+					"if (!pm.collectionVariables.get('baseUrl')) {",
+					"    pm.collectionVariables.set('baseUrl', 'http://localhost:3000');",
+					"}",
+					"",
+					"// Log request details",
+					"console.log('Request URL:', pm.request.url.toString());",
+					"console.log('Logo ID:', pm.collectionVariables.get('logoId') || 'Not set');"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global test to log response status",
+					"if (pm.response.code >= 400) {",
+					"    console.log('❌ Error:', pm.response.code, pm.response.status);",
+					"    if (pm.response.json) {",
+					"        console.log('Error details:', JSON.stringify(pm.response.json(), null, 2));",
+					"    }",
+					"} else {",
+					"    console.log('✅ Success:', pm.response.code, pm.response.status);",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "logoId",
+			"value": "bdd8c50a-383c-44c4-a212-ede3c06e6102",
+			"type": "string",
+			"description": "Logo UUID - Replace with your actual logo ID"
+		}
+	]
+}
+

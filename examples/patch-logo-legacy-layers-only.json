@@ -1,0 +1,54 @@
+{
+  "layers": [
+    {
+      "type": "text",
+      "visible": true,
+      "order": 0,
+      "position": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "scaleFactor": 1.0,
+      "rotation": 0,
+      "opacity": 1.0,
+      "flip": {
+        "horizontal": false,
+        "vertical": false
+      },
+      "text": {
+        "value": "New Text Layer",
+        "font": "Helvetica",
+        "fontSize": 36,
+        "fontColor": "#000000",
+        "fontWeight": "normal",
+        "fontStyle": "normal",
+        "alignment": "center",
+        "baseline": "alphabetic",
+        "lineHeight": 1.0,
+        "letterSpacing": 0,
+        "fillAlpha": 1.0
+      }
+    },
+    {
+      "type": "icon",
+      "visible": true,
+      "order": 1,
+      "position": {
+        "x": 0.5,
+        "y": 0.3
+      },
+      "scaleFactor": 0.8,
+      "rotation": 0,
+      "opacity": 1.0,
+      "flip": {
+        "horizontal": false,
+        "vertical": false
+      },
+      "icon": {
+        "src": "star_icon",
+        "color": "#ffc107"
+      }
+    }
+  ]
+}
+
