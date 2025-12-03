@@ -3050,6 +3050,60 @@ router.get('/tags/suggest', async(req, res) => {
     }
 });
 
+// POST /api/logo/:id/thumbnail - Update thumbnail URL for a specific logo
+router.post('/:id/thumbnail', async(req, res) => {
+    try {
+        const { id } = req.params;
+        const { thumbnail_url } = req.body;
+
+        // Validate thumbnail_url is provided
+        if (!thumbnail_url || typeof thumbnail_url !== 'string' || thumbnail_url.trim() === '') {
+            const currentLang = res.locals.lang || "en";
+            return res.status(400).json({
+                success: false,
+                message: currentLang === "ar" ? "يجب توفير رابط الصورة المصغرة" : "Thumbnail URL is required"
+            });
+        }
+
+        // Validate logo exists
+        const logoCheck = await query('SELECT id FROM logos WHERE id = $1', [id]);
+        if (logoCheck.rows.length === 0) {
+            const currentLang = res.locals.lang || "en";
+            return res.status(404).json({
+                success: false,
+                message: currentLang === "ar" ? "الشعار غير موجود" : "Logo not found"
+            });
+        }
+
+        // Update thumbnail URL
+        const result = await query(`
+            UPDATE logos 
+            SET thumbnail_url = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+            RETURNING id, thumbnail_url, updated_at
+        `, [thumbnail_url.trim(), id]);
+
+        const currentLang = res.locals.lang || "en";
+        return res.json({
+            success: true,
+            message: currentLang === "ar" ? "تم حفظ الصورة المصغرة بنجاح" : "Thumbnail saved successfully",
+            data: {
+                id: result.rows[0].id,
+                thumbnail_url: result.rows[0].thumbnail_url,
+                updated_at: result.rows[0].updated_at
+            }
+        });
+    } catch (error) {
+        console.error('Error updating thumbnail:', error);
+        const currentLang = res.locals.lang || "en";
+        return res.status(500).json({
+            success: false,
+            message: currentLang === "ar" ? "فشل في حفظ الصورة المصغرة" : "Failed to save thumbnail",
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
 // ==============================================
 // LOGO CRUD OPERATIONS
 // ==============================================

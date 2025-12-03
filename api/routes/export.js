@@ -199,7 +199,10 @@ router.get('/logo/:id/export', async(req, res) => {
                             text_transform: row.text_transform || row.textTransform,
                             text_case: row.text_case || row.textCase,
                             underline: row.underline, // Add underline field from database
-                            underline_direction: row.underline_direction
+                            underline_direction: row.underline_direction,
+                            // Add font URL and fallbacks for @font-face support
+                            font_url: row.font_url,
+                            font_fallbacks: row.font_fallbacks
                         }
                     };
                 case 'SHAPE':
@@ -288,6 +291,16 @@ router.get('/logo/:id/export', async(req, res) => {
                 'Failed to generate SVG from logo data');
         }
 
+        // DEBUG: Add hard-coded debug text element to test Resvg text rendering
+        const debugText = `
+  <text x="100" y="100" font-size="60" fill="#ff0000" font-family="DejaVu Sans, Arial, sans-serif">DEBUG</text>`;
+        svg = svg.replace('</svg>', `${debugText}\n</svg>`);
+        console.log('DEBUG: Added hard-coded debug text element to SVG');
+
+        // DEBUG: Count text elements before cleaning
+        const textCountBefore = (svg.match(/<text\b/gi) || []).length;
+        console.log('DEBUG text elements BEFORE cleanSVGAttributes:', textCountBefore);
+
         // Log SVG before cleaning (first 500 chars)
         console.log('SVG before cleanSVGAttributes (first 500 chars):', svg.substring(0, 500));
         console.log('SVG before cleanSVGAttributes - starts with:', svg.substring(0, 100));
@@ -297,10 +310,26 @@ router.get('/logo/:id/export', async(req, res) => {
         // This aggressively fixes any attribute formatting issues
         svg = cleanSVGAttributes(svg);
 
+        // DEBUG: Count text elements after cleaning
+        const textCountAfter = (svg.match(/<text\b/gi) || []).length;
+        console.log('DEBUG text elements AFTER cleanSVGAttributes:', textCountAfter);
+
+        if (textCountBefore > 0 && textCountAfter !== textCountBefore) {
+            console.error(`DEBUG: CRITICAL - Text element count changed! Before: ${textCountBefore}, After: ${textCountAfter}`);
+        }
+
         // Log SVG after cleaning (first 500 chars)
         console.log('SVG after cleanSVGAttributes (first 500 chars):', svg.substring(0, 500));
         console.log('SVG after cleanSVGAttributes - starts with:', svg.substring(0, 100));
         console.log('SVG after cleanSVGAttributes - length:', svg.length);
+
+        // DEBUG: Write final SVG to disk for browser inspection
+        try {
+            await fs.writeFile('debug-export.svg', svg, 'utf8');
+            console.log('DEBUG: wrote debug-export.svg to disk - open in browser to verify text visibility');
+        } catch (writeError) {
+            console.warn('DEBUG: Failed to write debug-export.svg:', writeError.message);
+        }
 
         // Validate font-family strings in the SVG to catch any issues early
         const fontFamilyMatches = svg.match(/font-family:\s*([^;]+)/g);
@@ -337,8 +366,11 @@ router.get('/logo/:id/export', async(req, res) => {
 
         // Additional SVG validation: Check for common issues that cause resvg parsing errors
         // Check for extremely long data URLs or malformed content
+        const svgSizeMB = (svg.length / 1024 / 1024).toFixed(2);
         if (svg.length > 1000000) { // 1MB limit
-            console.warn('SVG is very large:', svg.length, 'characters');
+            console.warn(`SVG is very large: ${svg.length} characters (${svgSizeMB}MB)`);
+        } else {
+            console.log(`SVG size: ${svg.length} characters (${svgSizeMB}MB)`);
         }
 
         // Validate SVG structure - ensure it's well-formed XML
@@ -352,8 +384,11 @@ router.get('/logo/:id/export', async(req, res) => {
             startsWithXml,
             startsWithSvg,
             hasSvgTag,
+            svgSize: `${svgSizeMB}MB`,
             firstChars: trimmedSvg.substring(0, 200)
         });
+
+        console.log('Starting PNG conversion process...');
 
         if (!startsWithXml && !startsWithSvg && !hasSvgTag) {
             console.error('SVG does not start with <svg tag or <?xml declaration');
@@ -382,6 +417,7 @@ router.get('/logo/:id/export', async(req, res) => {
         let resvgError = null;
 
         try {
+            console.log('Attempting Resvg conversion...');
             // Only set background color if it's not an image background
             // For image backgrounds, let the SVG handle it
             let background = 'rgba(0,0,0,0)'; // Transparent by default
@@ -396,17 +432,44 @@ router.get('/logo/:id/export', async(req, res) => {
                 background = logo.canvas_background_solid_color || '#ffffff';
             }
 
-            const resvg = new Resvg(svg, {
+            console.log('Creating Resvg instance...');
+            // Configure Resvg with font support
+            // Try to load system fonts and use DejaVu Sans as default/fallback
+            const resvgOptions = {
                 background: background,
                 fitTo: {
                     mode: 'width',
                     value: canvasWidth
                 },
-                dpi: parseInt(dpi) || 300
-            });
+                dpi: parseInt(dpi) || 300,
+                // Font configuration for Resvg
+                // Note: @resvg/resvg-js may not support all font options, but we try
+                font: {
+                    loadSystemFonts: true, // Allow system fonts if present
+                    defaultFontFamily: 'DejaVu Sans', // Used when SVG says sans-serif
+                    fontFallbacks: ['DejaVu Sans', 'Arial', 'sans-serif']
+                }
+            };
 
+            // Try to add explicit font file if available (optional, may not be needed)
+            // const fontPath = path.join(__dirname, '..', 'fonts', 'DejaVuSans.ttf');
+            // if (await fs.access(fontPath).then(() => true).catch(() => false)) {
+            //     resvgOptions.font.fontFiles = [fontPath];
+            //     console.log('Resvg: Using explicit font file:', fontPath);
+            // }
+
+            console.log('Resvg options:', JSON.stringify(resvgOptions, null, 2));
+            const resvg = new Resvg(svg, resvgOptions);
+
+            console.log('Rendering PNG with Resvg (this may take a while for large SVGs)...');
+            const renderStartTime = Date.now();
             const pngData = resvg.render();
+            const renderDuration = Date.now() - renderStartTime;
+            console.log(`Resvg render completed in ${(renderDuration / 1000).toFixed(2)}s`);
+
+            console.log('Converting to PNG buffer...');
             pngBuffer = pngData.asPng();
+            console.log(`PNG buffer created: ${(pngBuffer.length / 1024 / 1024).toFixed(2)}MB`);
         } catch (svgError) {
             resvgError = svgError;
             console.warn('Resvg failed, falling back to Cloudinary:', svgError.message);
@@ -433,9 +496,14 @@ router.get('/logo/:id/export', async(req, res) => {
 
             // Fallback: Use Cloudinary to convert SVG to PNG
             try {
+                console.log('Starting Cloudinary conversion fallback...');
+                console.log(`SVG size: ${(svg.length / 1024 / 1024).toFixed(2)}MB`);
+
                 // Convert SVG to base64 data URL
+                console.log('Converting SVG to base64...');
                 const svgBase64 = Buffer.from(svg).toString('base64');
                 const svgDataUrl = `data:image/svg+xml;base64,${svgBase64}`;
+                console.log(`Base64 data URL size: ${(svgDataUrl.length / 1024 / 1024).toFixed(2)}MB`);
 
                 // Build Cloudinary upload options
                 // NOTE: Cloudinary doesn't support 'transparent' as a flag in upload options
@@ -447,7 +515,8 @@ router.get('/logo/:id/export', async(req, res) => {
                     height: canvasHeight,
                     dpr: (parseInt(dpi) || 300) / 72, // Convert DPI to device pixel ratio
                     quality: format === 'jpg' || format === 'jpeg' ? parseInt(quality) : 'auto',
-                    fetch_format: format === 'jpg' || format === 'jpeg' ? 'jpg' : 'png'
+                    fetch_format: format === 'jpg' || format === 'jpeg' ? 'jpg' : 'png',
+                    timeout: 120000 // Increase timeout to 2 minutes for large files
                 };
 
                 // For transparent backgrounds, ensure we use PNG (which supports transparency)
@@ -458,13 +527,23 @@ router.get('/logo/:id/export', async(req, res) => {
                 }
 
                 // Upload SVG to Cloudinary and convert to PNG
+                console.log('Uploading SVG to Cloudinary (this may take a while for large files)...');
+                const uploadStartTime = Date.now();
                 const uploadResult = await cloudinary.uploader.upload(svgDataUrl, uploadOptions);
+                const uploadDuration = Date.now() - uploadStartTime;
+                console.log(`Cloudinary upload completed in ${(uploadDuration / 1000).toFixed(2)}s`);
+                console.log(`Upload result URL: ${uploadResult.secure_url}`);
 
                 // Download the converted PNG from Cloudinary
+                console.log('Downloading converted PNG from Cloudinary...');
+                const downloadStartTime = Date.now();
                 const imageResponse = await axios.get(uploadResult.secure_url, {
                     responseType: 'arraybuffer',
-                    timeout: 30000
+                    timeout: 120000 // Increase timeout to 2 minutes
                 });
+                const downloadDuration = Date.now() - downloadStartTime;
+                console.log(`PNG download completed in ${(downloadDuration / 1000).toFixed(2)}s`);
+                console.log(`PNG size: ${(imageResponse.data.length / 1024 / 1024).toFixed(2)}MB`);
 
                 pngBuffer = Buffer.from(imageResponse.data);
 
@@ -882,14 +961,24 @@ router.get('/project/:id/export', authenticate, entitlementMiddleware, requirePr
                 background = logoData.canvas_background_solid_color || '#ffffff';
             }
 
-            const resvg = new Resvg(svg, {
+            // Configure Resvg with font support
+            const resvgOptions = {
                 background: background,
                 fitTo: {
                     mode: 'width',
                     value: canvasWidth
                 },
-                dpi: parseInt(dpi) || 300
-            });
+                dpi: parseInt(dpi) || 300,
+                // Font configuration for Resvg
+                font: {
+                    loadSystemFonts: true, // Allow system fonts if present
+                    defaultFontFamily: 'DejaVu Sans', // Used when SVG says sans-serif
+                    fontFallbacks: ['DejaVu Sans', 'Arial', 'sans-serif']
+                }
+            };
+
+            console.log('Resvg options (project export):', JSON.stringify(resvgOptions, null, 2));
+            const resvg = new Resvg(svg, resvgOptions);
 
             const pngData = resvg.render();
             pngBuffer = pngData.asPng();
@@ -1096,24 +1185,48 @@ function buildUnifiedTransform(params) {
 
     // Step 3: Build transform in correct order
     // Order: translate → rotate → flip → scale
+    // CRITICAL: Flip must be applied around the element's center (0,0 after translation),
+    // not around the global origin, to match editor behavior
     // We need to apply anchor offset before rotation, so we combine it with the position
     const finalX = canvasX - anchorOffsetX;
     const finalY = canvasY - anchorOffsetY;
 
-    let transform = `translate(${finalX}, ${finalY})`;
-
-    // Step 4: Rotate around center (0,0 after translation)
     const validRotation = isNaN(rotation_deg) ? 0 : rotation_deg;
-    if (validRotation !== 0) {
-        transform += ` rotate(${validRotation})`;
-    }
-
-    // Step 5: Apply flip (before scale, as per editor logic)
     const validScale = isNaN(scale) ? 1 : scale;
-    const scaleX = (flip_horizontal ? -1 : 1) * validScale;
-    const scaleY = (flip_vertical ? -1 : 1) * validScale;
-    if (scaleX !== 1 || scaleY !== 1) {
-        transform += ` scale(${scaleX}, ${scaleY})`;
+    const hasFlip = flip_horizontal || flip_vertical;
+
+    // Step 4 & 5: Build transform with proper order: translate → rotate → flip (around center) → scale
+    // CRITICAL FIX: Flip must be applied around the element's geometric center,
+    // not around (0,0). The element is positioned at (0,0) in local coordinates,
+    // but its center is at (elementWidth/2, elementHeight/2).
+    // To flip around center: translate to center, flip, translate back
+
+    let transform = '';
+
+    if (hasFlip && (elementWidth > 0 || elementHeight > 0)) {
+        // Calculate element center in local coordinates
+        const centerX = (elementWidth || 0) / 2;
+        const centerY = (elementHeight || 0) / 2;
+
+        // Apply transforms in order: translate → rotate → translate to center → flip → translate back
+        // Pattern: translate(x, y) rotate(r) translate(cx, cy) scale(sx, sy) translate(-cx, -cy)
+        const scaleX = (flip_horizontal ? -1 : 1) * validScale;
+        const scaleY = (flip_vertical ? -1 : 1) * validScale;
+
+        transform = `translate(${finalX}, ${finalY})`;
+        if (validRotation !== 0) {
+            transform += ` rotate(${validRotation})`;
+        }
+        transform += ` translate(${centerX}, ${centerY}) scale(${scaleX}, ${scaleY}) translate(${-centerX}, ${-centerY})`;
+    } else {
+        // No flip, apply transforms normally
+        transform = `translate(${finalX}, ${finalY})`;
+        if (validRotation !== 0) {
+            transform += ` rotate(${validRotation})`;
+        }
+        if (validScale !== 1) {
+            transform += ` scale(${validScale}, ${validScale})`;
+        }
     }
 
     // Clean transform
@@ -1436,6 +1549,20 @@ async function generateSVGFromLogo(logo, layers, width, height) {
     // Clean up defs - remove any empty entries
     const cleanDefs = defs.filter(def => def && def.trim().length > 0);
 
+    // Log font definitions for debugging
+    const fontDefs = cleanDefs.filter(def => def.includes('@font-face'));
+    if (fontDefs.length > 0) {
+        console.log(`generateSVGFromLogo: Added ${fontDefs.length} @font-face definition(s) to SVG`);
+    } else {
+        console.warn('generateSVGFromLogo: No @font-face definitions found - text may not render if fonts are missing');
+    }
+
+    // Count text elements in SVG for debugging
+    const textElements = (svgContent.match(/<text[^>]*>/g) || []).length;
+    if (textElements > 0) {
+        console.log(`generateSVGFromLogo: SVG contains ${textElements} <text> element(s)`);
+    }
+
     // Clean up svgContent to remove any problematic characters and ensure proper formatting
     const cleanSvgContent = (svgContent || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
@@ -1490,6 +1617,38 @@ async function generateTextSVG(layer, transformParams, style, defs, canvasWidth,
     // Support both content (database) and value (legacy JSON)
     const textContent = text && text.content ? text.content : (text && text.value ? text.value : undefined);
     if (!text || !textContent) return '';
+
+    // TEMP DEBUG MODE: Super-simple text rendering to isolate transform/font-size issues
+    // Enable with LOGO_EXPORT_TEXT_DEBUG=true environment variable
+    if (process.env.LOGO_EXPORT_TEXT_DEBUG === 'true') {
+        console.log('EXPORT DEBUG: Using simple text mode (ignoring all transforms/scaling)');
+
+        // Completely ignore: normalizedScale, elementWidth/Height, anchors, flip, rotation, transforms
+        const debugFontSize = 80; // Large and clearly visible
+        const x = canvasWidth * 0.5; // Center X
+        const y = canvasHeight * 0.5; // Center Y
+
+        // Get fill color from layer
+        const fillColor = validateHexColor(text.fill_hex || text.fontColor || '#ff0000');
+        const opacity = layer.opacity !== undefined ? layer.opacity : 1;
+
+        const textSvg = `
+  <text
+    x="${x}"
+    y="${y}"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    font-family="DejaVu Sans, Arial, sans-serif"
+    font-size="${debugFontSize}"
+    fill="${fillColor}"
+    opacity="${opacity}"
+  >
+    ${escapeXml(textContent || 'NO_CONTENT')}
+  </text>`;
+
+        console.log('EXPORT DEBUG: final text element =', textSvg);
+        return textSvg;
+    }
 
     // Support both snake_case and camelCase for font_size
     // The font_size in the database is the base size, which needs to be scaled based on canvas size
@@ -1573,35 +1732,18 @@ async function generateTextSVG(layer, transformParams, style, defs, canvasWidth,
     // Support both snake_case and camelCase for fill_alpha
     const fillAlpha = clampAlpha(text.fill_alpha !== undefined ? text.fill_alpha : (text.fillAlpha !== undefined ? text.fillAlpha : 1));
 
-    // Sanitize font name - remove problematic characters but preserve the name
-    const safeFontFamily = fontFamilyName.replace(/[;:]/g, ' ').trim() || 'Arial';
+    // DEBUGGING MODE: Disable all custom fonts to test if font loading is the issue
+    // TEMPORARY: Force all text to use simple system font (sans-serif)
+    // This helps us determine if the missing text issue is caused by font loading or something else
 
-    // Build font-family with proper fallbacks for Arabic and other fonts
-    // For Arabic fonts, add Arabic font fallbacks; for others, add generic fallbacks
-    // Always include safe renderer-safe defaults to ensure text renders even if primary font fails
-    const isArabicFont = /arabic|naskh|ruqaa|farsan|noto.*arabic/i.test(safeFontFamily);
+    // IGNORE: font_url, font_family, font_fallbacks
+    // DO NOT: Insert any @font-face blocks
 
-    // Use the safe font-family builder to create a properly formatted CSS string
-    let fallbackFonts = [];
-    if (isArabicFont) {
-        // Add Arabic font fallbacks with safe renderer-safe defaults
-        fallbackFonts = ['Noto Sans Arabic', 'Arial Unicode MS', 'Tahoma', 'sans-serif'];
-    } else {
-        // Standard fallbacks - always include safe defaults for better compatibility
-        // Use renderer-safe fonts that are widely available
-        fallbackFonts = ['Arial', 'Helvetica', 'sans-serif'];
-    }
+    // Force simple system font with explicit fallbacks that Resvg can use
+    // DejaVu Sans is a common system font, Arial and sans-serif as fallbacks
+    const fontFamilyString = 'DejaVu Sans, Arial, sans-serif';
 
-    // Build safe font-family string using the helper function
-    // This ensures proper quoting (single quotes for names with spaces, inside double-quoted style)
-    let fontFamilyString = buildFontFamilyString(safeFontFamily, fallbackFonts);
-
-    // Validate the generated font-family string
-    if (!validateFontFamilyString(fontFamilyString)) {
-        console.warn(`generateTextSVG: Invalid font-family string generated for layer ${layer.id}, using fallback`);
-        // Use a safe fallback
-        fontFamilyString = buildFontFamilyString('Arial', ['sans-serif']);
-    }
+    console.log(`generateTextSVG: Using DEFAULT font-family "${fontFamilyString}" (no @font-face, no custom fonts)`);
 
     let textStyle = `font-size: ${validFontSize}px; font-family: ${fontFamilyString};`;
     textStyle += `fill: ${fillColor}; fill-opacity: ${fillAlpha};`;
@@ -1693,7 +1835,12 @@ async function generateTextSVG(layer, transformParams, style, defs, canvasWidth,
 
     // Wrap in <g> with transform for consistency with other layer types
     // This also helps resvg properly apply transforms
-    return `<g transform="${unifiedTransform}">${textElement}</g>`;
+    const finalTextSvg = `<g transform="${unifiedTransform}">${textElement}</g>`;
+
+    // Log the final text element for debugging
+    console.log('EXPORT DEBUG: final text element =', finalTextSvg);
+
+    return finalTextSvg;
 }
 
 async function generateShapeSVG(layer, transformParams, style, defs, canvasWidth, canvasHeight) {
