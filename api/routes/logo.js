@@ -296,9 +296,12 @@ router.get('/thumbnails', async(req, res) => {
 });
 
 // GET /api/logo/categories - Get all categories with only id and name
+// Optionally includes logos with thumbnails if includeLogos=true
 router.get('/categories', async(req, res) => {
     try {
         const lang = req.query.lang || res.locals.lang || 'en';
+        const includeLogos = req.query.includeLogos === 'true' || req.query.include_logos === 'true';
+        const logosPerCategory = Math.min(20, Math.max(1, parseInt(req.query.logos_per_category || '10', 10)));
 
         // Query categories with localized name
         const result = await query(`
@@ -312,7 +315,7 @@ router.get('/categories', async(req, res) => {
         `);
 
         // Format response with localized names
-        const categories = result.rows.map(category => {
+        let categories = result.rows.map(category => {
             // Use localized name based on language preference
             let displayName;
             if (lang === 'ar') {
@@ -326,6 +329,57 @@ router.get('/categories', async(req, res) => {
                 name: displayName
             };
         });
+
+        // If includeLogos is true, fetch logos with thumbnails for each category
+        if (includeLogos) {
+            const categoriesWithLogos = [];
+            for (const category of result.rows) {
+                const logosRes = await query(`
+                    SELECT 
+                        l.id,
+                        l.title,
+                        l.title_en,
+                        l.title_ar,
+                        l.description,
+                        l.description_en,
+                        l.description_ar,
+                        l.thumbnail_url,
+                        l.category_id,
+                        l.created_at,
+                        l.updated_at
+                    FROM logos l
+                    WHERE l.category_id = $1
+                    ORDER BY l.created_at DESC
+                    LIMIT $2
+                `, [category.id, logosPerCategory]);
+
+                const formattedLogos = logosRes.rows.map(logo => ({
+                    id: logo.id,
+                    title: lang === 'ar' ? (logo.title_ar || logo.title_en || logo.title) : (logo.title_en || logo.title),
+                    thumbnailUrl: logo.thumbnail_url || null,
+                    description: lang === 'ar' ?
+                        (logo.description_ar || logo.description_en || logo.description) :
+                        (logo.description_en || logo.description),
+                    categoryId: logo.category_id,
+                    createdAt: new Date(logo.created_at).toISOString(),
+                    updatedAt: new Date(logo.updated_at).toISOString()
+                }));
+
+                let displayName;
+                if (lang === 'ar') {
+                    displayName = category.name_ar || category.name_en || category.name;
+                } else {
+                    displayName = category.name_en || category.name;
+                }
+
+                categoriesWithLogos.push({
+                    id: category.id,
+                    name: displayName,
+                    logos: formattedLogos
+                });
+            }
+            categories = categoriesWithLogos;
+        }
 
         res.json({
             success: true,
@@ -2759,7 +2813,7 @@ router.get('/search', async(req, res) => {
             }, currentLang, currentLang === "ar" ? "لم يتم العثور على نتائج" : "No results found"));
         }
 
-        // Transform logos to simplified format (id, name, description only)
+        // Transform logos to simplified format (id, name, description, thumbnailUrl)
         const data = logosRes.rows.map(logo => {
             // Get localized name (title)
             const name = lang === 'ar' ?
@@ -2774,7 +2828,8 @@ router.get('/search', async(req, res) => {
             return {
                 id: logo.id.toString(),
                 name: name || '',
-                description: description || ''
+                description: description || '',
+                thumbnailUrl: logo.thumbnail_url || null
             };
         });
 
