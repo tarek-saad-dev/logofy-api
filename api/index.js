@@ -70,6 +70,9 @@ app.use('/billing', require('./routes/billing'));
 // API endpoints are at /api/billing/*
 app.use('/api/billing', require('./routes/billing'));
 
+// Subscription prices routes
+app.use('/api/subscription-prices', require('./routes/subscriptionPrices'));
+
 // Import error handler
 const { notFound, errorHandler, ERROR_CODES } = require('./utils/errorHandler');
 

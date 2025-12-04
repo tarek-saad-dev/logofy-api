@@ -1,0 +1,455 @@
+{
+    "info": {
+        "name": "Logo Maker - Subscription Prices API",
+        "description": "API collection for managing dynamic subscription prices. Allows project owners to update prices and mobile apps to fetch current prices.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+        "_exporter_id": "subscription-prices-api"
+    },
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "http://localhost:3000",
+            "type": "string"
+        },
+        {
+            "key": "token",
+            "value": "",
+            "type": "string"
+        }
+    ],
+    "item": [
+        {
+            "name": "Authentication",
+            "description": "Get a JWT token to use for authenticated requests (POST /api/subscription-prices)",
+            "item": [
+                {
+                    "name": "Register User",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    const jsonData = pm.response.json();",
+                                    "    if (jsonData.success && jsonData.data && jsonData.data.token) {",
+                                    "        pm.collectionVariables.set(\"token\", jsonData.data.token);",
+                                    "        console.log(\"✅ Token saved to collection variable\");",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"admin_{{$timestamp}}@example.com\",\n    \"password\": \"admin123456\",\n    \"name\": \"Admin User\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/register",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "auth", "register"]
+                        },
+                        "description": "Register a new user to get authentication token"
+                    }
+                },
+                {
+                    "name": "Login",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    const jsonData = pm.response.json();",
+                                    "    if (jsonData.success && jsonData.data && jsonData.data.token) {",
+                                    "        pm.collectionVariables.set(\"token\", jsonData.data.token);",
+                                    "        console.log(\"✅ Token saved to collection variable\");",
+                                    "        console.log(\"📝 You can now use POST /api/subscription-prices\");",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"admin@example.com\",\n    \"password\": \"admin123456\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/login",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "auth", "login"]
+                        },
+                        "description": "Login to get JWT token for authenticated requests"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Subscription Prices",
+            "description": "Endpoints for fetching and updating subscription prices",
+            "item": [
+                {
+                    "name": "Get Current Prices (Public)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "**Public endpoint** - No authentication required.\n\nFetches the current active subscription prices. This is the endpoint the mobile app should call to display prices dynamically.\n\n**Response includes:**\n- monthly_price\n- yearly_price\n- trial_days\n- currency\n- stripe_monthly_price_id\n- stripe_yearly_price_id"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Prices (EGP Example)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    const jsonData = pm.response.json();",
+                                    "    if (jsonData.success) {",
+                                    "        console.log(\"✅ Prices updated successfully!\");",
+                                    "        console.log(\"📊 New prices:\");",
+                                    "        console.log(\"   Monthly: \" + jsonData.data.monthly_price + \" \" + jsonData.data.currency);",
+                                    "        console.log(\"   Yearly: \" + jsonData.data.yearly_price + \" \" + jsonData.data.currency);",
+                                    "        console.log(\"   Trial Days: \" + jsonData.data.trial_days);",
+                                    "        console.log(\"\\n💡 Next: Call GET /api/subscription-prices to verify\");",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "description": "JWT token from login/register"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"monthly_price\": 97.99,\n    \"yearly_price\": 999.99,\n    \"trial_days\": 3,\n    \"currency\": \"EGP\",\n    \"stripe_monthly_price_id\": \"price_1234567890\",\n    \"stripe_yearly_price_id\": \"price_0987654321\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "**Requires authentication** - Update subscription prices with EGP currency example.\n\n**What happens:**\n1. All existing active prices are deactivated\n2. New active price configuration is created\n3. Mobile app will fetch these new prices\n\n**Required fields:**\n- monthly_price (number, >= 0)\n- yearly_price (number, >= 0)\n\n**Optional fields:**\n- trial_days (integer, default: 0)\n- currency (string, default: \"USD\")\n- stripe_monthly_price_id (string)\n- stripe_yearly_price_id (string)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Prices (USD Example)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    const jsonData = pm.response.json();",
+                                    "    if (jsonData.success) {",
+                                    "        console.log(\"✅ Prices updated successfully!\");",
+                                    "        console.log(\"📊 New prices:\");",
+                                    "        console.log(\"   Monthly: \" + jsonData.data.monthly_price + \" \" + jsonData.data.currency);",
+                                    "        console.log(\"   Yearly: \" + jsonData.data.yearly_price + \" \" + jsonData.data.currency);",
+                                    "        console.log(\"   Trial Days: \" + jsonData.data.trial_days);",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"monthly_price\": 9.99,\n    \"yearly_price\": 99.99,\n    \"trial_days\": 7,\n    \"currency\": \"USD\",\n    \"stripe_monthly_price_id\": \"price_monthly_usd\",\n    \"stripe_yearly_price_id\": \"price_yearly_usd\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "Update subscription prices with USD currency example"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Prices (Minimal - Required Fields Only)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    const jsonData = pm.response.json();",
+                                    "    if (jsonData.success) {",
+                                    "        console.log(\"✅ Prices updated with minimal fields\");",
+                                    "        console.log(\"📊 Defaults applied:\");",
+                                    "        console.log(\"   Trial Days: \" + jsonData.data.trial_days + \" (default: 0)\");",
+                                    "        console.log(\"   Currency: \" + jsonData.data.currency + \" (default: USD)\");",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"monthly_price\": 19.99,\n    \"yearly_price\": 199.99\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "Update prices with only required fields (monthly_price and yearly_price). Optional fields will use defaults:\n- trial_days: 0\n- currency: \"USD\"\n- stripe_monthly_price_id: null\n- stripe_yearly_price_id: null"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Testing Workflow",
+            "description": "Complete workflow examples for testing the subscription prices API",
+            "item": [
+                {
+                    "name": "1. Get Current Prices (Before Update)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "Step 1: Check current prices before updating"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "2. Update Prices",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    console.log(\"✅ Prices updated!\");",
+                                    "    console.log(\"💡 Next: Run step 3 to verify the update\");",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"monthly_price\": 29.99,\n    \"yearly_price\": 299.99,\n    \"trial_days\": 14,\n    \"currency\": \"USD\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "Step 2: Update prices (requires authentication)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "3. Get Updated Prices (After Update)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "Step 3: Verify the prices were updated correctly"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Error Examples",
+            "description": "Examples of error responses for validation and authentication",
+            "item": [
+                {
+                    "name": "POST Without Authentication",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"monthly_price\": 10.00,\n    \"yearly_price\": 100.00\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "**Expected Error:** 401 Unauthorized\n\nThis demonstrates that POST requests require authentication. GET requests are public and don't need authentication."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST With Missing Required Field",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"monthly_price\": 10.00\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "**Expected Error:** 400 Bad Request - \"yearly_price is required\"\n\nThis demonstrates validation - both monthly_price and yearly_price are required."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST With Invalid Data Type",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"monthly_price\": \"not-a-number\",\n    \"yearly_price\": 100.00\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "**Expected Error:** 400 Bad Request - \"monthly_price must be a non-negative number\"\n\nThis demonstrates type validation - prices must be numbers."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST With Negative Price",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"monthly_price\": -10.00,\n    \"yearly_price\": 100.00\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "**Expected Error:** 400 Bad Request - \"monthly_price must be a non-negative number\"\n\nThis demonstrates range validation - prices cannot be negative."
+                    },
+                    "response": []
+                }
+            ]
+        }
+    ]
+}
+
