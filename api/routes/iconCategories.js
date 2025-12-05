@@ -43,14 +43,14 @@ router.get('/', async(req, res) => {
           AND table_name = 'icon_categories'
         ) as exists
       `);
-            tableExists = tableCheck.rows[0] ? .exists || false;
+            tableExists = (tableCheck.rows[0] && tableCheck.rows[0].exists) || false;
         } catch (e) {
             tableExists = false;
         }
 
         if (!tableExists) {
             // Return empty result if table doesn't exist
-            const currentLang = res.locals.lang ? ? "en";
+            const currentLang = res.locals.lang || "en";
             return res.json(ok({
                 categories: [],
                 total: 0
@@ -116,7 +116,7 @@ router.get('/', async(req, res) => {
             };
         });
 
-        const currentLang = res.locals.lang ? ? "en";
+        const currentLang = res.locals.lang || "en";
         return res.json(ok({
             categories,
             total: categories.length
@@ -124,7 +124,7 @@ router.get('/', async(req, res) => {
     } catch (error) {
         console.error('Error fetching icon categories:', error);
         console.error('Error details:', error.message, error.stack);
-        const lang = res.locals.lang ? ? "en";
+        const lang = res.locals.lang || "en";
         return res.status(500).json(fail(lang, lang === "ar" ? "خطأ في جلب فئات الأيقونات" : "Failed to fetch icon categories"));
     }
 });
@@ -153,7 +153,7 @@ router.get('/:id', async(req, res) => {
     `, [id]);
 
         if (result.rows.length === 0) {
-            const currentLang = res.locals.lang ? ? "en";
+            const currentLang = res.locals.lang || "en";
             return res.status(404).json(fail(currentLang, currentLang === "ar" ? "فئة الأيقونات غير موجودة" : "Icon category not found"));
         }
 
@@ -184,11 +184,11 @@ router.get('/:id', async(req, res) => {
             updatedAt: new Date(cat.updated_at).toISOString()
         };
 
-        const currentLang = res.locals.lang ? ? "en";
+        const currentLang = res.locals.lang || "en";
         return res.json(ok(category, currentLang, currentLang === "ar" ? "تم جلب فئة الأيقونات بنجاح" : "Icon category fetched successfully"));
     } catch (error) {
         console.error('Error fetching icon category:', error);
-        const lang = res.locals.lang ? ? "en";
+        const lang = res.locals.lang || "en";
         return res.status(500).json(fail(lang, lang === "ar" ? "خطأ في جلب فئة الأيقونات" : "Failed to fetch icon category"));
     }
 });
@@ -217,7 +217,7 @@ router.post('/', async(req, res) => {
 
         // Validation
         if (!name) {
-            const currentLang = res.locals.lang ? ? "en";
+            const currentLang = res.locals.lang || "en";
             return res.status(400).json(fail(currentLang, currentLang === "ar" ? "الاسم مطلوب" : "Name is required"));
         }
 
@@ -267,7 +267,7 @@ router.post('/', async(req, res) => {
             updatedAt: new Date(cat.updated_at).toISOString()
         };
 
-        const currentLang = res.locals.lang ? ? "en";
+        const currentLang = res.locals.lang || "en";
         return res.status(201).json(ok(category, currentLang, currentLang === "ar" ? "تم إنشاء فئة الأيقونات بنجاح" : "Icon category created successfully"));
     } catch (error) {
         console.error('Error creating icon category:', error);
@@ -275,17 +275,17 @@ router.post('/', async(req, res) => {
 
         // Handle unique constraint violations
         if (error.code === '23505') {
-            const currentLang = res.locals.lang ? ? "en";
+            const currentLang = res.locals.lang || "en";
             return res.status(409).json(fail(currentLang, currentLang === "ar" ? "فئة الأيقونات موجودة بالفعل" : "Icon category already exists"));
         }
 
         // Handle missing table error
         if (error.message && error.message.includes('does not exist')) {
-            const lang = res.locals.lang ? ? "en";
+            const lang = res.locals.lang || "en";
             return res.status(500).json(fail(lang, lang === "ar" ? "جداول فئات الأيقونات غير موجودة. يرجى تشغيل الترحيل أولاً" : "Icon category tables do not exist. Please run migration first"));
         }
 
-        const lang = res.locals.lang ? ? "en";
+        const lang = res.locals.lang || "en";
         return res.status(500).json(fail(lang, lang === "ar" ? "خطأ في إنشاء فئة الأيقونات" : "Failed to create icon category"));
     }
 });
@@ -324,7 +324,7 @@ router.patch('/:id', async(req, res) => {
         });
 
         if (setClause.length === 0) {
-            const currentLang = res.locals.lang ? ? "en";
+            const currentLang = res.locals.lang || "en";
             return res.status(400).json(fail(currentLang, currentLang === "ar" ? "لا توجد تحديثات" : "No updates provided"));
         }
 
@@ -339,7 +339,7 @@ router.patch('/:id', async(req, res) => {
     `, values);
 
         if (result.rows.length === 0) {
-            const currentLang = res.locals.lang ? ? "en";
+            const currentLang = res.locals.lang || "en";
             return res.status(404).json(fail(currentLang, currentLang === "ar" ? "فئة الأيقونات غير موجودة" : "Icon category not found"));
         }
 
@@ -366,22 +366,22 @@ router.patch('/:id', async(req, res) => {
             sortOrder: cat.sort_order,
             isActive: cat.is_active,
             meta: cat.meta,
-            iconCount: countResult.rows[0] ? .icon_count || 0,
+            iconCount: (countResult.rows[0] && countResult.rows[0].icon_count) || 0,
             createdAt: new Date(cat.created_at).toISOString(),
             updatedAt: new Date(cat.updated_at).toISOString()
         };
 
-        const currentLang = res.locals.lang ? ? "en";
+        const currentLang = res.locals.lang || "en";
         return res.json(ok(category, currentLang, currentLang === "ar" ? "تم تحديث فئة الأيقونات بنجاح" : "Icon category updated successfully"));
     } catch (error) {
         console.error('Error updating icon category:', error);
 
         if (error.code === '23505') {
-            const currentLang = res.locals.lang ? ? "en";
+            const currentLang = res.locals.lang || "en";
             return res.status(409).json(fail(currentLang, currentLang === "ar" ? "فئة الأيقونات موجودة بالفعل" : "Icon category already exists"));
         }
 
-        const lang = res.locals.lang ? ? "en";
+        const lang = res.locals.lang || "en";
         return res.status(500).json(fail(lang, lang === "ar" ? "خطأ في تحديث فئة الأيقونات" : "Failed to update icon category"));
     }
 });
@@ -402,10 +402,10 @@ router.delete('/:id', async(req, res) => {
       WHERE category_id = $1
     `, [id]);
 
-        const assignmentCount = assignmentsResult.rows[0] ? .count || 0;
+        const assignmentCount = (assignmentsResult.rows[0] && assignmentsResult.rows[0].count) || 0;
 
         if (assignmentCount > 0) {
-            const currentLang = res.locals.lang ? ? "en";
+            const currentLang = res.locals.lang || "en";
             return res.status(400).json(fail(currentLang, currentLang === "ar" ? "لا يمكن حذف الفئة: تحتوي على أيقونات" : "Cannot delete category: it has assigned icons"));
         }
 
@@ -416,15 +416,15 @@ router.delete('/:id', async(req, res) => {
     `, [id]);
 
         if (result.rows.length === 0) {
-            const currentLang = res.locals.lang ? ? "en";
+            const currentLang = res.locals.lang || "en";
             return res.status(404).json(fail(currentLang, currentLang === "ar" ? "فئة الأيقونات غير موجودة" : "Icon category not found"));
         }
 
-        const currentLang = res.locals.lang ? ? "en";
+        const currentLang = res.locals.lang || "en";
         return res.json(ok(null, currentLang, currentLang === "ar" ? "تم حذف فئة الأيقونات بنجاح" : "Icon category deleted successfully"));
     } catch (error) {
         console.error('Error deleting icon category:', error);
-        const lang = res.locals.lang ? ? "en";
+        const lang = res.locals.lang || "en";
         return res.status(500).json(fail(lang, lang === "ar" ? "خطأ في حذف فئة الأيقونات" : "Failed to delete icon category"));
     }
 });
@@ -452,7 +452,7 @@ router.get('/:id/icons', async(req, res) => {
       WHERE id = $1
     `, [id]);
         if (categoryCheck.rows.length === 0) {
-            const currentLang = res.locals.lang ? ? "en";
+            const currentLang = res.locals.lang || "en";
             return res.status(404).json(fail(currentLang, currentLang === "ar" ? "فئة الأيقونات غير موجودة" : "Icon category not found"));
         }
 
@@ -503,7 +503,7 @@ router.get('/:id/icons', async(req, res) => {
             updatedAt: new Date(icon.updated_at).toISOString()
         }));
 
-        const currentLang = res.locals.lang ? ? "en";
+        const currentLang = res.locals.lang || "en";
         return res.json(ok({
             categoryId: id,
             categoryName: localizedCategoryName,
@@ -511,13 +511,13 @@ router.get('/:id/icons', async(req, res) => {
             pagination: {
                 page: parseInt(page),
                 limit: parseInt(limit),
-                total: parseInt(countResult.rows[0] ? .total || 0),
-                pages: Math.ceil(parseInt(countResult.rows[0] ? .total || 0) / parseInt(limit))
+                total: parseInt((countResult.rows[0] && countResult.rows[0].total) || 0),
+                pages: Math.ceil(parseInt((countResult.rows[0] && countResult.rows[0].total) || 0) / parseInt(limit))
             }
         }, currentLang, currentLang === "ar" ? "تم جلب الأيقونات بنجاح" : "Icons fetched successfully"));
     } catch (error) {
         console.error('Error fetching icons in category:', error);
-        const lang = res.locals.lang ? ? "en";
+        const lang = res.locals.lang || "en";
         return res.status(500).json(fail(lang, lang === "ar" ? "خطأ في جلب الأيقونات" : "Failed to fetch icons"));
     }
 });
@@ -529,7 +529,7 @@ router.post('/:id/icons', async(req, res) => {
         const { icon_ids } = req.body;
 
         if (!icon_ids || !Array.isArray(icon_ids) || icon_ids.length === 0) {
-            const currentLang = res.locals.lang ? ? "en";
+            const currentLang = res.locals.lang || "en";
             return res.status(400).json(fail(currentLang, currentLang === "ar" ? "معرفات الأيقونات مطلوبة" : "Icon IDs array is required"));
         }
 
@@ -541,7 +541,7 @@ router.post('/:id/icons', async(req, res) => {
       WHERE id = $1
     `, [id]);
         if (categoryCheck.rows.length === 0) {
-            const currentLang = res.locals.lang ? ? "en";
+            const currentLang = res.locals.lang || "en";
             return res.status(404).json(fail(currentLang, currentLang === "ar" ? "فئة الأيقونات غير موجودة" : "Icon category not found"));
         }
 
@@ -599,7 +599,7 @@ router.post('/:id/icons', async(req, res) => {
 
             await client.query('COMMIT');
 
-            const currentLang = res.locals.lang ? ? "en";
+            const currentLang = res.locals.lang || "en";
             return res.status(201).json(ok({
                 categoryId: id,
                 categoryName: localizedCategoryName,
@@ -615,7 +615,7 @@ router.post('/:id/icons', async(req, res) => {
         }
     } catch (error) {
         console.error('Error assigning icons to category:', error);
-        const lang = res.locals.lang ? ? "en";
+        const lang = res.locals.lang || "en";
         return res.status(500).json(fail(lang, lang === "ar" ? "خطأ في تعيين الأيقونات" : "Failed to assign icons"));
     }
 });
@@ -632,15 +632,15 @@ router.delete('/:categoryId/icons/:iconId', async(req, res) => {
     `, [categoryId, iconId]);
 
         if (result.rows.length === 0) {
-            const currentLang = res.locals.lang ? ? "en";
+            const currentLang = res.locals.lang || "en";
             return res.status(404).json(fail(currentLang, currentLang === "ar" ? "التعيين غير موجود" : "Assignment not found"));
         }
 
-        const currentLang = res.locals.lang ? ? "en";
+        const currentLang = res.locals.lang || "en";
         return res.json(ok(null, currentLang, currentLang === "ar" ? "تم إزالة الأيقونة من الفئة بنجاح" : "Icon removed from category successfully"));
     } catch (error) {
         console.error('Error removing icon from category:', error);
-        const lang = res.locals.lang ? ? "en";
+        const lang = res.locals.lang || "en";
         return res.status(500).json(fail(lang, lang === "ar" ? "خطأ في إزالة الأيقونة" : "Failed to remove icon"));
     }
 });
@@ -658,7 +658,7 @@ router.get('/by-icon/:iconId', async(req, res) => {
         // Verify icon exists
         const iconCheck = await query('SELECT id, name FROM assets WHERE id = $1', [iconId]);
         if (iconCheck.rows.length === 0) {
-            const currentLang = res.locals.lang ? ? "en";
+            const currentLang = res.locals.lang || "en";
             return res.status(404).json(fail(currentLang, currentLang === "ar" ? "الأيقونة غير موجودة" : "Icon not found"));
         }
 
@@ -690,7 +690,7 @@ router.get('/by-icon/:iconId', async(req, res) => {
             };
         });
 
-        const currentLang = res.locals.lang ? ? "en";
+        const currentLang = res.locals.lang || "en";
         return res.json(ok({
             iconId,
             iconName: iconCheck.rows[0].name,
@@ -699,7 +699,7 @@ router.get('/by-icon/:iconId', async(req, res) => {
         }, currentLang, currentLang === "ar" ? "تم جلب الفئات بنجاح" : "Categories fetched successfully"));
     } catch (error) {
         console.error('Error fetching categories for icon:', error);
-        const lang = res.locals.lang ? ? "en";
+        const lang = res.locals.lang || "en";
         return res.status(500).json(fail(lang, lang === "ar" ? "خطأ في جلب الفئات" : "Failed to fetch categories"));
     }
 });
