@@ -3990,18 +3990,29 @@ router.patch('/:id/mobile/legacy', async(req, res) => {
         }
         if (tags_en !== undefined) {
             paramCount++;
-            updateFields.push(`tags_en = $${paramCount}`);
-            updateValues.push(tags_en ? JSON.stringify(tags_en) : null);
+            if (tags_en === null) {
+                updateFields.push(`tags_en = $${paramCount}::jsonb`);
+                updateValues.push(null);
+            } else {
+                updateFields.push(`tags_en = $${paramCount}::jsonb`);
+                updateValues.push(JSON.stringify(Array.isArray(tags_en) ? tags_en : [tags_en]));
+            }
         }
         if (tags_ar !== undefined) {
             paramCount++;
-            updateFields.push(`tags_ar = $${paramCount}`);
-            updateValues.push(tags_ar ? JSON.stringify(tags_ar) : null);
+            if (tags_ar === null) {
+                updateFields.push(`tags_ar = $${paramCount}::jsonb`);
+                updateValues.push(null);
+            } else {
+                updateFields.push(`tags_ar = $${paramCount}::jsonb`);
+                updateValues.push(JSON.stringify(Array.isArray(tags_ar) ? tags_ar : [tags_ar]));
+            }
         }
         if (categoryId !== undefined) {
             paramCount++;
-            updateFields.push(`category_id = $${paramCount}`);
-            updateValues.push(categoryId || null);
+            const categoryIdValue = categoryId || null;
+            updateFields.push(`category_id = $${paramCount}::uuid`);
+            updateValues.push(categoryIdValue);
         }
         if (canvas !== undefined) {
             if (canvas.aspectRatio !== undefined) {
@@ -4020,19 +4031,26 @@ router.patch('/:id/mobile/legacy', async(req, res) => {
                 updateFields.push(`canvas_background_solid_color = $${paramCount}`);
                 updateValues.push(canvas.background.solidColor || '#ffffff');
                 paramCount++;
-                updateFields.push(`canvas_background_gradient = $${paramCount}`);
-                updateValues.push(canvas.background.gradient ? JSON.stringify(canvas.background.gradient) : null);
+                if (canvas.background.gradient) {
+                    updateFields.push(`canvas_background_gradient = $${paramCount}::jsonb`);
+                    updateValues.push(JSON.stringify(canvas.background.gradient));
+                } else {
+                    updateFields.push(`canvas_background_gradient = $${paramCount}::jsonb`);
+                    updateValues.push(null);
+                }
                 paramCount++;
-                updateFields.push(`canvas_background_image_type = $${paramCount}`);
-                updateValues.push(canvas.background.image && canvas.background.image.type ? canvas.background.image.type : null);
+                const imageTypeValue = canvas.background.image && canvas.background.image.type ? canvas.background.image.type : null;
+                updateFields.push(`canvas_background_image_type = $${paramCount}::text`);
+                updateValues.push(imageTypeValue);
                 paramCount++;
-                updateFields.push(`canvas_background_image_path = $${paramCount}`);
-                updateValues.push(canvas.background.image && canvas.background.image.path ? canvas.background.image.path : null);
+                const imagePathValue = canvas.background.image && canvas.background.image.path ? canvas.background.image.path : null;
+                updateFields.push(`canvas_background_image_path = $${paramCount}::text`);
+                updateValues.push(imagePathValue);
             }
         }
         if (colorsUsed !== undefined) {
             paramCount++;
-            updateFields.push(`colors_used = $${paramCount}`);
+            updateFields.push(`colors_used = $${paramCount}::jsonb`);
             updateValues.push(JSON.stringify(colorsUsed));
         }
         if (alignments !== undefined) {
@@ -4062,7 +4080,7 @@ router.patch('/:id/mobile/legacy', async(req, res) => {
         }
         if (metadata !== undefined) {
             paramCount++;
-            updateFields.push(`tags = $${paramCount}`);
+            updateFields.push(`tags = $${paramCount}::jsonb`);
             updateValues.push(JSON.stringify(metadata.tags || ['logo', 'design', 'responsive']));
             paramCount++;
             updateFields.push(`version = $${paramCount}`);
@@ -4267,7 +4285,7 @@ router.patch('/:id/mobile/legacy', async(req, res) => {
                         image: updatedLogo.canvas_background_image_path ? { type: updatedLogo.canvas_background_image_type || 'imported', path: updatedLogo.canvas_background_image_path } : null
                     }
                 },
-                colorsUsed: updatedLogo.colors_used ? JSON.parse(updatedLogo.colors_used) : [],
+                colorsUsed: updatedLogo.colors_used ? (typeof updatedLogo.colors_used === 'string' ? JSON.parse(updatedLogo.colors_used) : updatedLogo.colors_used) : [],
                 alignments: {
                     verticalAlign: updatedLogo.vertical_align || 'center',
                     horizontalAlign: updatedLogo.horizontal_align || 'center'
@@ -4282,7 +4300,7 @@ router.patch('/:id/mobile/legacy', async(req, res) => {
                 metadata: {
                     createdAt: new Date(updatedLogo.created_at).toISOString(),
                     updatedAt: new Date(updatedLogo.updated_at).toISOString(),
-                    tags: updatedLogo.tags ? JSON.parse(updatedLogo.tags) : ['logo', 'design', 'responsive'],
+                    tags: updatedLogo.tags ? (typeof updatedLogo.tags === 'string' ? JSON.parse(updatedLogo.tags) : updatedLogo.tags) : ['logo', 'design', 'responsive'],
                     version: updatedLogo.version || 3,
                     responsive: updatedLogo.responsive || true
                 },

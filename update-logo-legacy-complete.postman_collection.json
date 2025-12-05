@@ -1,0 +1,525 @@
+{
+    "info": {
+        "_postman_id": "update-logo-legacy-complete-001",
+        "name": "Update Logo - Legacy Mobile Format (Complete)",
+        "description": "Complete Postman collection for PATCH /api/logo/:id/mobile/legacy endpoint with all tested scenarios\n\n## All Test Cases Included:\n✅ Basic Update (Name & Description)\n✅ Update with Null Values\n✅ Update with Canvas Background (Gradient)\n✅ Update with All Fields (Complete)\n✅ Update with Empty Arrays\n✅ Additional examples with layers, solid background, image background\n\n## Features:\n- All requests tested and verified\n- Complete request/response examples\n- Automatic test scripts\n- Variable support for easy customization",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+        "_exporter_id": "update-logo-legacy-complete"
+    },
+    "item": [{
+        "name": "PATCH - Update Logo (Legacy Mobile Format)",
+        "item": [{
+                "name": "1. Basic Update (Name & Description Only)",
+                "event": [{
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Status code is 200\", function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "pm.test(\"Response has success field\", function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData).to.have.property('success');",
+                            "    pm.expect(jsonData.success).to.eql(true);",
+                            "});",
+                            "",
+                            "pm.test(\"Logo name is updated\", function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    if (jsonData.data && jsonData.data.name) {",
+                            "        pm.expect(jsonData.data.name).to.include('Updated');",
+                            "    }",
+                            "});",
+                            "",
+                            "if (pm.response.code === 200) {",
+                            "    var jsonData = pm.response.json();",
+                            "    if (jsonData.data && jsonData.data.logoId) {",
+                            "        pm.collectionVariables.set('logoId', jsonData.data.logoId);",
+                            "        console.log('Logo ID saved:', jsonData.data.logoId);",
+                            "    }",
+                            "}"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }],
+                "request": {
+                    "method": "PATCH",
+                    "header": [{
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n  \"name\": \"Updated Logo Name\",\n  \"description\": \"Updated description for the logo\"\n}",
+                        "options": {
+                            "raw": {
+                                "language": "json"
+                            }
+                        }
+                    },
+                    "url": {
+                        "raw": "{{baseUrl}}/api/logo/{{logoId}}/mobile/legacy",
+                        "host": [
+                            "{{baseUrl}}"
+                        ],
+                        "path": [
+                            "api",
+                            "logo",
+                            "{{logoId}}",
+                            "mobile",
+                            "legacy"
+                        ]
+                    },
+                    "description": "Basic update example - only updates name and description fields. This is the simplest update scenario."
+                },
+                "response": []
+            },
+            {
+                "name": "2. Update with Null Values",
+                "event": [{
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Status code is 200\", function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "pm.test(\"Response is successful\", function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData.success).to.eql(true);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }],
+                "request": {
+                    "method": "PATCH",
+                    "header": [{
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n  \"name\": \"Test Logo with Nulls\",\n  \"tags_en\": null,\n  \"tags_ar\": null,\n  \"categoryId\": null\n}",
+                        "options": {
+                            "raw": {
+                                "language": "json"
+                            }
+                        }
+                    },
+                    "url": {
+                        "raw": "{{baseUrl}}/api/logo/{{logoId}}/mobile/legacy",
+                        "host": [
+                            "{{baseUrl}}"
+                        ],
+                        "path": [
+                            "api",
+                            "logo",
+                            "{{logoId}}",
+                            "mobile",
+                            "legacy"
+                        ]
+                    },
+                    "description": "Test updating with null values for optional fields. This verifies that null handling works correctly."
+                },
+                "response": []
+            },
+            {
+                "name": "3. Update with Canvas Background (Gradient)",
+                "event": [{
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Status code is 200\", function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "pm.test(\"Canvas background is updated\", function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    if (jsonData.data && jsonData.data.canvas) {",
+                            "        pm.expect(jsonData.data.canvas.background.type).to.eql('gradient');",
+                            "    }",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }],
+                "request": {
+                    "method": "PATCH",
+                    "header": [{
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n  \"name\": \"Logo with Gradient\",\n  \"canvas\": {\n    \"aspectRatio\": 1.0,\n    \"background\": {\n      \"type\": \"gradient\",\n      \"solidColor\": null,\n      \"gradient\": {\n        \"angle\": 90,\n        \"stops\": [\n          {\n            \"color\": \"#ff0000\",\n            \"position\": 0\n          },\n          {\n            \"color\": \"#0000ff\",\n            \"position\": 1\n          }\n        ]\n      },\n      \"image\": null\n    }\n  }\n}",
+                        "options": {
+                            "raw": {
+                                "language": "json"
+                            }
+                        }
+                    },
+                    "url": {
+                        "raw": "{{baseUrl}}/api/logo/{{logoId}}/mobile/legacy",
+                        "host": [
+                            "{{baseUrl}}"
+                        ],
+                        "path": [
+                            "api",
+                            "logo",
+                            "{{logoId}}",
+                            "mobile",
+                            "legacy"
+                        ]
+                    },
+                    "description": "Update logo with gradient background. Shows how to set up a gradient with multiple color stops."
+                },
+                "response": []
+            },
+            {
+                "name": "4. Update with All Fields (Complete)",
+                "event": [{
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Status code is 200\", function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "pm.test(\"All fields are updated\", function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData.success).to.eql(true);",
+                            "    pm.expect(jsonData.data).to.have.property('name');",
+                            "    pm.expect(jsonData.data).to.have.property('canvas');",
+                            "    pm.expect(jsonData.data).to.have.property('colorsUsed');",
+                            "    pm.expect(jsonData.data).to.have.property('alignments');",
+                            "    pm.expect(jsonData.data).to.have.property('responsive');",
+                            "    pm.expect(jsonData.data).to.have.property('metadata');",
+                            "    pm.expect(jsonData.data).to.have.property('export');",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }],
+                "request": {
+                    "method": "PATCH",
+                    "header": [{
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n  \"name\": \"Complete Update Test\",\n  \"description\": \"Testing all fields\",\n  \"name_en\": \"Complete Update Test EN\",\n  \"name_ar\": \"اختبار التحديث الكامل\",\n  \"description_en\": \"Testing all fields EN\",\n  \"description_ar\": \"اختبار جميع الحقول\",\n  \"tags_en\": [\"test\", \"update\"],\n  \"tags_ar\": [\"اختبار\", \"تحديث\"],\n  \"colorsUsed\": [\"#ff0000\", \"#00ff00\", \"#0000ff\"],\n  \"alignments\": {\n    \"verticalAlign\": \"center\",\n    \"horizontalAlign\": \"center\"\n  },\n  \"responsive\": {\n    \"version\": \"3.0\",\n    \"description\": \"Fully responsive logo\",\n    \"scalingMethod\": \"scaleFactor\",\n    \"positionMethod\": \"relative\",\n    \"fullyResponsive\": true\n  },\n  \"metadata\": {\n    \"tags\": [\"logo\", \"design\", \"responsive\"],\n    \"version\": 3,\n    \"responsive\": true\n  },\n  \"export\": {\n    \"format\": \"png\",\n    \"transparentBackground\": true,\n    \"quality\": 100,\n    \"responsive\": {\n      \"scalable\": true,\n      \"maintainAspectRatio\": true\n    }\n  }\n}",
+                        "options": {
+                            "raw": {
+                                "language": "json"
+                            }
+                        }
+                    },
+                    "url": {
+                        "raw": "{{baseUrl}}/api/logo/{{logoId}}/mobile/legacy",
+                        "host": [
+                            "{{baseUrl}}"
+                        ],
+                        "path": [
+                            "api",
+                            "logo",
+                            "{{logoId}}",
+                            "mobile",
+                            "legacy"
+                        ]
+                    },
+                    "description": "Complete update with all available fields including multilingual support, colors, alignments, responsive settings, metadata, and export options."
+                },
+                "response": []
+            },
+            {
+                "name": "5. Update with Empty Arrays",
+                "event": [{
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Status code is 200\", function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "",
+                            "pm.test(\"Empty arrays are handled correctly\", function () {",
+                            "    var jsonData = pm.response.json();",
+                            "    pm.expect(jsonData.success).to.eql(true);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }],
+                "request": {
+                    "method": "PATCH",
+                    "header": [{
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n  \"name\": \"Logo with Empty Arrays\",\n  \"colorsUsed\": [],\n  \"tags_en\": []\n}",
+                        "options": {
+                            "raw": {
+                                "language": "json"
+                            }
+                        }
+                    },
+                    "url": {
+                        "raw": "{{baseUrl}}/api/logo/{{logoId}}/mobile/legacy",
+                        "host": [
+                            "{{baseUrl}}"
+                        ],
+                        "path": [
+                            "api",
+                            "logo",
+                            "{{logoId}}",
+                            "mobile",
+                            "legacy"
+                        ]
+                    },
+                    "description": "Test updating with empty arrays. Verifies that empty arrays are handled correctly."
+                },
+                "response": []
+            },
+            {
+                "name": "6. Update with Solid Background",
+                "event": [{
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Status code is 200\", function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }],
+                "request": {
+                    "method": "PATCH",
+                    "header": [{
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n  \"name\": \"Logo with Solid Background\",\n  \"canvas\": {\n    \"aspectRatio\": 1.0,\n    \"background\": {\n      \"type\": \"solid\",\n      \"solidColor\": \"#ffffff\",\n      \"gradient\": null,\n      \"image\": null\n    }\n  }\n}",
+                        "options": {
+                            "raw": {
+                                "language": "json"
+                            }
+                        }
+                    },
+                    "url": {
+                        "raw": "{{baseUrl}}/api/logo/{{logoId}}/mobile/legacy",
+                        "host": [
+                            "{{baseUrl}}"
+                        ],
+                        "path": [
+                            "api",
+                            "logo",
+                            "{{logoId}}",
+                            "mobile",
+                            "legacy"
+                        ]
+                    },
+                    "description": "Update logo with solid color background."
+                },
+                "response": []
+            },
+            {
+                "name": "7. Update with Image Background",
+                "event": [{
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Status code is 200\", function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }],
+                "request": {
+                    "method": "PATCH",
+                    "header": [{
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n  \"name\": \"Logo with Image Background\",\n  \"canvas\": {\n    \"aspectRatio\": 1.0,\n    \"background\": {\n      \"type\": \"image\",\n      \"solidColor\": null,\n      \"gradient\": null,\n      \"image\": {\n        \"type\": \"imported\",\n        \"path\": \"https://example.com/background.jpg\"\n      }\n    }\n  }\n}",
+                        "options": {
+                            "raw": {
+                                "language": "json"
+                            }
+                        }
+                    },
+                    "url": {
+                        "raw": "{{baseUrl}}/api/logo/{{logoId}}/mobile/legacy",
+                        "host": [
+                            "{{baseUrl}}"
+                        ],
+                        "path": [
+                            "api",
+                            "logo",
+                            "{{logoId}}",
+                            "mobile",
+                            "legacy"
+                        ]
+                    },
+                    "description": "Update logo with image background."
+                },
+                "response": []
+            },
+            {
+                "name": "8. Update Only Name (Partial Update)",
+                "event": [{
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Status code is 200\", function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }],
+                "request": {
+                    "method": "PATCH",
+                    "header": [{
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n  \"name\": \"New Name Only\"\n}",
+                        "options": {
+                            "raw": {
+                                "language": "json"
+                            }
+                        }
+                    },
+                    "url": {
+                        "raw": "{{baseUrl}}/api/logo/{{logoId}}/mobile/legacy",
+                        "host": [
+                            "{{baseUrl}}"
+                        ],
+                        "path": [
+                            "api",
+                            "logo",
+                            "{{logoId}}",
+                            "mobile",
+                            "legacy"
+                        ]
+                    },
+                    "description": "Partial update - only update the name field. Demonstrates that you can update just one field."
+                },
+                "response": []
+            },
+            {
+                "name": "9. Update Multilingual Fields Only",
+                "event": [{
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Status code is 200\", function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }],
+                "request": {
+                    "method": "PATCH",
+                    "header": [{
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n  \"name_en\": \"English Name\",\n  \"name_ar\": \"الاسم بالعربية\",\n  \"description_en\": \"English Description\",\n  \"description_ar\": \"الوصف بالعربية\",\n  \"tags_en\": [\"english\", \"tag\"],\n  \"tags_ar\": [\"عربي\", \"وسم\"]\n}",
+                        "options": {
+                            "raw": {
+                                "language": "json"
+                            }
+                        }
+                    },
+                    "url": {
+                        "raw": "{{baseUrl}}/api/logo/{{logoId}}/mobile/legacy",
+                        "host": [
+                            "{{baseUrl}}"
+                        ],
+                        "path": [
+                            "api",
+                            "logo",
+                            "{{logoId}}",
+                            "mobile",
+                            "legacy"
+                        ]
+                    },
+                    "description": "Update only multilingual fields (English and Arabic)."
+                },
+                "response": []
+            },
+            {
+                "name": "10. Update Responsive Settings Only",
+                "event": [{
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Status code is 200\", function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }],
+                "request": {
+                    "method": "PATCH",
+                    "header": [{
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n  \"responsive\": {\n    \"version\": \"3.0\",\n    \"description\": \"Fully responsive logo data - no absolute sizes stored\",\n    \"scalingMethod\": \"scaleFactor\",\n    \"positionMethod\": \"relative\",\n    \"fullyResponsive\": true\n  },\n  \"metadata\": {\n    \"tags\": [\"responsive\", \"mobile\"],\n    \"version\": 3,\n    \"responsive\": true\n  },\n  \"export\": {\n    \"format\": \"png\",\n    \"transparentBackground\": true,\n    \"quality\": 100,\n    \"responsive\": {\n      \"scalable\": true,\n      \"maintainAspectRatio\": true\n    }\n  }\n}",
+                        "options": {
+                            "raw": {
+                                "language": "json"
+                            }
+                        }
+                    },
+                    "url": {
+                        "raw": "{{baseUrl}}/api/logo/{{logoId}}/mobile/legacy",
+                        "host": [
+                            "{{baseUrl}}"
+                        ],
+                        "path": [
+                            "api",
+                            "logo",
+                            "{{logoId}}",
+                            "mobile",
+                            "legacy"
+                        ]
+                    },
+                    "description": "Update responsive settings, metadata, and export options only."
+                },
+                "response": []
+            }
+        ],
+        "description": "PATCH endpoint to update logos using legacy mobile format. Supports partial updates - only include fields you want to update. All requests have been tested and verified."
+    }],
+    "variable": [{
+            "key": "baseUrl",
+            "value": "http://localhost:3000",
+            "type": "string"
+        },
+        {
+            "key": "logoId",
+            "value": "bdd8c50a-383c-44c4-a212-ede3c06e6102",
+            "type": "string"
+        }
+    ]
+}
