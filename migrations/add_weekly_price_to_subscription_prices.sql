@@ -13,3 +13,4 @@ ADD COLUMN IF NOT EXISTS stripe_weekly_price_id VARCHAR(255);
 -- Add comments for documentation
 COMMENT ON COLUMN subscription_prices.weekly_price IS 'Weekly subscription price in the specified currency';
 COMMENT ON COLUMN subscription_prices.stripe_weekly_price_id IS 'Stripe price ID for weekly subscription';
+

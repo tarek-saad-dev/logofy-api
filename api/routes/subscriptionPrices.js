@@ -12,6 +12,9 @@ const router = express.Router();
  * This endpoint is public (no authentication required) so the mobile app
  * can fetch prices without user login.
  * 
+ * Query parameters:
+ *   - lang: 'en' or 'ar' (optional, defaults to 'en')
+ * 
  * Response:
  * {
  *   "success": true,
@@ -23,18 +26,30 @@ const router = express.Router();
  *     "currency": "EGP",
  *     "stripe_weekly_price_id": "price_...",
  *     "stripe_monthly_price_id": "price_...",
- *     "stripe_yearly_price_id": "price_..."
+ *     "stripe_yearly_price_id": "price_...",
+ *     "plan_types": {
+ *       "pro": { "name_en": "Pro", "name_ar": "احترافي" },
+ *       "guest": { "name_en": "Guest", "name_ar": "ضيف" },
+ *       "trial": { "name_en": "Trial", "name_ar": "تجربة" }
+ *     }
  *   }
  * }
  */
 router.get('/', async(req, res) => {
     try {
+        // Get language from query parameter or default to 'en'
+        const lang = (req.query.lang || 'en').toLowerCase();
+        const isArabic = lang === 'ar';
+
         // Get the active subscription price configuration
         const result = await query(
             `SELECT 
                 weekly_price,
+                weekly_price_ar,
                 monthly_price,
+                monthly_price_ar,
                 yearly_price,
+                yearly_price_ar,
                 trial_days,
                 currency,
                 stripe_weekly_price_id,
@@ -46,6 +61,25 @@ router.get('/', async(req, res) => {
             ORDER BY updated_at DESC
             LIMIT 1`
         );
+
+        // Get plan types
+        const planTypesResult = await query(
+            `SELECT plan_key, name_en, name_ar, description_en, description_ar
+            FROM plan_types
+            WHERE is_active = TRUE
+            ORDER BY plan_key`
+        );
+
+        // Build plan types object
+        const planTypes = {};
+        planTypesResult.rows.forEach(plan => {
+            planTypes[plan.plan_key] = {
+                name_en: plan.name_en,
+                name_ar: plan.name_ar,
+                description_en: plan.description_en,
+                description_ar: plan.description_ar
+            };
+        });
 
         if (result.rows.length === 0) {
             // Return default values if no active price is configured
@@ -59,7 +93,8 @@ router.get('/', async(req, res) => {
                     currency: 'USD',
                     stripe_weekly_price_id: null,
                     stripe_monthly_price_id: null,
-                    stripe_yearly_price_id: null
+                    stripe_yearly_price_id: null,
+                    plan_types: planTypes
                 },
                 message: 'No active subscription prices configured. Using default values.'
             });
@@ -67,17 +102,31 @@ router.get('/', async(req, res) => {
 
         const priceData = result.rows[0];
 
+        // Use Arabic prices if language is Arabic and Arabic prices exist, otherwise use English
+        const weeklyPrice = isArabic && priceData.weekly_price_ar ?
+            parseFloat(priceData.weekly_price_ar) :
+            (priceData.weekly_price ? parseFloat(priceData.weekly_price) : null);
+
+        const monthlyPrice = isArabic && priceData.monthly_price_ar ?
+            parseFloat(priceData.monthly_price_ar) :
+            parseFloat(priceData.monthly_price);
+
+        const yearlyPrice = isArabic && priceData.yearly_price_ar ?
+            parseFloat(priceData.yearly_price_ar) :
+            parseFloat(priceData.yearly_price);
+
         res.json({
             success: true,
             data: {
-                weekly_price: priceData.weekly_price ? parseFloat(priceData.weekly_price) : null,
-                monthly_price: parseFloat(priceData.monthly_price),
-                yearly_price: parseFloat(priceData.yearly_price),
+                weekly_price: weeklyPrice,
+                monthly_price: monthlyPrice,
+                yearly_price: yearlyPrice,
                 trial_days: priceData.trial_days,
                 currency: priceData.currency,
                 stripe_weekly_price_id: priceData.stripe_weekly_price_id,
                 stripe_monthly_price_id: priceData.stripe_monthly_price_id,
-                stripe_yearly_price_id: priceData.stripe_yearly_price_id
+                stripe_yearly_price_id: priceData.stripe_yearly_price_id,
+                plan_types: planTypes
             }
         });
     } catch (error) {
@@ -97,8 +146,11 @@ router.get('/', async(req, res) => {
  * Request body:
  * {
  *   "weekly_price": 24.99,
+ *   "weekly_price_ar": 24.99,
  *   "monthly_price": 97.99,
+ *   "monthly_price_ar": 97.99,
  *   "yearly_price": 999.99,
+ *   "yearly_price_ar": 999.99,
  *   "trial_days": 3,
  *   "currency": "EGP",
  *   "stripe_weekly_price_id": "price_...",
@@ -117,8 +169,11 @@ router.post('/', async(req, res) => {
     try {
         const {
             weekly_price,
+            weekly_price_ar,
             monthly_price,
+            monthly_price_ar,
             yearly_price,
+            yearly_price_ar,
             trial_days,
             currency,
             stripe_weekly_price_id,
@@ -143,14 +198,29 @@ router.post('/', async(req, res) => {
                 'weekly_price must be a non-negative number');
         }
 
+        if (weekly_price_ar !== undefined && weekly_price_ar !== null && (typeof weekly_price_ar !== 'number' || weekly_price_ar < 0)) {
+            return badRequest(res, ERROR_CODES.GENERAL.VALIDATION_ERROR,
+                'weekly_price_ar must be a non-negative number');
+        }
+
         if (typeof monthly_price !== 'number' || monthly_price < 0) {
             return badRequest(res, ERROR_CODES.GENERAL.VALIDATION_ERROR,
                 'monthly_price must be a non-negative number');
         }
 
+        if (monthly_price_ar !== undefined && monthly_price_ar !== null && (typeof monthly_price_ar !== 'number' || monthly_price_ar < 0)) {
+            return badRequest(res, ERROR_CODES.GENERAL.VALIDATION_ERROR,
+                'monthly_price_ar must be a non-negative number');
+        }
+
         if (typeof yearly_price !== 'number' || yearly_price < 0) {
             return badRequest(res, ERROR_CODES.GENERAL.VALIDATION_ERROR,
                 'yearly_price must be a non-negative number');
+        }
+
+        if (yearly_price_ar !== undefined && yearly_price_ar !== null && (typeof yearly_price_ar !== 'number' || yearly_price_ar < 0)) {
+            return badRequest(res, ERROR_CODES.GENERAL.VALIDATION_ERROR,
+                'yearly_price_ar must be a non-negative number');
         }
 
         if (trial_days !== undefined && (typeof trial_days !== 'number' || trial_days < 0)) {
@@ -174,19 +244,25 @@ router.post('/', async(req, res) => {
         const result = await query(
             `INSERT INTO subscription_prices (
                 weekly_price,
+                weekly_price_ar,
                 monthly_price,
+                monthly_price_ar,
                 yearly_price,
+                yearly_price_ar,
                 trial_days,
                 currency,
                 stripe_weekly_price_id,
                 stripe_monthly_price_id,
                 stripe_yearly_price_id,
                 is_active
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, TRUE)
             RETURNING 
                 weekly_price,
+                weekly_price_ar,
                 monthly_price,
+                monthly_price_ar,
                 yearly_price,
+                yearly_price_ar,
                 trial_days,
                 currency,
                 stripe_weekly_price_id,
@@ -195,8 +271,11 @@ router.post('/', async(req, res) => {
                 created_at,
                 updated_at`, [
                 weekly_price || null,
+                weekly_price_ar || null,
                 monthly_price,
+                monthly_price_ar || null,
                 yearly_price,
+                yearly_price_ar || null,
                 trial_days || 0,
                 currency || 'USD',
                 stripe_weekly_price_id || null,
@@ -212,8 +291,11 @@ router.post('/', async(req, res) => {
             message: 'Subscription prices updated successfully',
             data: {
                 weekly_price: newPriceData.weekly_price ? parseFloat(newPriceData.weekly_price) : null,
+                weekly_price_ar: newPriceData.weekly_price_ar ? parseFloat(newPriceData.weekly_price_ar) : null,
                 monthly_price: parseFloat(newPriceData.monthly_price),
+                monthly_price_ar: newPriceData.monthly_price_ar ? parseFloat(newPriceData.monthly_price_ar) : null,
                 yearly_price: parseFloat(newPriceData.yearly_price),
+                yearly_price_ar: newPriceData.yearly_price_ar ? parseFloat(newPriceData.yearly_price_ar) : null,
                 trial_days: newPriceData.trial_days,
                 currency: newPriceData.currency,
                 stripe_weekly_price_id: newPriceData.stripe_weekly_price_id,
