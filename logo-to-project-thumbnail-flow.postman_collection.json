@@ -1,0 +1,430 @@
+{
+    "info": {
+        "name": "Logo to Project Thumbnail Flow",
+        "description": "Complete test flow: Create Logo → Add Thumbnail → Create Project → Get Project\n\nThis collection tests the complete workflow of:\n1. Creating a logo\n2. Adding a thumbnail to the logo\n3. Creating a project instance from the logo\n4. Verifying the thumbnail is included in the project\n\n**Setup:**\n1. Set `baseUrl` variable (default: http://localhost:3000)\n2. Run the authentication request to get a token\n3. Follow the numbered requests in order",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+        "_exporter_id": "logo-project-thumbnail-flow"
+    },
+    "variable": [{
+            "key": "baseUrl",
+            "value": "http://localhost:3000",
+            "type": "string"
+        },
+        {
+            "key": "authToken",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "userId",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "logoId",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "projectId",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "thumbnailUrl",
+            "value": "https://example.com/thumbnails/test-logo-thumbnail.png",
+            "type": "string"
+        }
+    ],
+    "item": [{
+            "name": "0. Authentication",
+            "description": "Get authentication token first",
+            "item": [{
+                    "name": "Register User",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200 || pm.response.code === 201) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success && jsonData.data && jsonData.data.token) {",
+                                "        pm.collectionVariables.set('authToken', jsonData.data.token);",
+                                "        if (jsonData.data.user && jsonData.data.user.id) {",
+                                "            pm.collectionVariables.set('userId', jsonData.data.user.id);",
+                                "        }",
+                                "        console.log('✅ Token and User ID saved');",
+                                "        console.log('Token:', jsonData.data.token.substring(0, 20) + '...');",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"test_thumbnail_{{$timestamp}}@gmail.com\",\n    \"password\": \"testpassword123\",\n    \"name\": \"Thumbnail Test User\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/register",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "auth", "register"]
+                        },
+                        "description": "Register a new user. The token will be automatically saved to collection variables."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Login",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success && jsonData.data && jsonData.data.token) {",
+                                "        pm.collectionVariables.set('authToken', jsonData.data.token);",
+                                "        if (jsonData.data.user && jsonData.data.user.id) {",
+                                "            pm.collectionVariables.set('userId', jsonData.data.user.id);",
+                                "        }",
+                                "        console.log('✅ Token and User ID saved');",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"test_thumbnail@gmail.com\",\n    \"password\": \"testpassword123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/login",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "auth", "login"]
+                        },
+                        "description": "Login with existing user credentials. Token will be saved automatically."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "1. Create Logo",
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "if (pm.response.code === 200 || pm.response.code === 201) {",
+                        "    const jsonData = pm.response.json();",
+                        "    if (jsonData.success && jsonData.data) {",
+                        "        // Try different response formats",
+                        "        let logoId = null;",
+                        "        if (jsonData.data.id) {",
+                        "            logoId = jsonData.data.id;",
+                        "        } else if (jsonData.data.logoId) {",
+                        "            logoId = jsonData.data.logoId;",
+                        "        } else if (jsonData.data.logo && jsonData.data.logo.id) {",
+                        "            logoId = jsonData.data.logo.id;",
+                        "        }",
+                        "        ",
+                        "        if (logoId) {",
+                        "            pm.collectionVariables.set('logoId', logoId);",
+                        "            console.log('✅ Logo ID saved:', logoId);",
+                        "            console.log('📝 Next: Add thumbnail to this logo');",
+                        "        } else {",
+                        "            console.log('⚠️  Could not extract logo ID from response');",
+                        "            console.log('Response:', JSON.stringify(jsonData, null, 2));",
+                        "        }",
+                        "    }",
+                        "}"
+                    ],
+                    "type": "text/javascript"
+                }
+            }],
+            "request": {
+                "method": "POST",
+                "header": [{
+                        "key": "Authorization",
+                        "value": "Bearer {{authToken}}"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"owner_id\": \"{{userId}}\",\n    \"title\": \"Test Logo for Thumbnail Flow\",\n    \"description\": \"This logo will be used to test thumbnail copying to projects\",\n    \"canvas_w\": 1080,\n    \"canvas_h\": 1080,\n    \"layers\": []\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/logo",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["api", "logo"]
+                },
+                "description": "**Step 1: Create a new logo**\n\nThis creates a basic logo that we'll add a thumbnail to, then create a project from.\n\nThe logo ID will be automatically saved to the `logoId` collection variable for use in subsequent requests."
+            },
+            "response": []
+        },
+        {
+            "name": "2. Add Thumbnail to Logo",
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "if (pm.response.code === 200) {",
+                        "    const jsonData = pm.response.json();",
+                        "    if (jsonData.success && jsonData.data && jsonData.data.thumbnail_url) {",
+                        "        pm.collectionVariables.set('thumbnailUrl', jsonData.data.thumbnail_url);",
+                        "        console.log('✅ Thumbnail added successfully!');",
+                        "        console.log('   Thumbnail URL:', jsonData.data.thumbnail_url);",
+                        "        console.log('📝 Next: Create project from this logo');",
+                        "    }",
+                        "} else {",
+                        "    console.log('❌ Failed to add thumbnail');",
+                        "    console.log('Status:', pm.response.code);",
+                        "    console.log('Response:', pm.response.text());",
+                        "}"
+                    ],
+                    "type": "text/javascript"
+                }
+            }],
+            "request": {
+                "method": "POST",
+                "header": [{
+                        "key": "Authorization",
+                        "value": "Bearer {{authToken}}"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"thumbnail_url\": \"{{thumbnailUrl}}\"\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/logo/{{logoId}}/thumbnail",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["api", "logo", "{{logoId}}", "thumbnail"]
+                },
+                "description": "**Step 2: Add thumbnail to the logo**\n\nThis adds a thumbnail URL to the logo we just created. The thumbnail will be copied to any project created from this logo.\n\n**Note:** You can change the `thumbnailUrl` collection variable to use a different thumbnail URL."
+            },
+            "response": []
+        },
+        {
+            "name": "3. Create Project from Logo",
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "if (pm.response.code === 201) {",
+                        "    const jsonData = pm.response.json();",
+                        "    if (jsonData.success && jsonData.data && jsonData.data.project) {",
+                        "        const project = jsonData.data.project;",
+                        "        pm.collectionVariables.set('projectId', project.id);",
+                        "        console.log('✅ Project created successfully!');",
+                        "        console.log('   Project ID:', project.id);",
+                        "        console.log('   Project Title:', project.title);",
+                        "        console.log('   Logo ID:', project.logo_id);",
+                        "        ",
+                        "        // Check if thumbnail is included",
+                        "        if (project.thumbnailUrl) {",
+                        "            console.log('✅ SUCCESS: Thumbnail found in project!');",
+                        "            console.log('   Thumbnail URL:', project.thumbnailUrl);",
+                        "            ",
+                        "            // Verify it matches the logo thumbnail",
+                        "            const expectedThumbnail = pm.collectionVariables.get('thumbnailUrl');",
+                        "            if (project.thumbnailUrl === expectedThumbnail) {",
+                        "                console.log('✅ Thumbnail URL matches the logo thumbnail!');",
+                        "            } else {",
+                        "                console.log('⚠️  Thumbnail URL does not match expected value');",
+                        "                console.log('   Expected:', expectedThumbnail);",
+                        "                console.log('   Got:', project.thumbnailUrl);",
+                        "            }",
+                        "        } else {",
+                        "            console.log('❌ FAILED: Thumbnail not found in project response!');",
+                        "            console.log('   This indicates the thumbnail was not copied from the logo.');",
+                        "        }",
+                        "        ",
+                        "        console.log('📝 Next: Get project to verify thumbnail persists');",
+                        "    }",
+                        "} else {",
+                        "    console.log('❌ Failed to create project');",
+                        "    console.log('Status:', pm.response.code);",
+                        "    console.log('Response:', pm.response.text());",
+                        "}"
+                    ],
+                    "type": "text/javascript"
+                }
+            }],
+            "request": {
+                "method": "POST",
+                "header": [{
+                        "key": "Authorization",
+                        "value": "Bearer {{authToken}}"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"title\": \"Project from Logo with Thumbnail\",\n    \"json_doc\": {\n        \"canvas\": {\n            \"width\": 1080,\n            \"height\": 1080\n        },\n        \"layers\": []\n    },\n    \"logo_id\": \"{{logoId}}\"\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/projects",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["api", "projects"]
+                },
+                "description": "**Step 3: Create a project instance from the logo**\n\nThis creates a project (instance) from the logo we created and added a thumbnail to.\n\nThe project should automatically include the thumbnail from the logo.\n\n**Expected Result:**\n- Project is created successfully\n- `thumbnailUrl` field is included in the response\n- `thumbnailUrl` matches the thumbnail we added to the logo"
+            },
+            "response": []
+        },
+        {
+            "name": "4. Get Project (Verify Thumbnail)",
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "if (pm.response.code === 200) {",
+                        "    const jsonData = pm.response.json();",
+                        "    if (jsonData.success && jsonData.data && jsonData.data.project) {",
+                        "        const project = jsonData.data.project;",
+                        "        ",
+                        "        console.log('✅ Project fetched successfully!');",
+                        "        console.log('   Project ID:', project.id);",
+                        "        console.log('   Project Title:', project.title);",
+                        "        console.log('   Logo ID:', project.logo_id);",
+                        "        ",
+                        "        // Check if thumbnail is included",
+                        "        if (project.thumbnailUrl) {",
+                        "            console.log('✅ SUCCESS: Thumbnail found in project!');",
+                        "            console.log('   Thumbnail URL:', project.thumbnailUrl);",
+                        "            ",
+                        "            // Verify it matches the logo thumbnail",
+                        "            const expectedThumbnail = pm.collectionVariables.get('thumbnailUrl');",
+                        "            if (project.thumbnailUrl === expectedThumbnail) {",
+                        "                console.log('✅ Thumbnail URL matches the logo thumbnail!');",
+                        "                console.log('');",
+                        "                console.log('🎉 TEST COMPLETED SUCCESSFULLY!');",
+                        "                console.log('   The thumbnail is correctly copied from logo to project');",
+                        "            } else {",
+                        "                console.log('⚠️  Thumbnail URL does not match expected value');",
+                        "                console.log('   Expected:', expectedThumbnail);",
+                        "                console.log('   Got:', project.thumbnailUrl);",
+                        "            }",
+                        "        } else {",
+                        "            console.log('❌ FAILED: Thumbnail not found in project!');",
+                        "            console.log('   This indicates the thumbnail was not copied from the logo.');",
+                        "        }",
+                        "    }",
+                        "} else {",
+                        "    console.log('❌ Failed to fetch project');",
+                        "    console.log('Status:', pm.response.code);",
+                        "    console.log('Response:', pm.response.text());",
+                        "}"
+                    ],
+                    "type": "text/javascript"
+                }
+            }],
+            "request": {
+                "method": "GET",
+                "header": [{
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                }],
+                "url": {
+                    "raw": "{{baseUrl}}/api/projects/{{projectId}}",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["api", "projects", "{{projectId}}"]
+                },
+                "description": "**Step 4: Get the project to verify thumbnail persists**\n\nThis fetches the project we just created to verify that:\n1. The thumbnail is included in the response\n2. The thumbnail URL matches the one we added to the logo\n\n**Expected Result:**\n- Project is fetched successfully\n- `thumbnailUrl` field is present\n- `thumbnailUrl` matches the logo's thumbnail"
+            },
+            "response": []
+        },
+        {
+            "name": "5. Update Project Thumbnail (PATCH)",
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "if (pm.response.code === 200) {",
+                        "    const jsonData = pm.response.json();",
+                        "    if (jsonData.success && jsonData.data) {",
+                        "        console.log('✅ Project thumbnail updated successfully!');",
+                        "        console.log('   Project ID:', jsonData.data.id);",
+                        "        console.log('   Project thumbnail_url:', jsonData.data.thumbnail_url);",
+                        "        console.log('   Final thumbnailUrl (with fallback):', jsonData.data.thumbnailUrl);",
+                        "        console.log('📝 Next: Get project again to verify the update');",
+                        "    }",
+                        "}"
+                    ],
+                    "type": "text/javascript"
+                }
+            }],
+            "request": {
+                "method": "PATCH",
+                "header": [{
+                        "key": "Authorization",
+                        "value": "Bearer {{authToken}}"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"thumbnail_url\": \"https://example.com/thumbnails/custom-project-thumbnail.png\"\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/projects/{{projectId}}/thumbnail",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["api", "projects", "{{projectId}}", "thumbnail"]
+                },
+                "description": "**Step 5: Update project thumbnail**\n\nThis sets a project-specific thumbnail. The project will now use this thumbnail instead of the logo thumbnail.\n\n**To clear project thumbnail (fall back to logo thumbnail):**\n```json\n{\n    \"thumbnail_url\": \"\"\n}\n```"
+            },
+            "response": []
+        },
+        {
+            "name": "Bonus: Get All Projects",
+            "request": {
+                "method": "GET",
+                "header": [{
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                }],
+                "url": {
+                    "raw": "{{baseUrl}}/api/projects?page=1&limit=10",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["api", "projects"],
+                    "query": [{
+                            "key": "page",
+                            "value": "1"
+                        },
+                        {
+                            "key": "limit",
+                            "value": "10"
+                        }
+                    ]
+                },
+                "description": "**Bonus: Get all projects**\n\nThis endpoint returns all projects for the authenticated user, including thumbnails.\n\nYou should see the project we just created in the list with its thumbnail."
+            },
+            "response": []
+        }
+    ]
+}

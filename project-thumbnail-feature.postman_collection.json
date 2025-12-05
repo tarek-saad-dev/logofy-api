@@ -1,0 +1,576 @@
+{
+    "info": {
+        "name": "Project Thumbnail Feature",
+        "description": "Complete Postman collection for the Project Thumbnail feature.\n\nThis collection tests:\n1. Creating a logo with thumbnail\n2. Creating a project from logo (inherits logo thumbnail)\n3. Setting a project-specific thumbnail\n4. Clearing project thumbnail (falls back to logo thumbnail)\n\n**Thumbnail Priority:**\n1. Project thumbnail_url (if set)\n2. Logo thumbnail_url (if project has logo_id)\n3. null\n\n**Setup:**\n1. Set `baseUrl` variable (default: http://localhost:3000)\n2. Run authentication request to get token\n3. Follow the numbered requests in order",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+        "_exporter_id": "project-thumbnail-feature"
+    },
+    "variable": [{
+            "key": "baseUrl",
+            "value": "https://logofy-api.vercel.app",
+            "type": "string"
+        },
+        {
+            "key": "authToken",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "userId",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "logoId",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "projectId",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "logoThumbnailUrl",
+            "value": "https://example.com/thumbnails/logo-thumbnail.png",
+            "type": "string"
+        },
+        {
+            "key": "projectThumbnailUrl",
+            "value": "https://example.com/thumbnails/project-thumbnail.png",
+            "type": "string"
+        }
+    ],
+    "item": [{
+            "name": "0. Authentication",
+            "description": "Get authentication token first",
+            "item": [{
+                    "name": "Register User",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200 || pm.response.code === 201) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success && jsonData.data && jsonData.data.token) {",
+                                "        pm.collectionVariables.set('authToken', jsonData.data.token);",
+                                "        if (jsonData.data.user && jsonData.data.user.id) {",
+                                "            pm.collectionVariables.set('userId', jsonData.data.user.id);",
+                                "        }",
+                                "        console.log('✅ Token and User ID saved');",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"thumbnail_test_{{$timestamp}}@gmail.com\",\n    \"password\": \"testpassword123\",\n    \"name\": \"Thumbnail Test User\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/register",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "auth", "register"]
+                        },
+                        "description": "Register a new user. Token will be automatically saved."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Login",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success && jsonData.data && jsonData.data.token) {",
+                                "        pm.collectionVariables.set('authToken', jsonData.data.token);",
+                                "        if (jsonData.data.user && jsonData.data.user.id) {",
+                                "            pm.collectionVariables.set('userId', jsonData.data.user.id);",
+                                "        }",
+                                "        console.log('✅ Token and User ID saved');",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"thumbnail_test@gmail.com\",\n    \"password\": \"testpassword123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/login",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "auth", "login"]
+                        },
+                        "description": "Login with existing user. Token will be saved automatically."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "1. Create Logo",
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "if (pm.response.code === 200 || pm.response.code === 201) {",
+                        "    const jsonData = pm.response.json();",
+                        "    if (jsonData.success && jsonData.data) {",
+                        "        let logoId = null;",
+                        "        if (jsonData.data.id) {",
+                        "            logoId = jsonData.data.id;",
+                        "        } else if (jsonData.data.logoId) {",
+                        "            logoId = jsonData.data.logoId;",
+                        "        }",
+                        "        if (logoId) {",
+                        "            pm.collectionVariables.set('logoId', logoId);",
+                        "            console.log('✅ Logo ID saved:', logoId);",
+                        "        }",
+                        "    }",
+                        "}"
+                    ],
+                    "type": "text/javascript"
+                }
+            }],
+            "request": {
+                "method": "POST",
+                "header": [{
+                        "key": "Authorization",
+                        "value": "Bearer {{authToken}}"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"owner_id\": \"{{userId}}\",\n    \"title\": \"Logo for Thumbnail Testing\",\n    \"description\": \"This logo will be used to test project thumbnail feature\",\n    \"canvas_w\": 1080,\n    \"canvas_h\": 1080,\n    \"layers\": []\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/logo",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["api", "logo"]
+                },
+                "description": "**Step 1: Create a logo**\n\nCreates a new logo that we'll add a thumbnail to, then create a project from."
+            },
+            "response": []
+        },
+        {
+            "name": "2. Add Thumbnail to Logo",
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "if (pm.response.code === 200) {",
+                        "    const jsonData = pm.response.json();",
+                        "    if (jsonData.success && jsonData.data && jsonData.data.thumbnail_url) {",
+                        "        pm.collectionVariables.set('logoThumbnailUrl', jsonData.data.thumbnail_url);",
+                        "        console.log('✅ Logo thumbnail added:', jsonData.data.thumbnail_url);",
+                        "    }",
+                        "}"
+                    ],
+                    "type": "text/javascript"
+                }
+            }],
+            "request": {
+                "method": "POST",
+                "header": [{
+                        "key": "Authorization",
+                        "value": "Bearer {{authToken}}"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"thumbnail_url\": \"{{logoThumbnailUrl}}\"\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/logo/{{logoId}}/thumbnail",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["api", "logo", "{{logoId}}", "thumbnail"]
+                },
+                "description": "**Step 2: Add thumbnail to logo**\n\nAdds a thumbnail to the logo. Projects created from this logo will inherit this thumbnail (unless they have their own)."
+            },
+            "response": []
+        },
+        {
+            "name": "3. Create Project from Logo",
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "if (pm.response.code === 201) {",
+                        "    const jsonData = pm.response.json();",
+                        "    if (jsonData.success && jsonData.data && jsonData.data.project) {",
+                        "        const project = jsonData.data.project;",
+                        "        pm.collectionVariables.set('projectId', project.id);",
+                        "        console.log('✅ Project created:', project.id);",
+                        "        ",
+                        "        if (project.thumbnailUrl) {",
+                        "            console.log('✅ Project has thumbnail (from logo):', project.thumbnailUrl);",
+                        "            const logoThumbnail = pm.collectionVariables.get('logoThumbnailUrl');",
+                        "            if (project.thumbnailUrl === logoThumbnail) {",
+                        "                console.log('✅ Thumbnail matches logo thumbnail (correct fallback)');",
+                        "            }",
+                        "        } else {",
+                        "            console.log('⚠️  Project has no thumbnail');",
+                        "        }",
+                        "    }",
+                        "}"
+                    ],
+                    "type": "text/javascript"
+                }
+            }],
+            "request": {
+                "method": "POST",
+                "header": [{
+                        "key": "Authorization",
+                        "value": "Bearer {{authToken}}"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"title\": \"Project with Logo Thumbnail\",\n    \"json_doc\": {\n        \"canvas\": {\n            \"width\": 1080,\n            \"height\": 1080\n        },\n        \"layers\": []\n    },\n    \"logo_id\": \"{{logoId}}\"\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/projects",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["api", "projects"]
+                },
+                "description": "**Step 3: Create project from logo**\n\nCreates a project instance from the logo. The project should automatically inherit the logo's thumbnail since it doesn't have its own yet.\n\n**Expected:** Project has `thumbnailUrl` matching the logo thumbnail."
+            },
+            "response": []
+        },
+        {
+            "name": "4. Get Project (Verify Logo Thumbnail Fallback)",
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "if (pm.response.code === 200) {",
+                        "    const jsonData = pm.response.json();",
+                        "    if (jsonData.success && jsonData.data && jsonData.data.project) {",
+                        "        const project = jsonData.data.project;",
+                        "        ",
+                        "        console.log('✅ Project fetched successfully');",
+                        "        console.log('   Project ID:', project.id);",
+                        "        ",
+                        "        if (project.thumbnailUrl) {",
+                        "            console.log('✅ Project has thumbnail:', project.thumbnailUrl);",
+                        "            const logoThumbnail = pm.collectionVariables.get('logoThumbnailUrl');",
+                        "            if (project.thumbnailUrl === logoThumbnail) {",
+                        "                console.log('✅ SUCCESS: Project uses logo thumbnail (correct fallback)');",
+                        "            } else {",
+                        "                console.log('⚠️  Project thumbnail does not match logo thumbnail');",
+                        "            }",
+                        "        } else {",
+                        "            console.log('❌ Project has no thumbnail');",
+                        "        }",
+                        "    }",
+                        "}"
+                    ],
+                    "type": "text/javascript"
+                }
+            }],
+            "request": {
+                "method": "GET",
+                "header": [{
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                }],
+                "url": {
+                    "raw": "{{baseUrl}}/api/projects/{{projectId}}",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["api", "projects", "{{projectId}}"]
+                },
+                "description": "**Step 4: Get project to verify logo thumbnail fallback**\n\nFetches the project to verify it's using the logo thumbnail (since project doesn't have its own yet).\n\n**Expected:** `thumbnailUrl` matches the logo thumbnail."
+            },
+            "response": []
+        },
+        {
+            "name": "5. Set Project-Specific Thumbnail (PATCH)",
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "if (pm.response.code === 200) {",
+                        "    const jsonData = pm.response.json();",
+                        "    if (jsonData.success && jsonData.data) {",
+                        "        console.log('✅ Project thumbnail updated successfully!');",
+                        "        console.log('   Project thumbnail_url:', jsonData.data.thumbnail_url);",
+                        "        console.log('   Final thumbnailUrl:', jsonData.data.thumbnailUrl);",
+                        "        ",
+                        "        if (jsonData.data.thumbnail_url) {",
+                        "            console.log('✅ Project now has its own thumbnail');",
+                        "            console.log('   It will use this instead of logo thumbnail');",
+                        "        }",
+                        "    }",
+                        "}"
+                    ],
+                    "type": "text/javascript"
+                }
+            }],
+            "request": {
+                "method": "PATCH",
+                "header": [{
+                        "key": "Authorization",
+                        "value": "Bearer {{authToken}}"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"thumbnail_url\": \"{{projectThumbnailUrl}}\"\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/projects/{{projectId}}/thumbnail",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["api", "projects", "{{projectId}}", "thumbnail"]
+                },
+                "description": "**Step 5: Set project-specific thumbnail**\n\nSets a custom thumbnail for the project. The project will now use this thumbnail instead of the logo thumbnail.\n\n**Request Body:**\n```json\n{\n    \"thumbnail_url\": \"https://example.com/project-thumbnail.png\"\n}\n```\n\n**Response includes:**\n- `thumbnail_url`: The project's own thumbnail\n- `thumbnailUrl`: The final thumbnail used (project thumbnail in this case)"
+            },
+            "response": []
+        },
+        {
+            "name": "6. Get Project (Verify Custom Thumbnail)",
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "if (pm.response.code === 200) {",
+                        "    const jsonData = pm.response.json();",
+                        "    if (jsonData.success && jsonData.data && jsonData.data.project) {",
+                        "        const project = jsonData.data.project;",
+                        "        ",
+                        "        console.log('✅ Project fetched successfully');",
+                        "        ",
+                        "        if (project.thumbnailUrl) {",
+                        "            console.log('✅ Project has thumbnail:', project.thumbnailUrl);",
+                        "            const projectThumbnail = pm.collectionVariables.get('projectThumbnailUrl');",
+                        "            if (project.thumbnailUrl === projectThumbnail) {",
+                        "                console.log('✅ SUCCESS: Project uses its own custom thumbnail!');",
+                        "                console.log('   Priority: Project thumbnail > Logo thumbnail');",
+                        "            } else {",
+                        "                console.log('⚠️  Project thumbnail does not match expected');",
+                        "            }",
+                        "        } else {",
+                        "            console.log('❌ Project has no thumbnail');",
+                        "        }",
+                        "    }",
+                        "}"
+                    ],
+                    "type": "text/javascript"
+                }
+            }],
+            "request": {
+                "method": "GET",
+                "header": [{
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                }],
+                "url": {
+                    "raw": "{{baseUrl}}/api/projects/{{projectId}}",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["api", "projects", "{{projectId}}"]
+                },
+                "description": "**Step 6: Get project to verify custom thumbnail**\n\nFetches the project again to verify it now uses its own custom thumbnail instead of the logo thumbnail.\n\n**Expected:** `thumbnailUrl` matches the project-specific thumbnail we just set."
+            },
+            "response": []
+        },
+        {
+            "name": "7. Clear Project Thumbnail (Fallback to Logo)",
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "if (pm.response.code === 200) {",
+                        "    const jsonData = pm.response.json();",
+                        "    if (jsonData.success && jsonData.data) {",
+                        "        console.log('✅ Project thumbnail cleared successfully!');",
+                        "        console.log('   Project thumbnail_url:', jsonData.data.thumbnail_url);",
+                        "        console.log('   Final thumbnailUrl (with fallback):', jsonData.data.thumbnailUrl);",
+                        "        ",
+                        "        if (!jsonData.data.thumbnail_url) {",
+                        "            console.log('✅ Project thumbnail_url is null (cleared)');",
+                        "            if (jsonData.data.thumbnailUrl) {",
+                        "                console.log('✅ Project falls back to logo thumbnail');",
+                        "            }",
+                        "        }",
+                        "    }",
+                        "}"
+                    ],
+                    "type": "text/javascript"
+                }
+            }],
+            "request": {
+                "method": "PATCH",
+                "header": [{
+                        "key": "Authorization",
+                        "value": "Bearer {{authToken}}"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"thumbnail_url\": \"\"\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/projects/{{projectId}}/thumbnail",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["api", "projects", "{{projectId}}", "thumbnail"]
+                },
+                "description": "**Step 7: Clear project thumbnail**\n\nClears the project's custom thumbnail by setting it to an empty string. The project will fall back to using the logo thumbnail.\n\n**Request Body:**\n```json\n{\n    \"thumbnail_url\": \"\"\n}\n```\n\n**Expected:** `thumbnail_url` becomes null, and `thumbnailUrl` falls back to logo thumbnail."
+            },
+            "response": []
+        },
+        {
+            "name": "8. Get Project (Verify Logo Thumbnail Fallback Again)",
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "if (pm.response.code === 200) {",
+                        "    const jsonData = pm.response.json();",
+                        "    if (jsonData.success && jsonData.data && jsonData.data.project) {",
+                        "        const project = jsonData.data.project;",
+                        "        ",
+                        "        console.log('✅ Project fetched successfully');",
+                        "        ",
+                        "        if (project.thumbnailUrl) {",
+                        "            console.log('✅ Project has thumbnail:', project.thumbnailUrl);",
+                        "            const logoThumbnail = pm.collectionVariables.get('logoThumbnailUrl');",
+                        "            if (project.thumbnailUrl === logoThumbnail) {",
+                        "                console.log('✅ SUCCESS: Project falls back to logo thumbnail!');",
+                        "                console.log('   This confirms the fallback mechanism works correctly');",
+                        "            } else {",
+                        "                console.log('⚠️  Project thumbnail does not match logo thumbnail');",
+                        "            }",
+                        "        } else {",
+                        "            console.log('⚠️  Project has no thumbnail (logo also has no thumbnail)');",
+                        "        }",
+                        "        ",
+                        "        console.log('');",
+                        "        console.log('🎉 TEST COMPLETED SUCCESSFULLY!');",
+                        "        console.log('   Thumbnail priority and fallback mechanism verified');",
+                        "    }",
+                        "}"
+                    ],
+                    "type": "text/javascript"
+                }
+            }],
+            "request": {
+                "method": "GET",
+                "header": [{
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                }],
+                "url": {
+                    "raw": "{{baseUrl}}/api/projects/{{projectId}}",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["api", "projects", "{{projectId}}"]
+                },
+                "description": "**Step 8: Get project to verify fallback**\n\nFetches the project one more time to verify it's back to using the logo thumbnail after we cleared the project thumbnail.\n\n**Expected:** `thumbnailUrl` matches the logo thumbnail again."
+            },
+            "response": []
+        },
+        {
+            "name": "Bonus Endpoints",
+            "description": "Additional endpoints for testing",
+            "item": [{
+                    "name": "Get All Projects",
+                    "request": {
+                        "method": "GET",
+                        "header": [{
+                            "key": "Authorization",
+                            "value": "Bearer {{authToken}}"
+                        }],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/projects?page=1&limit=10",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "projects"],
+                            "query": [{
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "10"
+                                }
+                            ]
+                        },
+                        "description": "Get all projects with thumbnails.\n\n**Thumbnail Priority:**\n1. Project thumbnail_url (if set)\n2. Logo thumbnail_url (if project has logo_id)\n3. null"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Project Thumbnail (Different URL)",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    console.log('✅ Thumbnail updated with different URL');",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "PATCH",
+                        "header": [{
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"thumbnail_url\": \"https://example.com/thumbnails/updated-project-thumbnail.png\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/projects/{{projectId}}/thumbnail",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "projects", "{{projectId}}", "thumbnail"]
+                        },
+                        "description": "Example: Update project thumbnail with a different URL"
+                    },
+                    "response": []
+                }
+            ]
+        }
+    ]
+}

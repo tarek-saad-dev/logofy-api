@@ -1,6 +1,5 @@
 const express = require('express');
 const { query } = require('../config/database');
-const { authenticate } = require('../middleware/auth');
 const { badRequest, internalError, notFound, ERROR_CODES } = require('../utils/errorHandler');
 
 const router = express.Router();
@@ -17,24 +16,28 @@ const router = express.Router();
  * {
  *   "success": true,
  *   "data": {
+ *     "weekly_price": 24.99,
  *     "monthly_price": 97.99,
  *     "yearly_price": 999.99,
  *     "trial_days": 3,
  *     "currency": "EGP",
+ *     "stripe_weekly_price_id": "price_...",
  *     "stripe_monthly_price_id": "price_...",
  *     "stripe_yearly_price_id": "price_..."
  *   }
  * }
  */
-router.get('/', async (req, res) => {
+router.get('/', async(req, res) => {
     try {
         // Get the active subscription price configuration
         const result = await query(
             `SELECT 
+                weekly_price,
                 monthly_price,
                 yearly_price,
                 trial_days,
                 currency,
+                stripe_weekly_price_id,
                 stripe_monthly_price_id,
                 stripe_yearly_price_id,
                 updated_at
@@ -49,10 +52,12 @@ router.get('/', async (req, res) => {
             return res.json({
                 success: true,
                 data: {
+                    weekly_price: 0.00,
                     monthly_price: 0.00,
                     yearly_price: 0.00,
                     trial_days: 0,
                     currency: 'USD',
+                    stripe_weekly_price_id: null,
                     stripe_monthly_price_id: null,
                     stripe_yearly_price_id: null
                 },
@@ -65,10 +70,12 @@ router.get('/', async (req, res) => {
         res.json({
             success: true,
             data: {
+                weekly_price: priceData.weekly_price ? parseFloat(priceData.weekly_price) : null,
                 monthly_price: parseFloat(priceData.monthly_price),
                 yearly_price: parseFloat(priceData.yearly_price),
                 trial_days: priceData.trial_days,
                 currency: priceData.currency,
+                stripe_weekly_price_id: priceData.stripe_weekly_price_id,
                 stripe_monthly_price_id: priceData.stripe_monthly_price_id,
                 stripe_yearly_price_id: priceData.stripe_yearly_price_id
             }
@@ -85,14 +92,16 @@ router.get('/', async (req, res) => {
  * 
  * Update subscription prices (for project owner/dashboard)
  * 
- * Requires authentication. The authenticated user can update prices.
+ * No authentication required. Public endpoint for updating prices.
  * 
  * Request body:
  * {
+ *   "weekly_price": 24.99,
  *   "monthly_price": 97.99,
  *   "yearly_price": 999.99,
  *   "trial_days": 3,
  *   "currency": "EGP",
+ *   "stripe_weekly_price_id": "price_...",
  *   "stripe_monthly_price_id": "price_...",
  *   "stripe_yearly_price_id": "price_..."
  * }
@@ -104,13 +113,15 @@ router.get('/', async (req, res) => {
  *   "data": { ... }
  * }
  */
-router.post('/', authenticate, async (req, res) => {
+router.post('/', async(req, res) => {
     try {
         const {
+            weekly_price,
             monthly_price,
             yearly_price,
             trial_days,
             currency,
+            stripe_weekly_price_id,
             stripe_monthly_price_id,
             stripe_yearly_price_id
         } = req.body;
@@ -127,6 +138,11 @@ router.post('/', authenticate, async (req, res) => {
         }
 
         // Validate data types and ranges
+        if (weekly_price !== undefined && weekly_price !== null && (typeof weekly_price !== 'number' || weekly_price < 0)) {
+            return badRequest(res, ERROR_CODES.GENERAL.VALIDATION_ERROR,
+                'weekly_price must be a non-negative number');
+        }
+
         if (typeof monthly_price !== 'number' || monthly_price < 0) {
             return badRequest(res, ERROR_CODES.GENERAL.VALIDATION_ERROR,
                 'monthly_price must be a non-negative number');
@@ -157,28 +173,33 @@ router.post('/', authenticate, async (req, res) => {
         // Insert new active price configuration
         const result = await query(
             `INSERT INTO subscription_prices (
+                weekly_price,
                 monthly_price,
                 yearly_price,
                 trial_days,
                 currency,
+                stripe_weekly_price_id,
                 stripe_monthly_price_id,
                 stripe_yearly_price_id,
                 is_active
-            ) VALUES ($1, $2, $3, $4, $5, $6, TRUE)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE)
             RETURNING 
+                weekly_price,
                 monthly_price,
                 yearly_price,
                 trial_days,
                 currency,
+                stripe_weekly_price_id,
                 stripe_monthly_price_id,
                 stripe_yearly_price_id,
                 created_at,
-                updated_at`,
-            [
+                updated_at`, [
+                weekly_price || null,
                 monthly_price,
                 yearly_price,
                 trial_days || 0,
                 currency || 'USD',
+                stripe_weekly_price_id || null,
                 stripe_monthly_price_id || null,
                 stripe_yearly_price_id || null
             ]
@@ -190,10 +211,12 @@ router.post('/', authenticate, async (req, res) => {
             success: true,
             message: 'Subscription prices updated successfully',
             data: {
+                weekly_price: newPriceData.weekly_price ? parseFloat(newPriceData.weekly_price) : null,
                 monthly_price: parseFloat(newPriceData.monthly_price),
                 yearly_price: parseFloat(newPriceData.yearly_price),
                 trial_days: newPriceData.trial_days,
                 currency: newPriceData.currency,
+                stripe_weekly_price_id: newPriceData.stripe_weekly_price_id,
                 stripe_monthly_price_id: newPriceData.stripe_monthly_price_id,
                 stripe_yearly_price_id: newPriceData.stripe_yearly_price_id,
                 created_at: newPriceData.created_at,
@@ -208,4 +231,3 @@ router.post('/', authenticate, async (req, res) => {
 });
 
 module.exports = router;
-

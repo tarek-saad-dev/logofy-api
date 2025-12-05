@@ -18,12 +18,14 @@ router.get('/', authenticate, async(req, res) => {
 
         // Build query with soft delete filter (only non-deleted projects)
         // Join with logos table to get thumbnail_url
+        // Priority: project thumbnail_url > logo thumbnail_url
         let countQuery = 'SELECT COUNT(*) FROM projects WHERE user_id = $1 AND deleted_at IS NULL';
         let dataQuery = `
             SELECT 
                 p.id, 
                 p.title,
                 p.logo_id,
+                p.thumbnail_url as project_thumbnail_url,
                 l.thumbnail_url as logo_thumbnail_url
             FROM projects p
             LEFT JOIN logos l ON l.id = p.logo_id
@@ -51,13 +53,8 @@ router.get('/', authenticate, async(req, res) => {
 
         // Map to simple format with id, title, and thumbnailUrl
         const projects = result.rows.map(row => {
-            // Use logo thumbnail_url if available, otherwise try to extract from json_doc
-            let thumbnailUrl = row.logo_thumbnail_url || null;
-            
-            // If no logo thumbnail, try to extract from json_doc as fallback
-            // (This requires fetching json_doc separately, but for now we'll just use logo thumbnail)
-            // Note: We removed json_doc from SELECT to keep response lightweight
-            // If you need json_doc thumbnail fallback, you can add it back
+            // Priority: project thumbnail_url > logo thumbnail_url
+            let thumbnailUrl = row.project_thumbnail_url || row.logo_thumbnail_url || null;
 
             return {
                 id: row.id,
@@ -124,6 +121,7 @@ router.get('/:id', authenticate, async(req, res) => {
 
         // Query with explicit parameter binding to ensure only one project is returned
         // Join with logos to get thumbnail_url
+        // Priority: project thumbnail_url > logo thumbnail_url
         const result = await query(
             `SELECT 
                 p.id, 
@@ -131,6 +129,7 @@ router.get('/:id', authenticate, async(req, res) => {
                 p.title, 
                 p.json_doc, 
                 p.logo_id,
+                p.thumbnail_url as project_thumbnail_url,
                 l.thumbnail_url as logo_thumbnail_url,
                 p.created_at, 
                 p.updated_at, 
@@ -150,9 +149,11 @@ router.get('/:id', authenticate, async(req, res) => {
 
         // Ensure we only return the first (and should be only) row
         const project = result.rows[0];
-        
+
         // Add thumbnailUrl to project response
-        project.thumbnailUrl = project.logo_thumbnail_url || null;
+        // Priority: project thumbnail_url > logo thumbnail_url
+        project.thumbnailUrl = project.project_thumbnail_url || project.logo_thumbnail_url || null;
+        delete project.project_thumbnail_url; // Clean up internal field name
         delete project.logo_thumbnail_url; // Clean up internal field name
 
         res.json({
@@ -216,7 +217,8 @@ router.post('/', authenticate, async(req, res) => {
             });
         }
 
-        // Validate logo_id if provided
+        // Validate logo_id if provided and fetch thumbnail_url
+        let thumbnailUrl = null;
         if (logo_id) {
             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
             if (!uuidRegex.test(logo_id)) {
@@ -225,23 +227,30 @@ router.post('/', authenticate, async(req, res) => {
                     message: 'Invalid logo_id format'
                 });
             }
-            // Verify logo exists
-            const logoCheck = await query('SELECT id FROM logos WHERE id = $1', [logo_id]);
+            // Verify logo exists and fetch thumbnail_url
+            const logoCheck = await query('SELECT id, thumbnail_url FROM logos WHERE id = $1', [logo_id]);
             if (logoCheck.rows.length === 0) {
                 return res.status(400).json({
                     success: false,
                     message: 'Logo not found'
                 });
             }
+            // Get thumbnail_url from logo
+            thumbnailUrl = logoCheck.rows[0].thumbnail_url || null;
         }
 
         // Create project (let PostgreSQL generate the UUID using gen_random_uuid())
+        // thumbnail_url is NULL initially (will fall back to logo thumbnail)
         const result = await query(
-            'INSERT INTO projects (user_id, title, json_doc, logo_id) VALUES ($1, $2, $3, $4) RETURNING id, user_id, title, json_doc, logo_id, created_at, updated_at, deleted_at', [userId, title.trim(), JSON.stringify(jsonDocValue), logo_id || null]
+            'INSERT INTO projects (user_id, title, json_doc, logo_id, thumbnail_url) VALUES ($1, $2, $3, $4, $5) RETURNING id, user_id, title, json_doc, logo_id, thumbnail_url, created_at, updated_at, deleted_at', [userId, title.trim(), JSON.stringify(jsonDocValue), logo_id || null, null]
         );
 
         // pg driver automatically parses JSONB, return the project as-is
         const project = result.rows[0];
+
+        // Add thumbnailUrl to project response (project thumbnail or logo thumbnail fallback)
+        project.thumbnailUrl = project.thumbnail_url || thumbnailUrl || null;
+        delete project.thumbnail_url; // Clean up internal field name
 
         res.status(201).json({
             success: true,
@@ -369,14 +378,18 @@ router.put('/:id', authenticate, async(req, res) => {
             UPDATE projects 
             SET ${updateFields.join(', ')}
             WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1} AND deleted_at IS NULL
-            RETURNING id, user_id, title, json_doc, logo_id, created_at, updated_at, deleted_at
+            RETURNING id, user_id, title, json_doc, logo_id, thumbnail_url, created_at, updated_at, deleted_at
         `;
-        
+
         const result = await query(updateQuery, updateValues);
-        
-        // Fetch logo thumbnail if logo_id exists
+
+        // Get thumbnail: project thumbnail_url > logo thumbnail_url
         const project = result.rows[0];
-        if (project.logo_id) {
+        if (project.thumbnail_url) {
+            // Project has its own thumbnail
+            project.thumbnailUrl = project.thumbnail_url;
+        } else if (project.logo_id) {
+            // Fall back to logo thumbnail
             const logoRes = await query('SELECT thumbnail_url FROM logos WHERE id = $1', [project.logo_id]);
             if (logoRes.rows.length > 0) {
                 project.thumbnailUrl = logoRes.rows[0].thumbnail_url;
@@ -386,6 +399,7 @@ router.put('/:id', authenticate, async(req, res) => {
         } else {
             project.thumbnailUrl = null;
         }
+        delete project.thumbnail_url; // Clean up internal field name
 
         res.json({
             success: true,
@@ -399,6 +413,94 @@ router.put('/:id', authenticate, async(req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to update project',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+/**
+ * PATCH /api/projects/:id/thumbnail
+ * Update project thumbnail URL
+ */
+router.patch('/:id/thumbnail', authenticate, async(req, res) => {
+    try {
+        const userId = req.userId;
+        const projectId = req.params.id;
+        const { thumbnail_url } = req.body;
+
+        // Validate UUID format
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(projectId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid project ID format'
+            });
+        }
+
+        // Validate thumbnail_url is provided
+        if (thumbnail_url === undefined || thumbnail_url === null) {
+            return res.status(400).json({
+                success: false,
+                message: 'thumbnail_url is required'
+            });
+        }
+
+        // Allow empty string to clear thumbnail (will fall back to logo thumbnail)
+        const thumbnailValue = thumbnail_url === '' ? null : thumbnail_url;
+
+        // Check if project exists and belongs to user
+        const checkResult = await query(
+            'SELECT id FROM projects WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL', [projectId, userId]
+        );
+
+        if (checkResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Project not found or access denied'
+            });
+        }
+
+        // Update thumbnail URL
+        const result = await query(
+            `UPDATE projects 
+            SET thumbnail_url = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2 AND user_id = $3 AND deleted_at IS NULL
+            RETURNING id, thumbnail_url, logo_id, updated_at`, [thumbnailValue, projectId, userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Project not found or access denied'
+            });
+        }
+
+        const project = result.rows[0];
+
+        // Get the final thumbnail URL (project thumbnail or fall back to logo thumbnail)
+        let finalThumbnailUrl = project.thumbnail_url;
+        if (!finalThumbnailUrl && project.logo_id) {
+            const logoRes = await query('SELECT thumbnail_url FROM logos WHERE id = $1', [project.logo_id]);
+            if (logoRes.rows.length > 0) {
+                finalThumbnailUrl = logoRes.rows[0].thumbnail_url;
+            }
+        }
+
+        res.json({
+            success: true,
+            message: 'Project thumbnail updated successfully',
+            data: {
+                id: project.id,
+                thumbnail_url: project.thumbnail_url,
+                thumbnailUrl: finalThumbnailUrl, // Final thumbnail (project or logo fallback)
+                updated_at: project.updated_at
+            }
+        });
+    } catch (error) {
+        console.error('Error updating project thumbnail:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update project thumbnail',
             error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }

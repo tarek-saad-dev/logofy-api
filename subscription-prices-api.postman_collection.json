@@ -5,8 +5,7 @@
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
         "_exporter_id": "subscription-prices-api"
     },
-    "variable": [
-        {
+    "variable": [{
             "key": "baseUrl",
             "value": "http://localhost:3000",
             "type": "string"
@@ -17,38 +16,32 @@
             "type": "string"
         }
     ],
-    "item": [
-        {
+    "item": [{
             "name": "Authentication",
             "description": "Get a JWT token to use for authenticated requests (POST /api/subscription-prices)",
-            "item": [
-                {
+            "item": [{
                     "name": "Register User",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "if (pm.response.code === 201) {",
-                                    "    const jsonData = pm.response.json();",
-                                    "    if (jsonData.success && jsonData.data && jsonData.data.token) {",
-                                    "        pm.collectionVariables.set(\"token\", jsonData.data.token);",
-                                    "        console.log(\"✅ Token saved to collection variable\");",
-                                    "    }",
-                                    "}"
-                                ],
-                                "type": "text/javascript"
-                            }
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 201) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success && jsonData.data && jsonData.data.token) {",
+                                "        pm.collectionVariables.set(\"token\", jsonData.data.token);",
+                                "        console.log(\"✅ Token saved to collection variable\");",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
                         }
-                    ],
+                    }],
                     "request": {
                         "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
                         "body": {
                             "mode": "raw",
                             "raw": "{\n    \"email\": \"admin_{{$timestamp}}@example.com\",\n    \"password\": \"admin123456\",\n    \"name\": \"Admin User\"\n}"
@@ -63,32 +56,28 @@
                 },
                 {
                     "name": "Login",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "if (pm.response.code === 200) {",
-                                    "    const jsonData = pm.response.json();",
-                                    "    if (jsonData.success && jsonData.data && jsonData.data.token) {",
-                                    "        pm.collectionVariables.set(\"token\", jsonData.data.token);",
-                                    "        console.log(\"✅ Token saved to collection variable\");",
-                                    "        console.log(\"📝 You can now use POST /api/subscription-prices\");",
-                                    "    }",
-                                    "}"
-                                ],
-                                "type": "text/javascript"
-                            }
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success && jsonData.data && jsonData.data.token) {",
+                                "        pm.collectionVariables.set(\"token\", jsonData.data.token);",
+                                "        console.log(\"✅ Token saved to collection variable\");",
+                                "        console.log(\"📝 You can now use POST /api/subscription-prices\");",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
                         }
-                    ],
+                    }],
                     "request": {
                         "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
                         "body": {
                             "mode": "raw",
                             "raw": "{\n    \"email\": \"admin@example.com\",\n    \"password\": \"admin123456\"\n}"
@@ -106,8 +95,7 @@
         {
             "name": "Subscription Prices",
             "description": "Endpoints for fetching and updating subscription prices",
-            "item": [
-                {
+            "item": [{
                     "name": "Get Current Prices (Public)",
                     "request": {
                         "method": "GET",
@@ -123,31 +111,28 @@
                 },
                 {
                     "name": "Update Prices (EGP Example)",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "if (pm.response.code === 200) {",
-                                    "    const jsonData = pm.response.json();",
-                                    "    if (jsonData.success) {",
-                                    "        console.log(\"✅ Prices updated successfully!\");",
-                                    "        console.log(\"📊 New prices:\");",
-                                    "        console.log(\"   Monthly: \" + jsonData.data.monthly_price + \" \" + jsonData.data.currency);",
-                                    "        console.log(\"   Yearly: \" + jsonData.data.yearly_price + \" \" + jsonData.data.currency);",
-                                    "        console.log(\"   Trial Days: \" + jsonData.data.trial_days);",
-                                    "        console.log(\"\\n💡 Next: Call GET /api/subscription-prices to verify\");",
-                                    "    }",
-                                    "}"
-                                ],
-                                "type": "text/javascript"
-                            }
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success) {",
+                                "        console.log(\"✅ Prices updated successfully!\");",
+                                "        console.log(\"📊 New prices:\");",
+                                "        console.log(\"   Monthly: \" + jsonData.data.monthly_price + \" \" + jsonData.data.currency);",
+                                "        console.log(\"   Yearly: \" + jsonData.data.yearly_price + \" \" + jsonData.data.currency);",
+                                "        console.log(\"   Trial Days: \" + jsonData.data.trial_days);",
+                                "        console.log(\"\\n💡 Next: Call GET /api/subscription-prices to verify\");",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
                         }
-                    ],
+                    }],
                     "request": {
                         "method": "POST",
-                        "header": [
-                            {
+                        "header": [{
                                 "key": "Authorization",
                                 "value": "Bearer {{token}}",
                                 "description": "JWT token from login/register"
@@ -172,30 +157,27 @@
                 },
                 {
                     "name": "Update Prices (USD Example)",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "if (pm.response.code === 200) {",
-                                    "    const jsonData = pm.response.json();",
-                                    "    if (jsonData.success) {",
-                                    "        console.log(\"✅ Prices updated successfully!\");",
-                                    "        console.log(\"📊 New prices:\");",
-                                    "        console.log(\"   Monthly: \" + jsonData.data.monthly_price + \" \" + jsonData.data.currency);",
-                                    "        console.log(\"   Yearly: \" + jsonData.data.yearly_price + \" \" + jsonData.data.currency);",
-                                    "        console.log(\"   Trial Days: \" + jsonData.data.trial_days);",
-                                    "    }",
-                                    "}"
-                                ],
-                                "type": "text/javascript"
-                            }
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success) {",
+                                "        console.log(\"✅ Prices updated successfully!\");",
+                                "        console.log(\"📊 New prices:\");",
+                                "        console.log(\"   Monthly: \" + jsonData.data.monthly_price + \" \" + jsonData.data.currency);",
+                                "        console.log(\"   Yearly: \" + jsonData.data.yearly_price + \" \" + jsonData.data.currency);",
+                                "        console.log(\"   Trial Days: \" + jsonData.data.trial_days);",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
                         }
-                    ],
+                    }],
                     "request": {
                         "method": "POST",
-                        "header": [
-                            {
+                        "header": [{
                                 "key": "Authorization",
                                 "value": "Bearer {{token}}"
                             },
@@ -219,29 +201,26 @@
                 },
                 {
                     "name": "Update Prices (Minimal - Required Fields Only)",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "if (pm.response.code === 200) {",
-                                    "    const jsonData = pm.response.json();",
-                                    "    if (jsonData.success) {",
-                                    "        console.log(\"✅ Prices updated with minimal fields\");",
-                                    "        console.log(\"📊 Defaults applied:\");",
-                                    "        console.log(\"   Trial Days: \" + jsonData.data.trial_days + \" (default: 0)\");",
-                                    "        console.log(\"   Currency: \" + jsonData.data.currency + \" (default: USD)\");",
-                                    "    }",
-                                    "}"
-                                ],
-                                "type": "text/javascript"
-                            }
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success) {",
+                                "        console.log(\"✅ Prices updated with minimal fields\");",
+                                "        console.log(\"📊 Defaults applied:\");",
+                                "        console.log(\"   Trial Days: \" + jsonData.data.trial_days + \" (default: 0)\");",
+                                "        console.log(\"   Currency: \" + jsonData.data.currency + \" (default: USD)\");",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
                         }
-                    ],
+                    }],
                     "request": {
                         "method": "POST",
-                        "header": [
-                            {
+                        "header": [{
                                 "key": "Authorization",
                                 "value": "Bearer {{token}}"
                             },
@@ -268,8 +247,7 @@
         {
             "name": "Testing Workflow",
             "description": "Complete workflow examples for testing the subscription prices API",
-            "item": [
-                {
+            "item": [{
                     "name": "1. Get Current Prices (Before Update)",
                     "request": {
                         "method": "GET",
@@ -285,24 +263,21 @@
                 },
                 {
                     "name": "2. Update Prices",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "if (pm.response.code === 200) {",
-                                    "    console.log(\"✅ Prices updated!\");",
-                                    "    console.log(\"💡 Next: Run step 3 to verify the update\");",
-                                    "}"
-                                ],
-                                "type": "text/javascript"
-                            }
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    console.log(\"✅ Prices updated!\");",
+                                "    console.log(\"💡 Next: Run step 3 to verify the update\");",
+                                "}"
+                            ],
+                            "type": "text/javascript"
                         }
-                    ],
+                    }],
                     "request": {
                         "method": "POST",
-                        "header": [
-                            {
+                        "header": [{
                                 "key": "Authorization",
                                 "value": "Bearer {{token}}"
                             },
@@ -343,17 +318,14 @@
         {
             "name": "Error Examples",
             "description": "Examples of error responses for validation and authentication",
-            "item": [
-                {
+            "item": [{
                     "name": "POST Without Authentication",
                     "request": {
                         "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
                         "body": {
                             "mode": "raw",
                             "raw": "{\n    \"monthly_price\": 10.00,\n    \"yearly_price\": 100.00\n}"
@@ -371,8 +343,7 @@
                     "name": "POST With Missing Required Field",
                     "request": {
                         "method": "POST",
-                        "header": [
-                            {
+                        "header": [{
                                 "key": "Authorization",
                                 "value": "Bearer {{token}}"
                             },
@@ -398,8 +369,7 @@
                     "name": "POST With Invalid Data Type",
                     "request": {
                         "method": "POST",
-                        "header": [
-                            {
+                        "header": [{
                                 "key": "Authorization",
                                 "value": "Bearer {{token}}"
                             },
@@ -425,8 +395,7 @@
                     "name": "POST With Negative Price",
                     "request": {
                         "method": "POST",
-                        "header": [
-                            {
+                        "header": [{
                                 "key": "Authorization",
                                 "value": "Bearer {{token}}"
                             },
@@ -452,4 +421,3 @@
         }
     ]
 }
-
