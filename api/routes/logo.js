@@ -4089,8 +4089,7 @@ router.patch('/:id/mobile/legacy', async(req, res) => {
             updateValues.push(exportSettings.responsive && exportSettings.responsive.maintainAspectRatio !== undefined ? exportSettings.responsive.maintainAspectRatio : true);
         }
 
-        // Always update updated_at
-        paramCount++;
+        // Always update updated_at (no parameter needed for CURRENT_TIMESTAMP)
         updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
 
         // Update logo if there are fields to update
