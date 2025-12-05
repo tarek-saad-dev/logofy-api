@@ -84,3 +84,4 @@ SELECT
 WHERE NOT EXISTS (
   SELECT 1 FROM privacy_policy WHERE is_active = TRUE
 );
+

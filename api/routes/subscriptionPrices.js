@@ -212,7 +212,27 @@ router.post('/', async(req, res) => {
                 'yearly_price is required');
         }
 
-        // Helper function to validate price string
+        // Helper function to convert Arabic numerals to Western numerals
+        const convertArabicToWestern = (str) => {
+            if (!str || typeof str !== 'string') return str;
+
+            const arabicToWestern = {
+                '٠': '0',
+                '١': '1',
+                '٢': '2',
+                '٣': '3',
+                '٤': '4',
+                '٥': '5',
+                '٦': '6',
+                '٧': '7',
+                '٨': '8',
+                '٩': '9'
+            };
+
+            return str.split('').map(char => arabicToWestern[char] || char).join('');
+        };
+
+        // Helper function to validate price string (supports both Western and Arabic numerals)
         const validatePriceString = (price, fieldName) => {
             if (price === undefined || price === null) {
                 return null; // Optional fields can be null
@@ -220,10 +240,14 @@ router.post('/', async(req, res) => {
             if (typeof price !== 'string') {
                 return { error: `${fieldName} must be a string` };
             }
+
+            // Convert Arabic numerals to Western numerals for validation
+            const westernPrice = convertArabicToWestern(price);
+
             // Check if it's a valid numeric string
-            const numValue = parseFloat(price);
+            const numValue = parseFloat(westernPrice);
             if (isNaN(numValue) || numValue < 0) {
-                return { error: `${fieldName} must be a valid non-negative number string (e.g., "24.99")` };
+                return { error: `${fieldName} must be a valid non-negative number string (e.g., "24.99" or "٤٥.٤٥")` };
             }
             return null;
         };
@@ -286,6 +310,15 @@ router.post('/', async(req, res) => {
             WHERE is_active = TRUE`
         );
 
+        // Convert Arabic numerals to Western numerals before storing
+        // Keep original format for Arabic price fields, but ensure they're valid
+        const convertPriceForStorage = (price) => {
+            if (!price || typeof price !== 'string') return price;
+            // Convert Arabic numerals to Western for storage (optional - you can keep Arabic if preferred)
+            // For now, we'll convert to Western numerals for consistency
+            return convertArabicToWestern(price);
+        };
+
         // Insert new active price configuration
         const result = await query(
             `INSERT INTO subscription_prices (
@@ -320,12 +353,12 @@ router.post('/', async(req, res) => {
                 stripe_yearly_price_id,
                 created_at,
                 updated_at`, [
-                weekly_price || null,
-                weekly_price_ar || null,
-                monthly_price,
-                monthly_price_ar || null,
-                yearly_price,
-                yearly_price_ar || null,
+                convertPriceForStorage(weekly_price) || null,
+                convertPriceForStorage(weekly_price_ar) || null,
+                convertPriceForStorage(monthly_price),
+                convertPriceForStorage(monthly_price_ar) || null,
+                convertPriceForStorage(yearly_price),
+                convertPriceForStorage(yearly_price_ar) || null,
                 trial_days || 0,
                 currency || 'USD',
                 currency_name_en || null,
