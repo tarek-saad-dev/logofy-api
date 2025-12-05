@@ -310,13 +310,19 @@ router.post('/', async(req, res) => {
             WHERE is_active = TRUE`
         );
 
-        // Convert Arabic numerals to Western numerals before storing
-        // Keep original format for Arabic price fields, but ensure they're valid
-        const convertPriceForStorage = (price) => {
+        // Store prices as-is:
+        // - English prices: keep Western numerals (0-9)
+        // - Arabic prices (_ar): keep Arabic numerals (٠-٩) as-is
+        const preparePriceForStorage = (price, isArabicField = false) => {
             if (!price || typeof price !== 'string') return price;
-            // Convert Arabic numerals to Western for storage (optional - you can keep Arabic if preferred)
-            // For now, we'll convert to Western numerals for consistency
-            return convertArabicToWestern(price);
+            // For Arabic fields, keep Arabic numerals as-is
+            // For English fields, convert Arabic numerals to Western (in case user sends Arabic in English field)
+            if (isArabicField) {
+                return price; // Keep Arabic numerals as-is
+            } else {
+                // Convert Arabic numerals to Western for English fields
+                return convertArabicToWestern(price);
+            }
         };
 
         // Insert new active price configuration
@@ -353,12 +359,12 @@ router.post('/', async(req, res) => {
                 stripe_yearly_price_id,
                 created_at,
                 updated_at`, [
-                convertPriceForStorage(weekly_price) || null,
-                convertPriceForStorage(weekly_price_ar) || null,
-                convertPriceForStorage(monthly_price),
-                convertPriceForStorage(monthly_price_ar) || null,
-                convertPriceForStorage(yearly_price),
-                convertPriceForStorage(yearly_price_ar) || null,
+                preparePriceForStorage(weekly_price, false) || null,
+                preparePriceForStorage(weekly_price_ar, true) || null,
+                preparePriceForStorage(monthly_price, false),
+                preparePriceForStorage(monthly_price_ar, true) || null,
+                preparePriceForStorage(yearly_price, false),
+                preparePriceForStorage(yearly_price_ar, true) || null,
                 trial_days || 0,
                 currency || 'USD',
                 currency_name_en || null,
