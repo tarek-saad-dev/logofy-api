@@ -19,11 +19,14 @@ const router = express.Router();
  * {
  *   "success": true,
  *   "data": {
- *     "weekly_price": 24.99,
- *     "monthly_price": 97.99,
- *     "yearly_price": 999.99,
+ *     "weekly_price": "24.99",
+ *     "monthly_price": "97.99",
+ *     "yearly_price": "999.99",
  *     "trial_days": 3,
  *     "currency": "EGP",
+ *     "currency_name": "Egyptian Pound",
+ *     "currency_name_en": "Egyptian Pound",
+ *     "currency_name_ar": "جنيه مصري",
  *     "stripe_weekly_price_id": "price_...",
  *     "stripe_monthly_price_id": "price_...",
  *     "stripe_yearly_price_id": "price_...",
@@ -88,9 +91,9 @@ router.get('/', async(req, res) => {
             return res.json({
                 success: true,
                 data: {
-                    weekly_price: 0.00,
-                    monthly_price: 0.00,
-                    yearly_price: 0.00,
+                    weekly_price: "0.00",
+                    monthly_price: "0.00",
+                    yearly_price: "0.00",
                     trial_days: 0,
                     currency: 'USD',
                     currency_name_en: 'US Dollar',
@@ -107,17 +110,18 @@ router.get('/', async(req, res) => {
         const priceData = result.rows[0];
 
         // Use Arabic prices if language is Arabic and Arabic prices exist, otherwise use English
+        // Prices are stored as strings, so return them directly
         const weeklyPrice = isArabic && priceData.weekly_price_ar ?
-            parseFloat(priceData.weekly_price_ar) :
-            (priceData.weekly_price ? parseFloat(priceData.weekly_price) : null);
+            priceData.weekly_price_ar :
+            (priceData.weekly_price || null);
 
         const monthlyPrice = isArabic && priceData.monthly_price_ar ?
-            parseFloat(priceData.monthly_price_ar) :
-            parseFloat(priceData.monthly_price);
+            priceData.monthly_price_ar :
+            priceData.monthly_price;
 
         const yearlyPrice = isArabic && priceData.yearly_price_ar ?
-            parseFloat(priceData.yearly_price_ar) :
-            parseFloat(priceData.yearly_price);
+            priceData.yearly_price_ar :
+            priceData.yearly_price;
 
         // Use Arabic currency name if language is Arabic and Arabic name exists, otherwise use English
         const currencyName = isArabic && priceData.currency_name_ar ?
@@ -157,12 +161,12 @@ router.get('/', async(req, res) => {
  * 
  * Request body:
  * {
- *   "weekly_price": 24.99,
- *   "weekly_price_ar": 24.99,
- *   "monthly_price": 97.99,
- *   "monthly_price_ar": 97.99,
- *   "yearly_price": 999.99,
- *   "yearly_price_ar": 999.99,
+ *   "weekly_price": "24.99",
+ *   "weekly_price_ar": "24.99",
+ *   "monthly_price": "97.99",
+ *   "monthly_price_ar": "97.99",
+ *   "yearly_price": "999.99",
+ *   "yearly_price_ar": "999.99",
  *   "trial_days": 3,
  *   "currency": "EGP",
  *   "currency_name_en": "Egyptian Pound",
@@ -208,35 +212,51 @@ router.post('/', async(req, res) => {
                 'yearly_price is required');
         }
 
-        // Validate data types and ranges
-        if (weekly_price !== undefined && weekly_price !== null && (typeof weekly_price !== 'number' || weekly_price < 0)) {
-            return badRequest(res, ERROR_CODES.GENERAL.VALIDATION_ERROR,
-                'weekly_price must be a non-negative number');
+        // Helper function to validate price string
+        const validatePriceString = (price, fieldName) => {
+            if (price === undefined || price === null) {
+                return null; // Optional fields can be null
+            }
+            if (typeof price !== 'string') {
+                return { error: `${fieldName} must be a string` };
+            }
+            // Check if it's a valid numeric string
+            const numValue = parseFloat(price);
+            if (isNaN(numValue) || numValue < 0) {
+                return { error: `${fieldName} must be a valid non-negative number string (e.g., "24.99")` };
+            }
+            return null;
+        };
+
+        // Validate price strings
+        const weeklyPriceError = validatePriceString(weekly_price, 'weekly_price');
+        if (weeklyPriceError) {
+            return badRequest(res, ERROR_CODES.GENERAL.VALIDATION_ERROR, weeklyPriceError.error);
         }
 
-        if (weekly_price_ar !== undefined && weekly_price_ar !== null && (typeof weekly_price_ar !== 'number' || weekly_price_ar < 0)) {
-            return badRequest(res, ERROR_CODES.GENERAL.VALIDATION_ERROR,
-                'weekly_price_ar must be a non-negative number');
+        const weeklyPriceArError = validatePriceString(weekly_price_ar, 'weekly_price_ar');
+        if (weeklyPriceArError) {
+            return badRequest(res, ERROR_CODES.GENERAL.VALIDATION_ERROR, weeklyPriceArError.error);
         }
 
-        if (typeof monthly_price !== 'number' || monthly_price < 0) {
-            return badRequest(res, ERROR_CODES.GENERAL.VALIDATION_ERROR,
-                'monthly_price must be a non-negative number');
+        const monthlyPriceError = validatePriceString(monthly_price, 'monthly_price');
+        if (monthlyPriceError) {
+            return badRequest(res, ERROR_CODES.GENERAL.VALIDATION_ERROR, monthlyPriceError.error);
         }
 
-        if (monthly_price_ar !== undefined && monthly_price_ar !== null && (typeof monthly_price_ar !== 'number' || monthly_price_ar < 0)) {
-            return badRequest(res, ERROR_CODES.GENERAL.VALIDATION_ERROR,
-                'monthly_price_ar must be a non-negative number');
+        const monthlyPriceArError = validatePriceString(monthly_price_ar, 'monthly_price_ar');
+        if (monthlyPriceArError) {
+            return badRequest(res, ERROR_CODES.GENERAL.VALIDATION_ERROR, monthlyPriceArError.error);
         }
 
-        if (typeof yearly_price !== 'number' || yearly_price < 0) {
-            return badRequest(res, ERROR_CODES.GENERAL.VALIDATION_ERROR,
-                'yearly_price must be a non-negative number');
+        const yearlyPriceError = validatePriceString(yearly_price, 'yearly_price');
+        if (yearlyPriceError) {
+            return badRequest(res, ERROR_CODES.GENERAL.VALIDATION_ERROR, yearlyPriceError.error);
         }
 
-        if (yearly_price_ar !== undefined && yearly_price_ar !== null && (typeof yearly_price_ar !== 'number' || yearly_price_ar < 0)) {
-            return badRequest(res, ERROR_CODES.GENERAL.VALIDATION_ERROR,
-                'yearly_price_ar must be a non-negative number');
+        const yearlyPriceArError = validatePriceString(yearly_price_ar, 'yearly_price_ar');
+        if (yearlyPriceArError) {
+            return badRequest(res, ERROR_CODES.GENERAL.VALIDATION_ERROR, yearlyPriceArError.error);
         }
 
         if (trial_days !== undefined && (typeof trial_days !== 'number' || trial_days < 0)) {
@@ -322,14 +342,16 @@ router.post('/', async(req, res) => {
             success: true,
             message: 'Subscription prices updated successfully',
             data: {
-                weekly_price: newPriceData.weekly_price ? parseFloat(newPriceData.weekly_price) : null,
-                weekly_price_ar: newPriceData.weekly_price_ar ? parseFloat(newPriceData.weekly_price_ar) : null,
-                monthly_price: parseFloat(newPriceData.monthly_price),
-                monthly_price_ar: newPriceData.monthly_price_ar ? parseFloat(newPriceData.monthly_price_ar) : null,
-                yearly_price: parseFloat(newPriceData.yearly_price),
-                yearly_price_ar: newPriceData.yearly_price_ar ? parseFloat(newPriceData.yearly_price_ar) : null,
+                weekly_price: newPriceData.weekly_price || null,
+                weekly_price_ar: newPriceData.weekly_price_ar || null,
+                monthly_price: newPriceData.monthly_price,
+                monthly_price_ar: newPriceData.monthly_price_ar || null,
+                yearly_price: newPriceData.yearly_price,
+                yearly_price_ar: newPriceData.yearly_price_ar || null,
                 trial_days: newPriceData.trial_days,
                 currency: newPriceData.currency,
+                currency_name_en: newPriceData.currency_name_en || newPriceData.currency,
+                currency_name_ar: newPriceData.currency_name_ar || newPriceData.currency,
                 stripe_weekly_price_id: newPriceData.stripe_weekly_price_id,
                 stripe_monthly_price_id: newPriceData.stripe_monthly_price_id,
                 stripe_yearly_price_id: newPriceData.stripe_yearly_price_id,

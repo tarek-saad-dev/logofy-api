@@ -73,12 +73,15 @@ app.use('/api/billing', require('./routes/billing'));
 // Subscription prices routes
 app.use('/api/subscription-prices', require('./routes/subscriptionPrices'));
 
+// Privacy policy routes
+app.use('/api/privacy-policy', require('./routes/privacyPolicy'));
+
 // Import error handler
 const { notFound, errorHandler, ERROR_CODES } = require('./utils/errorHandler');
 
 // 404 handler
 app.use('*', (req, res) => {
-    return notFound(res, ERROR_CODES.GENERAL.NOT_FOUND, 
+    return notFound(res, ERROR_CODES.GENERAL.NOT_FOUND,
         `Route not found: Cannot ${req.method} ${req.originalUrl}`);
 });
 

@@ -466,6 +466,270 @@
                 },
                 "response": []
             }]
+        },
+        {
+            "name": "Privacy Policy (وسياسة الخصوصيه)",
+            "description": "Public endpoints to fetch and update privacy policy with multilingual support (English & Arabic)",
+            "item": [{
+                "name": "Get Privacy Policy (English - Default)",
+                "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                        "raw": "{{baseUrl}}/api/privacy-policy?lang=en",
+                        "host": ["{{baseUrl}}"],
+                        "path": ["api", "privacy-policy"],
+                        "query": [{
+                            "key": "lang",
+                            "value": "en",
+                            "description": "Language: 'en' for English (default)"
+                        }]
+                    },
+                    "description": "**Public endpoint** - No authentication required.\n\nFetches privacy policy content in English.\n\n**Response includes:**\n- content (English content based on lang parameter)\n- content_en (English content)\n- content_ar (Arabic content)\n- version (version number)\n- updated_at (last update timestamp)"
+                },
+                "response": []
+            }, {
+                "name": "Get Privacy Policy (Arabic)",
+                "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                        "raw": "{{baseUrl}}/api/privacy-policy?lang=ar",
+                        "host": ["{{baseUrl}}"],
+                        "path": ["api", "privacy-policy"],
+                        "query": [{
+                            "key": "lang",
+                            "value": "ar",
+                            "description": "Language: 'ar' for Arabic"
+                        }]
+                    },
+                    "description": "**Public endpoint** - No authentication required.\n\nFetches privacy policy content in Arabic (وسياسة الخصوصيه).\n\n**Response includes:**\n- content (Arabic content based on lang parameter)\n- content_en (English content)\n- content_ar (Arabic content)\n- version (version number)\n- updated_at (last update timestamp)"
+                },
+                "response": []
+            }, {
+                "name": "Get Privacy Policy (No Language Parameter)",
+                "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                        "raw": "{{baseUrl}}/api/privacy-policy",
+                        "host": ["{{baseUrl}}"],
+                        "path": ["api", "privacy-policy"]
+                    },
+                    "description": "**Public endpoint** - No authentication required.\n\nFetches privacy policy without language parameter. Defaults to English.\n\nSame as GET with ?lang=en"
+                },
+                "response": []
+            }]
+        },
+        {
+            "name": "Update Privacy Policy",
+            "description": "Public endpoints to update privacy policy content (no authentication required)",
+            "item": [{
+                "name": "Update Privacy Policy (English + Arabic)",
+                "event": [{
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "if (pm.response.code === 200) {",
+                            "    const jsonData = pm.response.json();",
+                            "    if (jsonData.success) {",
+                            "        console.log(\"✅ Privacy policy updated successfully!\");",
+                            "        console.log(\"📄 Version: \" + jsonData.data.version);",
+                            "        console.log(\"📅 Updated at: \" + jsonData.data.updated_at);",
+                            "        console.log(\"\\n💡 Next: Call GET /api/privacy-policy?lang=en and ?lang=ar to verify\");",
+                            "    }",
+                            "}"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }],
+                "request": {
+                    "method": "PUT",
+                    "header": [{
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n    \"content_en\": \"This is the privacy policy content in English. It describes how we collect, use, and protect your personal information.\",\n    \"content_ar\": \"هذا هو محتوى سياسة الخصوصية بالعربية. يصف كيفية جمع واستخدام وحماية معلوماتك الشخصية.\"\n}"
+                    },
+                    "url": {
+                        "raw": "{{baseUrl}}/api/privacy-policy",
+                        "host": ["{{baseUrl}}"],
+                        "path": ["api", "privacy-policy"]
+                    },
+                    "description": "**Public endpoint** - No authentication required.\n\nUpdate privacy policy with both English and Arabic content.\n\n**What happens:**\n1. All existing active policies are deactivated\n2. New active policy version is created (version auto-increments)\n3. Mobile app will fetch the new policy content\n\n**Required fields:**\n- content_en (string, non-empty) - Privacy policy content in English\n- content_ar (string, non-empty) - Privacy policy content in Arabic (وسياسة الخصوصيه)\n\n**Response includes:**\n- content_en, content_ar (both language versions)\n- version (new version number)\n- created_at, updated_at (timestamps)"
+                },
+                "response": []
+            }, {
+                "name": "Update Privacy Policy (Example - Full Content)",
+                "event": [{
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "if (pm.response.code === 200) {",
+                            "    const jsonData = pm.response.json();",
+                            "    if (jsonData.success) {",
+                            "        console.log(\"✅ Privacy policy updated!\");",
+                            "        console.log(\"📄 New version: \" + jsonData.data.version);",
+                            "    }",
+                            "}"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }],
+                "request": {
+                    "method": "PUT",
+                    "header": [{
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n    \"content_en\": \"PRIVACY POLICY\\n\\nLast Updated: January 2025\\n\\n1. INFORMATION WE COLLECT\\nWe collect information that you provide directly to us, including your name, email address, and usage data.\\n\\n2. HOW WE USE YOUR INFORMATION\\nWe use the information we collect to provide, maintain, and improve our services.\\n\\n3. DATA SECURITY\\nWe implement appropriate security measures to protect your personal information.\\n\\n4. YOUR RIGHTS\\nYou have the right to access, update, or delete your personal information at any time.\\n\\n5. CONTACT US\\nIf you have questions about this privacy policy, please contact us.\",\n    \"content_ar\": \"سياسة الخصوصية\\n\\nآخر تحديث: يناير 2025\\n\\n1. المعلومات التي نجمعها\\nنجمع المعلومات التي تقدمها لنا مباشرة، بما في ذلك اسمك وعنوان بريدك الإلكتروني وبيانات الاستخدام.\\n\\n2. كيفية استخدام معلوماتك\\nنستخدم المعلومات التي نجمعها لتوفير وصيانة وتحسين خدماتنا.\\n\\n3. أمان البيانات\\nننفذ تدابير أمنية مناسبة لحماية معلوماتك الشخصية.\\n\\n4. حقوقك\\nلديك الحق في الوصول إلى معلوماتك الشخصية أو تحديثها أو حذفها في أي وقت.\\n\\n5. اتصل بنا\\nإذا كان لديك أسئلة حول سياسة الخصوصية هذه، يرجى الاتصال بنا.\"\n}"
+                    },
+                    "url": {
+                        "raw": "{{baseUrl}}/api/privacy-policy",
+                        "host": ["{{baseUrl}}"],
+                        "path": ["api", "privacy-policy"]
+                    },
+                    "description": "Update privacy policy with full example content in both English and Arabic"
+                },
+                "response": []
+            }]
+        },
+        {
+            "name": "Privacy Policy Testing Workflow",
+            "description": "Complete workflow examples for testing the localized privacy policy API",
+            "item": [{
+                "name": "1. Get Current Policy (English)",
+                "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                        "raw": "{{baseUrl}}/api/privacy-policy?lang=en",
+                        "host": ["{{baseUrl}}"],
+                        "path": ["api", "privacy-policy"],
+                        "query": [{
+                            "key": "lang",
+                            "value": "en"
+                        }]
+                    },
+                    "description": "Step 1: Check current privacy policy in English before updating"
+                },
+                "response": []
+            }, {
+                "name": "2. Update Policy (With Localization)",
+                "event": [{
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "if (pm.response.code === 200) {",
+                            "    console.log(\"✅ Policy updated!\");",
+                            "    console.log(\"💡 Next: Run steps 3 and 4 to verify in both languages\");",
+                            "}"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }],
+                "request": {
+                    "method": "PUT",
+                    "header": [{
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n    \"content_en\": \"This is the updated privacy policy content in English.\",\n    \"content_ar\": \"هذا هو محتوى سياسة الخصوصية المحدث بالعربية.\"\n}"
+                    },
+                    "url": {
+                        "raw": "{{baseUrl}}/api/privacy-policy",
+                        "host": ["{{baseUrl}}"],
+                        "path": ["api", "privacy-policy"]
+                    },
+                    "description": "Step 2: Update privacy policy with both English and Arabic content"
+                },
+                "response": []
+            }, {
+                "name": "3. Verify Policy (English)",
+                "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                        "raw": "{{baseUrl}}/api/privacy-policy?lang=en",
+                        "host": ["{{baseUrl}}"],
+                        "path": ["api", "privacy-policy"],
+                        "query": [{
+                            "key": "lang",
+                            "value": "en"
+                        }]
+                    },
+                    "description": "Step 3: Verify the policy was updated correctly (English)"
+                },
+                "response": []
+            }, {
+                "name": "4. Verify Policy (Arabic)",
+                "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                        "raw": "{{baseUrl}}/api/privacy-policy?lang=ar",
+                        "host": ["{{baseUrl}}"],
+                        "path": ["api", "privacy-policy"],
+                        "query": [{
+                            "key": "lang",
+                            "value": "ar"
+                        }]
+                    },
+                    "description": "Step 4: Verify the policy is returned in Arabic (وسياسة الخصوصيه)"
+                },
+                "response": []
+            }]
+        },
+        {
+            "name": "Privacy Policy Error Examples",
+            "description": "Examples of error responses for validation",
+            "item": [{
+                "name": "PUT With Missing content_en",
+                "request": {
+                    "method": "PUT",
+                    "header": [{
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n    \"content_ar\": \"محتوى بالعربية\"\n}"
+                    },
+                    "url": {
+                        "raw": "{{baseUrl}}/api/privacy-policy",
+                        "host": ["{{baseUrl}}"],
+                        "path": ["api", "privacy-policy"]
+                    },
+                    "description": "**Expected Error:** 400 Bad Request - \"content_en is required and must be a non-empty string\"\n\nThis demonstrates validation - both content_en and content_ar are required."
+                },
+                "response": []
+            }, {
+                "name": "PUT With Empty content_ar",
+                "request": {
+                    "method": "PUT",
+                    "header": [{
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n    \"content_en\": \"English content\",\n    \"content_ar\": \"\"\n}"
+                    },
+                    "url": {
+                        "raw": "{{baseUrl}}/api/privacy-policy",
+                        "host": ["{{baseUrl}}"],
+                        "path": ["api", "privacy-policy"]
+                    },
+                    "description": "**Expected Error:** 400 Bad Request - \"content_ar is required and must be a non-empty string\"\n\nThis demonstrates validation - content cannot be empty strings."
+                },
+                "response": []
+            }]
         }
     ]
 }
