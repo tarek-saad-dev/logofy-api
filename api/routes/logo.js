@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const router = express.Router();
 const { query, getClient } = require('../config/database');
 const { localization } = require('../middleware/localization');
@@ -1407,6 +1407,11 @@ router.get('/icons', async(req, res) => {
             orderByClause = `ORDER BY ai.${sortField} ${sortOrder}`;
         }
 
+        // Add lang parameter for localization
+        paramCount++;
+        const langParamIndex = paramCount;
+        queryParams.push(lang);
+
         // Add limit and offset parameters at the end
         paramCount++;
         const limitParamIndex = paramCount;
@@ -1427,7 +1432,7 @@ router.get('/icons', async(req, res) => {
             json_agg(
               json_build_object(
                 'id', ic.id,
-                'name', ic.name,
+                'name', CASE WHEN $${langParamIndex} = 'ar' THEN COALESCE(ic.name_ar, ic.name_en, ic.name) ELSE COALESCE(ic.name_en, ic.name) END,
                 'name_en', ic.name_en,
                 'name_ar', ic.name_ar,
                 'slug', ic.slug
@@ -1751,6 +1756,11 @@ router.get('/shapes', async(req, res) => {
             orderByClause = `ORDER BY ai.${sortField} ${sortOrder}`;
         }
 
+        // Add lang parameter for localization
+        paramCount++;
+        const langParamIndex = paramCount;
+        queryParams.push(lang);
+
         // Add limit and offset parameters at the end
         paramCount++;
         const limitParamIndex = paramCount;
@@ -1771,7 +1781,7 @@ router.get('/shapes', async(req, res) => {
             json_agg(
               json_build_object(
                 'id', sc.id,
-                'name', sc.name,
+                'name', CASE WHEN $${langParamIndex} = 'ar' THEN COALESCE(sc.name_ar, sc.name_en, sc.name) ELSE COALESCE(sc.name_en, sc.name) END,
                 'name_en', sc.name_en,
                 'name_ar', sc.name_ar,
                 'slug', sc.slug
@@ -1806,8 +1816,8 @@ router.get('/shapes', async(req, res) => {
             }
         }
 
-        // Get total count for pagination (without limit and offset)
-        const countParams = queryParams.slice(0, -2); // Remove limit and offset from end
+        // Get total count for pagination (without limit, offset, and lang)
+        const countParams = queryParams.slice(0, -3); // Remove lang, limit, and offset from end
         // Use DISTINCT to count unique shapes when using GROUP BY in main query
         let totalRes;
         try {
