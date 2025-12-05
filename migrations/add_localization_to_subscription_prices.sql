@@ -21,6 +21,17 @@ COMMENT ON COLUMN subscription_prices.weekly_price_ar IS 'Weekly subscription pr
 COMMENT ON COLUMN subscription_prices.monthly_price_ar IS 'Monthly subscription price in Arabic (localized)';
 COMMENT ON COLUMN subscription_prices.yearly_price_ar IS 'Yearly subscription price in Arabic (localized)';
 
+-- Add currency localization columns
+ALTER TABLE subscription_prices
+ADD COLUMN IF NOT EXISTS currency_name_en VARCHAR(255);
+
+ALTER TABLE subscription_prices
+ADD COLUMN IF NOT EXISTS currency_name_ar VARCHAR(255);
+
+-- Add comments for currency localization columns
+COMMENT ON COLUMN subscription_prices.currency_name_en IS 'Currency name in English (e.g., "US Dollar", "Emirati Dirham")';
+COMMENT ON COLUMN subscription_prices.currency_name_ar IS 'Currency name in Arabic (e.g., "دولار أمريكي", "درهم إماراتي")';
+
 -- ==============================================
 -- CREATE PLAN_TYPES TABLE FOR MULTILINGUAL PLAN NAMES
 -- ==============================================

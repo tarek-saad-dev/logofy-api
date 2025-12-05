@@ -52,6 +52,8 @@ router.get('/', async(req, res) => {
                 yearly_price_ar,
                 trial_days,
                 currency,
+                currency_name_en,
+                currency_name_ar,
                 stripe_weekly_price_id,
                 stripe_monthly_price_id,
                 stripe_yearly_price_id,
@@ -91,6 +93,8 @@ router.get('/', async(req, res) => {
                     yearly_price: 0.00,
                     trial_days: 0,
                     currency: 'USD',
+                    currency_name_en: 'US Dollar',
+                    currency_name_ar: 'دولار أمريكي',
                     stripe_weekly_price_id: null,
                     stripe_monthly_price_id: null,
                     stripe_yearly_price_id: null,
@@ -115,6 +119,11 @@ router.get('/', async(req, res) => {
             parseFloat(priceData.yearly_price_ar) :
             parseFloat(priceData.yearly_price);
 
+        // Use Arabic currency name if language is Arabic and Arabic name exists, otherwise use English
+        const currencyName = isArabic && priceData.currency_name_ar ?
+            priceData.currency_name_ar :
+            (priceData.currency_name_en || priceData.currency);
+
         res.json({
             success: true,
             data: {
@@ -123,6 +132,9 @@ router.get('/', async(req, res) => {
                 yearly_price: yearlyPrice,
                 trial_days: priceData.trial_days,
                 currency: priceData.currency,
+                currency_name: currencyName,
+                currency_name_en: priceData.currency_name_en || priceData.currency,
+                currency_name_ar: priceData.currency_name_ar || priceData.currency,
                 stripe_weekly_price_id: priceData.stripe_weekly_price_id,
                 stripe_monthly_price_id: priceData.stripe_monthly_price_id,
                 stripe_yearly_price_id: priceData.stripe_yearly_price_id,
@@ -153,6 +165,8 @@ router.get('/', async(req, res) => {
  *   "yearly_price_ar": 999.99,
  *   "trial_days": 3,
  *   "currency": "EGP",
+ *   "currency_name_en": "Egyptian Pound",
+ *   "currency_name_ar": "جنيه مصري",
  *   "stripe_weekly_price_id": "price_...",
  *   "stripe_monthly_price_id": "price_...",
  *   "stripe_yearly_price_id": "price_..."
@@ -176,6 +190,8 @@ router.post('/', async(req, res) => {
             yearly_price_ar,
             trial_days,
             currency,
+            currency_name_en,
+            currency_name_ar,
             stripe_weekly_price_id,
             stripe_monthly_price_id,
             stripe_yearly_price_id
@@ -233,6 +249,16 @@ router.post('/', async(req, res) => {
                 'currency must be a string');
         }
 
+        if (currency_name_en && typeof currency_name_en !== 'string') {
+            return badRequest(res, ERROR_CODES.GENERAL.VALIDATION_ERROR,
+                'currency_name_en must be a string');
+        }
+
+        if (currency_name_ar && typeof currency_name_ar !== 'string') {
+            return badRequest(res, ERROR_CODES.GENERAL.VALIDATION_ERROR,
+                'currency_name_ar must be a string');
+        }
+
         // Deactivate all existing active prices
         await query(
             `UPDATE subscription_prices 
@@ -251,11 +277,13 @@ router.post('/', async(req, res) => {
                 yearly_price_ar,
                 trial_days,
                 currency,
+                currency_name_en,
+                currency_name_ar,
                 stripe_weekly_price_id,
                 stripe_monthly_price_id,
                 stripe_yearly_price_id,
                 is_active
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, TRUE)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, TRUE)
             RETURNING 
                 weekly_price,
                 weekly_price_ar,
@@ -265,6 +293,8 @@ router.post('/', async(req, res) => {
                 yearly_price_ar,
                 trial_days,
                 currency,
+                currency_name_en,
+                currency_name_ar,
                 stripe_weekly_price_id,
                 stripe_monthly_price_id,
                 stripe_yearly_price_id,
@@ -278,6 +308,8 @@ router.post('/', async(req, res) => {
                 yearly_price_ar || null,
                 trial_days || 0,
                 currency || 'USD',
+                currency_name_en || null,
+                currency_name_ar || null,
                 stripe_weekly_price_id || null,
                 stripe_monthly_price_id || null,
                 stripe_yearly_price_id || null

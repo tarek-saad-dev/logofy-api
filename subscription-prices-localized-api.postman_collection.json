@@ -1,0 +1,471 @@
+{
+    "info": {
+        "name": "Logo Maker - Subscription Prices API (Localized)",
+        "description": "API collection for managing dynamic subscription prices with multilingual support (English & Arabic). Allows project owners to update prices and mobile apps to fetch current prices in different languages.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+        "_exporter_id": "subscription-prices-localized-api"
+    },
+    "variable": [{
+        "key": "baseUrl",
+        "value": "http://localhost:3000",
+        "type": "string"
+    }],
+    "item": [{
+            "name": "Get Subscription Prices",
+            "description": "Public endpoints to fetch subscription prices in different languages",
+            "item": [{
+                    "name": "Get Prices (English - Default)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices?lang=en",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"],
+                            "query": [{
+                                "key": "lang",
+                                "value": "en",
+                                "description": "Language: 'en' for English (default)"
+                            }]
+                        },
+                        "description": "**Public endpoint** - No authentication required.\n\nFetches subscription prices in English. Returns English prices, currency names, and plan type names.\n\n**Response includes:**\n- weekly_price, monthly_price, yearly_price (English prices)\n- trial_days\n- currency (currency code like USD, EGP, AED)\n- currency_name (localized currency name based on lang parameter)\n- currency_name_en, currency_name_ar (both currency names)\n- stripe_weekly_price_id, stripe_monthly_price_id, stripe_yearly_price_id\n- plan_types (with name_en and name_ar for each plan)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Prices (Arabic)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices?lang=ar",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"],
+                            "query": [{
+                                "key": "lang",
+                                "value": "ar",
+                                "description": "Language: 'ar' for Arabic"
+                            }]
+                        },
+                        "description": "**Public endpoint** - No authentication required.\n\nFetches subscription prices in Arabic. Returns Arabic prices and currency names if available, otherwise falls back to English.\n\n**Response includes:**\n- weekly_price, monthly_price, yearly_price (Arabic prices if set, otherwise English)\n- trial_days\n- currency (currency code like USD, EGP, AED)\n- currency_name (Arabic currency name if set, otherwise English)\n- currency_name_en, currency_name_ar (both currency names)\n- stripe_weekly_price_id, stripe_monthly_price_id, stripe_yearly_price_id\n- plan_types (with name_en and name_ar for each plan)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Prices (No Language Parameter)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "**Public endpoint** - No authentication required.\n\nFetches subscription prices without language parameter. Defaults to English.\n\nSame as GET with ?lang=en"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Update Subscription Prices",
+            "description": "Public endpoints to update subscription prices (no authentication required)",
+            "item": [{
+                    "name": "Update Prices (English Only)",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success) {",
+                                "        console.log(\"✅ Prices updated successfully!\");",
+                                "        console.log(\"📊 New prices:\");",
+                                "        console.log(\"   Weekly: \" + (jsonData.data.weekly_price || 'null'));",
+                                "        console.log(\"   Monthly: \" + jsonData.data.monthly_price + \" \" + jsonData.data.currency);",
+                                "        console.log(\"   Yearly: \" + jsonData.data.yearly_price + \" \" + jsonData.data.currency);",
+                                "        console.log(\"   Trial Days: \" + jsonData.data.trial_days);",
+                                "        console.log(\"\\n💡 Next: Call GET /api/subscription-prices?lang=en to verify\");",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"weekly_price\": 24.99,\n    \"monthly_price\": 97.99,\n    \"yearly_price\": 999.99,\n    \"trial_days\": 3,\n    \"currency\": \"EGP\",\n    \"stripe_weekly_price_id\": \"price_weekly_egp\",\n    \"stripe_monthly_price_id\": \"price_monthly_egp\",\n    \"stripe_yearly_price_id\": \"price_yearly_egp\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "**Public endpoint** - No authentication required.\n\nUpdate subscription prices with English prices only.\n\n**What happens:**\n1. All existing active prices are deactivated\n2. New active price configuration is created\n3. Mobile app will fetch these new prices\n\n**Required fields:**\n- monthly_price (number, >= 0)\n- yearly_price (number, >= 0)\n\n**Optional fields:**\n- weekly_price (number, >= 0)\n- weekly_price_ar (number, >= 0)\n- monthly_price_ar (number, >= 0)\n- yearly_price_ar (number, >= 0)\n- trial_days (integer, default: 0)\n- currency (string, default: \"USD\")\n- stripe_weekly_price_id, stripe_monthly_price_id, stripe_yearly_price_id (strings)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Prices (English + Arabic)",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success) {",
+                                "        console.log(\"✅ Prices updated with localization!\");",
+                                "        console.log(\"📊 English prices:\");",
+                                "        console.log(\"   Weekly: \" + (jsonData.data.weekly_price || 'null'));",
+                                "        console.log(\"   Monthly: \" + jsonData.data.monthly_price);",
+                                "        console.log(\"   Yearly: \" + jsonData.data.yearly_price);",
+                                "        console.log(\"\\n📊 Arabic prices:\");",
+                                "        console.log(\"   Weekly: \" + (jsonData.data.weekly_price_ar || 'null'));",
+                                "        console.log(\"   Monthly: \" + (jsonData.data.monthly_price_ar || 'null'));",
+                                "        console.log(\"   Yearly: \" + (jsonData.data.yearly_price_ar || 'null'));",
+                                "        console.log(\"\\n💡 Test: GET /api/subscription-prices?lang=ar to see Arabic prices\");",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"weekly_price\": 24.99,\n    \"weekly_price_ar\": 24.99,\n    \"monthly_price\": 97.99,\n    \"monthly_price_ar\": 97.99,\n    \"yearly_price\": 999.99,\n    \"yearly_price_ar\": 999.99,\n    \"trial_days\": 3,\n    \"currency\": \"EGP\",\n    \"currency_name_en\": \"Egyptian Pound\",\n    \"currency_name_ar\": \"جنيه مصري\",\n    \"stripe_weekly_price_id\": \"price_weekly_egp\",\n    \"stripe_monthly_price_id\": \"price_monthly_egp\",\n    \"stripe_yearly_price_id\": \"price_yearly_egp\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "**Public endpoint** - No authentication required.\n\nUpdate subscription prices with both English and Arabic prices and currency names.\n\n**Example:**\n- English monthly: 97.99 EGP (Egyptian Pound)\n- Arabic monthly: 97.99 EGP (جنيه مصري)\n- Currency code: EGP\n- Currency name (English): Egyptian Pound\n- Currency name (Arabic): جنيه مصري\n\nWhen users request prices with ?lang=ar, they will get Arabic prices and currency names. If Arabic values are not set, English values are returned as fallback."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Prices (USD Example)",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success) {",
+                                "        console.log(\"✅ USD prices updated!\");",
+                                "        console.log(\"📊 Prices:\");",
+                                "        console.log(\"   Monthly: \" + jsonData.data.monthly_price + \" \" + jsonData.data.currency);",
+                                "        console.log(\"   Yearly: \" + jsonData.data.yearly_price + \" \" + jsonData.data.currency);",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"weekly_price\": 4.99,\n    \"weekly_price_ar\": 4.99,\n    \"monthly_price\": 9.99,\n    \"monthly_price_ar\": 9.99,\n    \"yearly_price\": 99.99,\n    \"yearly_price_ar\": 99.99,\n    \"trial_days\": 7,\n    \"currency\": \"USD\",\n    \"currency_name_en\": \"US Dollar\",\n    \"currency_name_ar\": \"دولار أمريكي\",\n    \"stripe_weekly_price_id\": \"price_weekly_usd\",\n    \"stripe_monthly_price_id\": \"price_monthly_usd\",\n    \"stripe_yearly_price_id\": \"price_yearly_usd\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "Update subscription prices with USD currency and both English and Arabic prices"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Prices (AED - Emirati Dirham)",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success) {",
+                                "        console.log(\"✅ AED prices updated!\");",
+                                "        console.log(\"📊 Prices:\");",
+                                "        console.log(\"   Monthly: \" + jsonData.data.monthly_price + \" \" + jsonData.data.currency);",
+                                "        console.log(\"   Yearly: \" + jsonData.data.yearly_price + \" \" + jsonData.data.currency);",
+                                "        console.log(\"\\n💱 Currency Names:\");",
+                                "        console.log(\"   English: \" + jsonData.data.currency_name_en);",
+                                "        console.log(\"   Arabic: \" + jsonData.data.currency_name_ar);",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"weekly_price\": 19.99,\n    \"weekly_price_ar\": 19.99,\n    \"monthly_price\": 79.99,\n    \"monthly_price_ar\": 79.99,\n    \"yearly_price\": 799.99,\n    \"yearly_price_ar\": 799.99,\n    \"trial_days\": 7,\n    \"currency\": \"AED\",\n    \"currency_name_en\": \"Emirati Dirham\",\n    \"currency_name_ar\": \"درهم إماراتي\",\n    \"stripe_weekly_price_id\": \"price_weekly_aed\",\n    \"stripe_monthly_price_id\": \"price_monthly_aed\",\n    \"stripe_yearly_price_id\": \"price_yearly_aed\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "Update subscription prices with AED (Emirati Dirham) currency and both English and Arabic currency names.\n\n**Example:**\n- Currency code: AED\n- Currency name (English): Emirati Dirham\n- Currency name (Arabic): درهم إماراتي"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Prices (Minimal - Required Only)",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    const jsonData = pm.response.json();",
+                                "    if (jsonData.success) {",
+                                "        console.log(\"✅ Prices updated with minimal fields\");",
+                                "        console.log(\"📊 Defaults applied:\");",
+                                "        console.log(\"   Trial Days: \" + jsonData.data.trial_days + \" (default: 0)\");",
+                                "        console.log(\"   Currency: \" + jsonData.data.currency + \" (default: USD)\");",
+                                "        console.log(\"   Weekly: \" + (jsonData.data.weekly_price || 'null (optional)'));",
+                                "    }",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"monthly_price\": 19.99,\n    \"yearly_price\": 199.99\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "Update prices with only required fields (monthly_price and yearly_price). Optional fields will use defaults:\n- weekly_price: null\n- weekly_price_ar: null\n- monthly_price_ar: null\n- yearly_price_ar: null\n- trial_days: 0\n- currency: \"USD\"\n- stripe_*_price_id: null"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Testing Workflow",
+            "description": "Complete workflow examples for testing the localized subscription prices API",
+            "item": [{
+                    "name": "1. Get Current Prices (English)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices?lang=en",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"],
+                            "query": [{
+                                "key": "lang",
+                                "value": "en"
+                            }]
+                        },
+                        "description": "Step 1: Check current prices in English before updating"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "2. Update Prices (With Localization)",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    console.log(\"✅ Prices updated!\");",
+                                "    console.log(\"💡 Next: Run steps 3 and 4 to verify in both languages\");",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"weekly_price\": 24.99,\n    \"weekly_price_ar\": 24.99,\n    \"monthly_price\": 97.99,\n    \"monthly_price_ar\": 97.99,\n    \"yearly_price\": 999.99,\n    \"yearly_price_ar\": 999.99,\n    \"trial_days\": 3,\n    \"currency\": \"EGP\",\n    \"currency_name_en\": \"Egyptian Pound\",\n    \"currency_name_ar\": \"جنيه مصري\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "Step 2: Update prices with both English and Arabic values"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "3. Verify Prices (English)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices?lang=en",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"],
+                            "query": [{
+                                "key": "lang",
+                                "value": "en"
+                            }]
+                        },
+                        "description": "Step 3: Verify the prices were updated correctly (English)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "4. Verify Prices (Arabic)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices?lang=ar",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"],
+                            "query": [{
+                                "key": "lang",
+                                "value": "ar"
+                            }]
+                        },
+                        "description": "Step 4: Verify the prices are returned in Arabic (should show Arabic prices if set, otherwise English fallback)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "5. Check Plan Types",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "Step 5: Check plan_types object in response - should include 'pro', 'guest', 'trial', 'free_trial' with name_en and name_ar for each"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Error Examples",
+            "description": "Examples of error responses for validation",
+            "item": [{
+                    "name": "POST With Missing Required Field",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"monthly_price\": 10.00\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "**Expected Error:** 400 Bad Request - \"yearly_price is required\"\n\nThis demonstrates validation - both monthly_price and yearly_price are required."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST With Invalid Arabic Price",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"monthly_price\": 10.00,\n    \"monthly_price_ar\": \"not-a-number\",\n    \"yearly_price\": 100.00\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "**Expected Error:** 400 Bad Request - \"monthly_price_ar must be a non-negative number\"\n\nThis demonstrates validation - Arabic prices must be numbers if provided."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST With Negative Price",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"monthly_price\": -10.00,\n    \"yearly_price\": 100.00\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/subscription-prices",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "subscription-prices"]
+                        },
+                        "description": "**Expected Error:** 400 Bad Request - \"monthly_price must be a non-negative number\"\n\nThis demonstrates range validation - prices cannot be negative."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Plan Types Examples",
+            "description": "Examples showing plan_types in responses",
+            "item": [{
+                "name": "Get Prices - Check Plan Types",
+                "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                        "raw": "{{baseUrl}}/api/subscription-prices",
+                        "host": ["{{baseUrl}}"],
+                        "path": ["api", "subscription-prices"]
+                    },
+                    "description": "Get prices and check the plan_types object in the response.\n\n**Expected plan_types structure:**\n```json\n{\n  \"plan_types\": {\n    \"pro\": {\n      \"name_en\": \"Pro\",\n      \"name_ar\": \"احترافي\",\n      \"description_en\": \"Professional subscription plan...\",\n      \"description_ar\": \"خطة الاشتراك الاحترافية...\"\n    },\n    \"guest\": {\n      \"name_en\": \"Guest\",\n      \"name_ar\": \"ضيف\",\n      ...\n    },\n    \"trial\": { ... },\n    \"free_trial\": { ... }\n  }\n}\n```\n\nPlan types are stored in the database and can be used to display localized plan names in the mobile app."
+                },
+                "response": []
+            }]
+        }
+    ]
+}

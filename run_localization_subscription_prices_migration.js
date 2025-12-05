@@ -46,15 +46,29 @@ async function runLocalizationSubscriptionPricesMigration() {
         WHERE table_schema = 'public' 
         AND table_name = 'subscription_prices'
         AND column_name = 'yearly_price_ar'
-      ) as yearly_ar_exists
+      ) as yearly_ar_exists,
+      EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'subscription_prices'
+        AND column_name = 'currency_name_en'
+      ) as currency_name_en_exists,
+      EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'subscription_prices'
+        AND column_name = 'currency_name_ar'
+      ) as currency_name_ar_exists
     `);
 
         const weeklyArExists = columnCheck.rows[0].weekly_ar_exists;
         const monthlyArExists = columnCheck.rows[0].monthly_ar_exists;
         const yearlyArExists = columnCheck.rows[0].yearly_ar_exists;
+        const currencyNameEnExists = columnCheck.rows[0].currency_name_en_exists;
+        const currencyNameArExists = columnCheck.rows[0].currency_name_ar_exists;
 
-        if (weeklyArExists && monthlyArExists && yearlyArExists) {
-            console.log('⚠️  Arabic price columns already exist');
+        if (weeklyArExists && monthlyArExists && yearlyArExists && currencyNameEnExists && currencyNameArExists) {
+            console.log('⚠️  All localization columns already exist');
         } else {
             if (!weeklyArExists) {
                 console.log('✅ weekly_price_ar column does not exist - will be created');
@@ -64,6 +78,12 @@ async function runLocalizationSubscriptionPricesMigration() {
             }
             if (!yearlyArExists) {
                 console.log('✅ yearly_price_ar column does not exist - will be created');
+            }
+            if (!currencyNameEnExists) {
+                console.log('✅ currency_name_en column does not exist - will be created');
+            }
+            if (!currencyNameArExists) {
+                console.log('✅ currency_name_ar column does not exist - will be created');
             }
         }
 
@@ -95,7 +115,7 @@ async function runLocalizationSubscriptionPricesMigration() {
       SELECT column_name, data_type, is_nullable
       FROM information_schema.columns 
       WHERE table_name = 'subscription_prices' 
-      AND column_name IN ('weekly_price_ar', 'monthly_price_ar', 'yearly_price_ar')
+      AND column_name IN ('weekly_price_ar', 'monthly_price_ar', 'yearly_price_ar', 'currency_name_en', 'currency_name_ar')
       ORDER BY column_name
     `);
 
@@ -124,9 +144,10 @@ async function runLocalizationSubscriptionPricesMigration() {
         console.log('✅ Localization migration completed successfully!');
         console.log('\n📝 Next steps:');
         console.log('   - The subscription_prices table now supports Arabic prices');
+        console.log('   - Currency names are stored in both English and Arabic');
         console.log('   - Plan types (Pro, Guest, Trial) are stored in both English and Arabic');
-        console.log('   - GET /api/subscription-prices?lang=ar will return Arabic prices');
-        console.log('   - POST /api/subscription-prices accepts weekly_price_ar, monthly_price_ar, yearly_price_ar');
+        console.log('   - GET /api/subscription-prices?lang=ar will return Arabic prices and currency names');
+        console.log('   - POST /api/subscription-prices accepts currency_name_en and currency_name_ar');
         console.log('');
 
     } catch (error) {
