@@ -860,8 +860,19 @@ router.post('/mobile', async(req, res) => {
 
                         if (!assetId) {
                             // Create new asset with proper URL structure
-                            // For icons, we'll use a placeholder URL structure that can be replaced with actual URLs
-                            const iconUrl = icon.url || `https://example.com/icons/${icon.src}`;
+                            // If icon.url is provided, use it. Otherwise, check if icon.src is already an absolute URL.
+                            // If icon.src starts with http:// or https://, use it as-is without prepending base URL.
+                            // Otherwise, prepend the base URL for relative paths.
+                            let iconUrl = icon.url;
+                            if (!iconUrl && icon.src) {
+                                if (icon.src.startsWith('http://') || icon.src.startsWith('https://')) {
+                                    // Already an absolute URL, use as-is
+                                    iconUrl = icon.src;
+                                } else {
+                                    // Relative path, prepend base URL
+                                    iconUrl = `https://example.com/icons/${icon.src}`;
+                                }
+                            }
                             const newAssetRes = await client.query(`
                 INSERT INTO assets (kind, name, storage, url, mime_type, width, height, has_alpha) 
                 VALUES ('vector', $1, 'local', $2, 'image/svg+xml', 100, 100, true) 
@@ -1467,8 +1478,8 @@ router.get('/icons', async(req, res) => {
             }
         }
 
-        // Get total count for pagination (without limit and offset)
-        const countParams = queryParams.slice(0, -2); // Remove limit and offset from end
+        // Get total count for pagination (without lang, limit and offset)
+        const countParams = queryParams.slice(0, -3); // Remove lang, limit and offset from end
         // Use DISTINCT to count unique icons when using GROUP BY in main query
         let totalRes;
         try {
@@ -4197,7 +4208,19 @@ router.patch('/:id/mobile/legacy', async(req, res) => {
                             const assetRes = await client.query(`SELECT id FROM assets WHERE name = $1 LIMIT 1`, [icon.src]);
                             let assetId = (assetRes.rows[0] && assetRes.rows[0].id);
                             if (!assetId) {
-                                const iconUrl = icon.url || `https://example.com/icons/${icon.src}`;
+                                // If icon.url is provided, use it. Otherwise, check if icon.src is already an absolute URL.
+                                // If icon.src starts with http:// or https://, use it as-is without prepending base URL.
+                                // Otherwise, prepend the base URL for relative paths.
+                                let iconUrl = icon.url;
+                                if (!iconUrl && icon.src) {
+                                    if (icon.src.startsWith('http://') || icon.src.startsWith('https://')) {
+                                        // Already an absolute URL, use as-is
+                                        iconUrl = icon.src;
+                                    } else {
+                                        // Relative path, prepend base URL
+                                        iconUrl = `https://example.com/icons/${icon.src}`;
+                                    }
+                                }
                                 const newAssetRes = await client.query(`
                                     INSERT INTO assets (kind, name, storage, url, mime_type, width, height, has_alpha) 
                                     VALUES ('vector', $1, 'local', $2, 'image/svg+xml', 100, 100, true) 

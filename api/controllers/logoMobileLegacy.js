@@ -289,6 +289,7 @@ async function getLogoMobileLegacy(req, res, next) {
                 case 'BACKGROUND':
                     // Get background asset URL - check if asset_url exists and matches bg_asset_id
                     // The SQL join matches assets for icon, image, or background, so we need to verify it's for background
+                    // If asset_url is already an absolute URL (http:// or https://), use it as-is without any prepending
                     const bgAssetUrl = (row.bg_asset_id != null && (row.asset_id === row.bg_asset_id || row.type === 'BACKGROUND')) ? row.asset_url : null;
                     return {
                         ...baseLayer,
@@ -525,23 +526,31 @@ async function getAllLogosMobileLegacy(req, res, next) {
                         }
                     };
                 case 'ICON':
+                    // Use asset_url directly - if it's already an absolute URL (http:// or https://), 
+                    // it should be used as-is without any prepending
+                    const iconSrcAll = row.asset_url || row.asset_name || (row.asset_id ? `icon_${row.asset_id}` : '');
                     return {
                         ...baseLayer,
                         icon: {
-                            src: row.asset_url || row.asset_name || (row.asset_id ? `icon_${row.asset_id}` : ''),
+                            src: iconSrcAll,
                             color: row.tint_hex || '#000000'
                         }
                     };
                 case 'IMAGE':
+                    // Use asset_url directly - if it's already an absolute URL (http:// or https://), 
+                    // it should be used as-is without any prepending
+                    const imagePathAll = row.asset_url;
                     return {
                         ...baseLayer,
-                        image: row.asset_url ? { type: 'imported', path: row.asset_url } : null
+                        image: imagePathAll ? { type: 'imported', path: imagePathAll } : null
                     };
                 case 'SHAPE':
+                    // Extract src from shape_meta - if it's already an absolute URL, use it as-is
+                    const shapeSrcAll = (row.shape_meta != null && row.shape_meta.src != null) ? row.shape_meta.src : null;
                     return {
                         ...baseLayer,
                         shape: {
-                            src: (row.shape_meta != null && row.shape_meta.src != null) ? row.shape_meta.src : null,
+                            src: shapeSrcAll,
                             type: row.shape_kind || 'rect',
                             color: row.shape_fill_hex || '#000000',
                             strokeColor: row.shape_stroke_hex || null,
@@ -549,15 +558,18 @@ async function getAllLogosMobileLegacy(req, res, next) {
                         }
                     };
                 case 'BACKGROUND':
+                    // Use asset_url directly - if it's already an absolute URL (http:// or https://), 
+                    // it should be used as-is without any prepending
+                    const bgAssetUrlAll = row.asset_url;
                     return {
                         ...baseLayer,
                         background: {
                             type: row.mode || 'solid',
                             color: row.bg_fill_hex || '#ffffff',
-                            image: row.asset_url ? {
+                            image: bgAssetUrlAll ? {
                                 type: 'imported',
-                                path: row.asset_url,
-                                src: row.asset_name || row.asset_url
+                                path: bgAssetUrlAll,
+                                src: row.asset_name || bgAssetUrlAll
                             } : null
                         }
                     };
