@@ -89,10 +89,14 @@ router.get('/thumbnails', async(req, res) => {
         const categoryId = req.query.category_id || req.query.categoryId;
         const lang = req.query.lang || 'en';
         const logosPerCategory = Math.min(20, Math.max(1, parseInt(req.query.logos_per_category || '10', 10)));
+        const logosPage = Math.max(1, parseInt(req.query.logos_page || '1', 10));
 
         // MODE 1: Get logos for a specific category (logo pagination)
         if (categoryId) {
-            const offset = (page - 1) * limit;
+            // Ensure page and limit are properly parsed as integers
+            const pageNum = Math.max(1, parseInt(page, 10));
+            const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
+            const offset = (pageNum - 1) * limitNum;
 
             // Get logos for the specific category
             const logosRes = await query(`
@@ -119,7 +123,7 @@ router.get('/thumbnails', async(req, res) => {
                 WHERE l.category_id = $3
                 ORDER BY l.created_at DESC
                 LIMIT $1 OFFSET $2
-            `, [limit, offset, categoryId]);
+            `, [limitNum, offset, categoryId]);
 
             // Get total count of logos in this category
             const totalRes = await query(`
@@ -172,17 +176,20 @@ router.get('/thumbnails', async(req, res) => {
                 } : null,
                 pagination: {
                     type: 'logos',
-                    page,
-                    limit,
+                    page: pageNum,
+                    limit: limitNum,
                     total,
-                    pages: Math.ceil(total / limit),
-                    hasMore: page < Math.ceil(total / limit)
+                    pages: Math.ceil(total / limitNum),
+                    hasMore: pageNum < Math.ceil(total / limitNum)
                 }
             }, currentLang, currentLang === "ar" ? "تم جلب الشعارات بنجاح" : "Logos fetched successfully"));
         }
 
         // MODE 2: Get paginated categories with limited logos per category (category pagination)
-        const offset = (page - 1) * limit;
+        // Ensure page and limit are properly parsed as integers
+        const pageNum = Math.max(1, parseInt(page, 10));
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
+        const offset = (pageNum - 1) * limitNum;
 
         // Get paginated categories that have logos
         const categoriesRes = await query(`
@@ -199,7 +206,7 @@ router.get('/thumbnails', async(req, res) => {
             GROUP BY c.id, c.name, c.name_en, c.name_ar, c.description, c.description_en, c.description_ar
             ORDER BY c.id ASC
             LIMIT $1 OFFSET $2
-        `, [limit, offset]);
+        `, [limitNum, offset]);
 
         // Get total count of categories that have logos
         const totalCategoriesRes = await query(`
@@ -209,8 +216,9 @@ router.get('/thumbnails', async(req, res) => {
         `);
         const totalCategories = totalCategoriesRes.rows[0].total;
 
-        // Get logos for each category (limited per category)
+        // Get logos for each category (limited per category with pagination)
         const categoryGroups = [];
+        const logosOffset = (logosPage - 1) * logosPerCategory;
 
         for (const category of categoriesRes.rows) {
             const logosRes = await query(`
@@ -229,8 +237,8 @@ router.get('/thumbnails', async(req, res) => {
                 FROM logos l
                 WHERE l.category_id = $1
                 ORDER BY l.created_at DESC
-                LIMIT $2
-            `, [category.id, logosPerCategory]);
+                LIMIT $2 OFFSET $3
+            `, [category.id, logosPerCategory, logosOffset]);
 
             // Get total count of logos in this category
             const categoryTotalRes = await query(`
@@ -254,6 +262,10 @@ router.get('/thumbnails', async(req, res) => {
                 direction: lang === 'ar' ? 'rtl' : 'ltr'
             }));
 
+            // Calculate if there are more logos for this category
+            const logosPages = Math.ceil(categoryTotal / logosPerCategory);
+            const hasMoreLogos = logosPage < logosPages;
+
             categoryGroups.push({
                 category: {
                     id: category.id,
@@ -264,9 +276,12 @@ router.get('/thumbnails', async(req, res) => {
                 },
                 logos: formattedLogos,
                 logoPagination: {
+                    page: logosPage,
+                    limit: logosPerCategory,
                     total: categoryTotal,
                     returned: formattedLogos.length,
-                    hasMore: categoryTotal > formattedLogos.length
+                    pages: logosPages,
+                    hasMore: hasMoreLogos
                 }
             });
         }
@@ -276,12 +291,13 @@ router.get('/thumbnails', async(req, res) => {
             data: categoryGroups,
             pagination: {
                 type: 'categories',
-                page,
-                limit,
+                page: pageNum,
+                limit: limitNum,
                 total: totalCategories,
-                pages: Math.ceil(totalCategories / limit),
-                hasMore: page < Math.ceil(totalCategories / limit),
-                logosPerCategory: logosPerCategory
+                pages: Math.ceil(totalCategories / limitNum),
+                hasMore: pageNum < Math.ceil(totalCategories / limitNum),
+                logosPerCategory: logosPerCategory,
+                logosPage: logosPage
             }
         }, currentLang, currentLang === "ar" ? "تم جلب الفئات والشعارات بنجاح" : "Categories and logos fetched successfully"));
     } catch (err) {
