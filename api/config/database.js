@@ -168,6 +168,16 @@ const initializeDatabase = async () => {
       // The migration can be run manually if needed
     }
 
+    // Run access table migration (always run - it's idempotent)
+    try {
+      const { migrateAccess } = require('./migrate-access');
+      await migrateAccess();
+    } catch (error) {
+      console.error('❌ Error running access table migration:', error.message);
+      // Don't throw - allow server to start, but log the error
+      // The migration can be run manually if needed
+    }
+
     client.release();
     console.log('✅ Database tables initialized successfully');
   } catch (err) {

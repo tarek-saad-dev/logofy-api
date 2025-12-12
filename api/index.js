@@ -76,6 +76,9 @@ app.use('/api/subscription-prices', require('./routes/subscriptionPrices'));
 // Privacy policy routes
 app.use('/api/privacy-policy', require('./routes/privacyPolicy'));
 
+// Access routes
+app.use('/api/access', require('./routes/access'));
+
 // Import error handler
 const { notFound, errorHandler, ERROR_CODES } = require('./utils/errorHandler');
 
